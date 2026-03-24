@@ -51,7 +51,7 @@ export default function Login() {
             type="submit"
             className="w-full py-3.5 bg-[#2e3f6e] text-white rounded-lg text-base font-bold hover:bg-[#1e2d52] transition-colors"
           >
-            登入
+            登入系統
           </button>
         </form>
       </div>
