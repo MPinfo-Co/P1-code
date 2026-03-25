@@ -40,6 +40,6 @@ P1-code/
 
 | Repo | 用途 |
 |---|---|
-| `P1-analysis` | 實體分析、資料庫設計文件 |
-| `P1-design` | 設計稿、Prototype |
-| `P1-project` | 專案管理、issue 追蹤 |
+| `P1-analysis` | 需求分析、參考文件 |
+| `P1-design` | 設計稿、Prototype、技術棧、Schema |
+| `P1-project` | 專案管理、AI-CONTEXT.md |
