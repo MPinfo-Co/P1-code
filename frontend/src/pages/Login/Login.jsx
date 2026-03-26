@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../stores/authStore'
 import { users } from '../../data/users'
 
 export default function Login() {
   const { login } = useAuth()
+  const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -16,6 +18,7 @@ export default function Login() {
       u.name.toLowerCase().split(' ')[0] === uLower)
     if (found && password === '123') {
       login(found.name, found.roles[0])
+      navigate('/')
     } else {
       setError('帳號或密碼錯誤')
     }

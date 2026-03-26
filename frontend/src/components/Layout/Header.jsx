@@ -1,6 +1,6 @@
 // src/components/Layout/Header.jsx
-import { useLocation } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../stores/authStore'
 
 const PAGE_TITLES = {
   '/': '首頁',
@@ -14,6 +14,7 @@ const PAGE_TITLES = {
 export default function Header() {
   const { logout } = useAuth()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
 
   // Find the most specific matching path
   const title =
@@ -25,7 +26,7 @@ export default function Header() {
     <header className="bg-white border-b border-slate-200 flex items-center justify-between px-8 h-[70px]">
       <h1 className="text-lg font-extrabold text-slate-900">{title}</h1>
       <button
-        onClick={logout}
+        onClick={() => { logout(); navigate('/login') }}
         className="text-red-500 font-semibold text-sm hover:text-red-700 transition-colors"
       >
         登出

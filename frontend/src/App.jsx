@@ -1,6 +1,6 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useAuth } from './stores/authStore'
 import { IssuesProvider } from './contexts/IssuesContext'
 import Layout from './components/Layout/Layout'
 import Login from './pages/Login/Login'
@@ -50,11 +50,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <IssuesProvider>
-          <AppRoutes />
-        </IssuesProvider>
-      </AuthProvider>
+      <IssuesProvider>
+        <AppRoutes />
+      </IssuesProvider>
     </BrowserRouter>
   )
 }
