@@ -1,7 +1,7 @@
 // src/components/Layout/Sidebar.jsx
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../stores/authStore'
 
 export default function Sidebar() {
   const [settingOpen, setSettingOpen] = useState(false)
