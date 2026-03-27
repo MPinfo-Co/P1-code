@@ -15,18 +15,18 @@ import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
 
 function ProtectedRoute({ children }) {
-  const { user } = useAuth()
-  return user ? children : <Navigate to="/login" replace />
+  const { token } = useAuth()
+  return token ? children : <Navigate to="/login" replace />
 }
 
 function AppRoutes() {
-  const { user } = useAuth()
+  const { token } = useAuth()
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
+        element={token ? <Navigate to="/" replace /> : <Login />}
       />
       <Route
         path="/"

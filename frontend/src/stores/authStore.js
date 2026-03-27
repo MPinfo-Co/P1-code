@@ -1,21 +1,33 @@
 // src/stores/authStore.js
 import { create } from 'zustand'
 
-const useAuthStore = create((set) => ({
-  user: (() => {
-    const stored = localStorage.getItem('mp-box-user')
-    return stored ? JSON.parse(stored) : null
-  })(),
+const BASE_URL = import.meta.env.VITE_API_URL
 
-  login: (username, role) => {
-    const userData = { username, role }
-    localStorage.setItem('mp-box-user', JSON.stringify(userData))
-    set({ user: userData })
+const useAuthStore = create((set, get) => ({
+  token: localStorage.getItem('mp-box-token') || null,
+  user: null, // 刷新後為 null，待 GET /api/users/me 實作後補齊
+
+  login: async (email, password) => {
+    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    if (res.status === 401) throw new Error('帳號或密碼錯誤')
+    if (!res.ok) throw new Error('伺服器錯誤，請稍後再試')
+    const { access_token } = await res.json()
+    localStorage.setItem('mp-box-token', access_token)
+    set({ token: access_token, user: { email } })
   },
 
-  logout: () => {
-    localStorage.removeItem('mp-box-user')
-    set({ user: null })
+  logout: async () => {
+    await fetch(`${BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${get().token}` },
+    }).catch((err) => { console.warn('[logout] backend call failed:', err) })
+    localStorage.removeItem('mp-box-token')
+    localStorage.removeItem('mp-box-user') // 清除舊版 mock key
+    set({ token: null, user: null })
   },
 }))
 
