@@ -83,16 +83,18 @@ jobs:
             const match = branch.match(/^issue-(\d+)/);
             const issueNum = match ? match[1] : '?';
 
-            const body = `🧪 **PR 已建立，請設定測試環境**
-
-## PG 測試環境 Checklist
-
-- [ ] 本地啟動後端：\`cd backend && uvicorn main:app --reload\`
-- [ ] 本地啟動前端：\`cd frontend && npm run dev\`
-- [ ] 確認資料庫連線正常
-- [ ] 依照 TestPlan 逐一執行測試案例，填寫測試報告
-
-測試報告請存放於 \`PG測試報告/issue-${issueNum}.md\`（N = PG Issue 編號）。`;
+            const body = [
+              '🧪 **PR 已建立，請設定測試環境**',
+              '',
+              '## PG 測試環境 Checklist',
+              '',
+              '- [ ] 本地啟動後端：`cd backend && uvicorn main:app --reload`',
+              '- [ ] 本地啟動前端：`cd frontend && npm run dev`',
+              '- [ ] 確認資料庫連線正常',
+              '- [ ] 依照 TestPlan 逐一執行測試案例，填寫測試報告',
+              '',
+              `測試報告請存放於 \`PG測試報告/issue-${issueNum}.md\`（N = PG Issue 編號）。`,
+            ].join('\n');
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
