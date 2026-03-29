@@ -8,9 +8,10 @@
 <!-- 2. 實作過程中是否發現 Spec 本身有誤或描述不清？若有，請說明發現的問題及本次如何處理，並在 SD Issue 留言通知 SD 修正 Spec -->
 
 ## 關聯項目
-- Epic：P1-project #
-- SA Issue：P1-analysis #
-- SD Issue：P1-design #
+<!-- 一般功能開發填以下欄位；Chore 維護性變更只填 Chore Issue 與 PG Issue -->
+- Epic / Chore Issue：P1-project #
+- SA Issue：P1-analysis #（Chore 略）
+- SD Issue：P1-design #（Chore 略）
 - PG Issue：#
 
 Closes #
