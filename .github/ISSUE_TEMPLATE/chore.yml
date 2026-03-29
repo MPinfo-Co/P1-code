@@ -1,0 +1,17 @@
+name: Chore（repo 內部維護）
+description: PG repo 內部維護性變更，不觸發任何跨 repo workflow
+title: '[Chore] '
+labels: ['chore']
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 變更說明
+      description: 要做什麼？
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        > 此 Issue 僅用於追蹤 P1-code 內部維護工作，不會觸發任何自動化流程。
