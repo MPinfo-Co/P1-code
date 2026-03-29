@@ -149,17 +149,18 @@ jobs:
                 .join('\n');
             }
 
-            const content = `# VersionDiff：Issue #${issueNum} ${prTitle}
-
-## 修改項目及內容
-<!-- 由 GitHub Actions 自動產生 -->
-${fileLines}
-
-## 關聯項目
-- PG Issue：P1-code #${issueNum}
-- 上一個 commit：${baseSha.slice(0, 7)}
-- 本次 commit：${headSha.slice(0, 7)}
-`;
+            const content = [
+              `# VersionDiff：Issue #${issueNum} ${prTitle}`,
+              '',
+              '## 修改項目及內容',
+              '<!-- 由 GitHub Actions 自動產生 -->',
+              fileLines,
+              '',
+              '## 關聯項目',
+              `- PG Issue：P1-code #${issueNum}`,
+              `- 上一個 commit：${baseSha.slice(0, 7)}`,
+              `- 本次 commit：${headSha.slice(0, 7)}`,
+            ].join('\n');
 
             const filePath = `VersionDiff/issue-${issueNum}_${author}_${date}.md`;
             const encodedContent = Buffer.from(content).toString('base64');
