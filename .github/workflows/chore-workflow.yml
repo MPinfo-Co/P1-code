@@ -5,7 +5,7 @@ on:
     types: [labeled]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   create-chore-branch:
@@ -13,10 +13,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Create chore branch
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const issue = context.payload.issue;
             const issueNumber = issue.number;
