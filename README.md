@@ -1,6 +1,6 @@
 # P1-code — 系統開發（PG／AI）
 
-P1 產品的前後端程式碼庫。React + FastAPI，由 PG 或 AI 依據 SD 規格實作。
+P1 產品的前後端程式碼庫。 React + FastAPI，由 PG 或 AI 依據 SD 規格實作。
 
 ## 在四 Repo 流程中的角色
 
