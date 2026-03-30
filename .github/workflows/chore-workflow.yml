@@ -1,0 +1,66 @@
+name: Chore-workflow
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+
+jobs:
+  create-chore-branch:
+    if: github.event.label.name == 'chore'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create chore branch
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const issueNumber = issue.number;
+            const issueTitle = issue.title.replace(/^\[Chore\]\s*/i, '');
+
+            const slug = issueTitle
+              .toLowerCase()
+              .trim()
+              .replace(/['"]/g, '')
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+              .slice(0, 50) || 'chore';
+
+            const branchName = `chore-${issueNumber}-${slug}`;
+
+            // 取得 main SHA
+            const mainRef = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'heads/main',
+            });
+
+            // 建立分支
+            try {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/heads/${branchName}`,
+                sha: mainRef.data.object.sha,
+              });
+            } catch (e) {
+              if (e.status !== 422) throw e;
+              // 422 = branch already exists, ignore
+            }
+
+            // 在 Issue 留言
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: [
+                `✅ **Chore 分支已自動建立**`,
+                `- 分支：\`${branchName}\``,
+                ``,
+                `請 checkout 此分支後開始作業，完成後開 PR 並填入 \`Closes #${issueNumber}\`。`,
+              ].join('\n'),
+            });
