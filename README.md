@@ -1,45 +1,52 @@
-# P1-code — MP-BOX 1.0 程式碼
+# P1-code — 系統開發（PG／AI）
 
-MP-BOX 1.0 的前後端程式碼 repo。
+P1 產品的前後端程式碼庫。React + FastAPI，由 PG 或 AI 依據 SD 規格實作。
 
-## 結構
+## 在四 Repo 流程中的角色
+
+```
+P1-project（PM）→ P1-analysis（SA）→ P1-design（SD）
+    └─ D-workflow 自動建立 PG Issue + C-Branch + Draft PR
+        └─ P1-code（PG／AI）  ← 你在這裡
+            └─ PG merge → PG Issue 自動關閉，VersionDiff 自動產生
+```
+
+## 目錄結構
 
 ```
 P1-code/
-├── frontend/    # React 18 + Vite + Tailwind CSS v3
-└── backend/     # FastAPI + SQLAlchemy + PostgreSQL
+├── frontend/                     # React 18 + Vite + TypeScript + Tailwind CSS
+├── backend/                      # Python FastAPI + SQLAlchemy + PostgreSQL
+├── PG測試報告/
+│   └── issue-{N}.md              # 測試報告（系統建立框架，PG 填寫結果）
+└── VersionDiff/
+    └── issue-{N}_{author}_{date}.md  # merge 時自動產生，記錄程式碼異動
 ```
 
-各自有獨立的 README，請依需求查看：
-- [frontend/README.md](frontend/README.md)
-- [backend/README.md](backend/README.md)
+詳細說明：[frontend/README.md](frontend/README.md)・[backend/README.md](backend/README.md)
 
-## 設計基準
+## PG／AI 工作起點
 
-所有 UI 以 `P1-design/Prototype/MP-Box_資安專家_v73_claude.html` 為準。
+收到 PG Issue 後，沿關聯鏈讀取資訊：
 
-## Git 工作流程
+| 需要什麼 | 去哪裡找 |
+|----------|---------|
+| 實作範圍 | PG Issue body「實作範圍」欄位 |
+| API 規格 | `P1-design/Spec/` |
+| 畫面規格 | `P1-design/Prototype/` |
+| 本次異動 delta | `P1-design/TestPlan/issue-{SD#}-diff.md` |
+| 商業邏輯背景 | `P1-analysis/issue-{SA#}/business-logic.md` |
+| 測試標準 | `P1-design/TestPlan/issue-{SD#}.md` |
 
-1. 從 GitHub 開 issue → 系統自動建立對應 branch（`issue-{number}-{slug}`）
-2. 在 feature branch 開發
-3. 開 PR → merge 進 main
+1. Pull 分支（Issue body 中有分支連結）
+2. 依 Spec 實作前後端程式碼
+3. 依 TestPlan 撰寫 pytest 測試（數量 ≥ TestPlan 案例數）
+4. Push → CI 自動執行（Ruff + Pytest + ESLint）
+5. CI 通過後把 Draft PR 轉 **Ready for Review**，指派 2 位審查人
+6. Merge 後 PG Issue 自動關閉，VersionDiff 自動產生
 
-**不可直接 push 到 main 。**
+**Branch 命名：** `issue-{N}-{slug}`（由系統建立，不可直接 push main）
 
-## Issue 命名規則
+## 完整工作流程規範
 
-| 前綴 | 說明 |
-|---|---|
-| P1-x | 前端 UI 頁面 |
-| P2-x | 前端基礎建設（狀態管理等） |
-| P3-x | 資料庫設計（在 P1-analysis repo） |
-| P4-x | 後端 API 實作 |
-| P5-x | 資料庫 migration + 前後端串接 |
-
-## 相關 Repo
-
-| Repo | 用途 |
-|---|---|
-| `P1-analysis` | 需求分析、參考文件 |
-| `P1-design` | 設計稿、Prototype、技術棧、Schema |
-| `P1-project` | 專案管理、AI-CONTEXT.md |
+請參考 [P1-project/docs/github-workflow/quick-start.md](https://github.com/MPinfo-Co/P1-project/blob/main/docs/github-workflow/quick-start.md)
