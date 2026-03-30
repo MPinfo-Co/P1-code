@@ -24,7 +24,7 @@ P1-code/
 2. 在 feature branch 開發
 3. 開 PR → merge 進 main
 
-**不可直接 push 到 main。**
+**不可直接 push 到 main 。**
 
 ## Issue 命名規則
 
