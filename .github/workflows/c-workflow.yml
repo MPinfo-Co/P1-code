@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   backend-ci:
@@ -196,3 +197,16 @@ jobs:
             });
 
             console.log(`VersionDiff file created: ${filePath}`);
+
+            // 關閉 PG Issue
+            const pgIssueNum = parseInt(issueNum);
+            if (!isNaN(pgIssueNum)) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pgIssueNum,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+              console.log(`PG Issue #${pgIssueNum} 已自動關閉`);
+            }
