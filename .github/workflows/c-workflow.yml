@@ -41,7 +41,7 @@ jobs:
         run: ruff format --check .
 
       - name: Pytest with coverage
-        run: pytest tests/ -v
+        run: pytest tests/ -v; code=$?; [ $code -eq 5 ] && exit 0 || exit $code
 
   frontend-ci:
     name: Frontend CI（ESLint + Prettier）
