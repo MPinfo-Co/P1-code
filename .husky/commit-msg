@@ -1,1 +1,9 @@
-cd frontend && npx --no -- commitlint --edit $1
+cd frontend && npx --no -- commitlint --edit $1 || (echo "
+正確格式：{type}({scope}): 說明
+範例：feat(auth): 新增登入功能
+      fix: 修正登入錯誤
+      docs(api): 更新 API 文件
+
+可用 type：feat | fix | docs | refactor | test | chore
+scope 可省略
+" && exit 1)
