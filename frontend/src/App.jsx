@@ -57,4 +57,3 @@ export default function App() {
     </BrowserRouter>
   )
 }
-export const msg = 'hello'
