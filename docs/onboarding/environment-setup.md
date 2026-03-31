@@ -21,18 +21,15 @@ pip install -r requirements.txt
 cd ..
 ```
 
-## 3. Python pre-commit hook 安裝（需手動執行一次）
+## 3. 安裝 pre-commit（CLI 工具，需手動一次）
 
 ```bash
 pip install pre-commit
-pre-commit install
 ```
 
-安裝後，每次 `git commit` 時會自動執行：
-- `ruff check`（lint）
-- `ruff format`（格式化）
-
-格式不符或有 lint 錯誤時，commit 會被擋下。
+> **不需要執行 `pre-commit install`**。
+> Python hook 已整合進 husky，由 husky 的 `pre-commit` hook 統一呼叫。
+> 只需確保 `pre-commit` 指令在 PATH 中可用即可。
 
 ## 4. 前端環境設定（hook 自動啟用）
 
