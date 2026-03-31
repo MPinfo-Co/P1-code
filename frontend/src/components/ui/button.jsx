@@ -50,4 +50,5 @@ function Button({ className, variant = 'default', size = 'default', ...props }) 
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants }

@@ -208,6 +208,7 @@ export default function IssueDetail() {
   const [resText, setResText] = useState('')
 
   // reset chat when issueId changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setChatMsgs([
       {
@@ -228,6 +229,7 @@ export default function IssueDetail() {
   useEffect(() => {
     if (issue) setHistStatus(issue.currentStatus)
   }, [issue?.currentStatus])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -263,7 +265,8 @@ export default function IssueDetail() {
     }
     const actualStatusChange = histStatus !== issue.currentStatus ? histStatus : null
     const noteText = actualStatusChange
-      ? histNote + `　【狀態變更為：${actualStatusChange}】`
+      ? // eslint-disable-next-line no-irregular-whitespace
+        histNote + `　【狀態變更為：${actualStatusChange}】`
       : histNote
     const entry = {
       date: histDate.replace('T', ' '),

@@ -15,6 +15,7 @@ export function IssuesProvider({ children }) {
   return <IssuesContext.Provider value={{ issues, updateIssue }}>{children}</IssuesContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useIssues() {
   return useContext(IssuesContext)
 }

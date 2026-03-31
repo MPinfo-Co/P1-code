@@ -11,6 +11,7 @@ const MOCK_KB_LIST = [
 ]
 
 // Builtin config form
+// eslint-disable-next-line no-unused-vars
 function BuiltinConfigForm({ partner, onBack }) {
   const [notifyLevel, setNotifyLevel] = useState('4 星以上即通知')
   const [reportStyle, setReportStyle] = useState('技術詳細版（給資安工程師）')
@@ -411,6 +412,7 @@ function BuiltinConfigForm({ partner, onBack }) {
 }
 
 // Custom config form
+// eslint-disable-next-line no-unused-vars
 function CustomConfigForm({ partner, onBack }) {
   const [model, setModel] = useState('Gemini 1.5 Flash')
   const [prompt, setPrompt] = useState('')
