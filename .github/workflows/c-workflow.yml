@@ -37,11 +37,14 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
-      - name: Pytest
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Pytest with coverage
         run: pytest tests/ -v
 
   frontend-ci:
-    name: Frontend CI（ESLint）
+    name: Frontend CI（ESLint + Prettier）
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,6 +65,9 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: Prettier check
+        run: npx prettier --check src/
 
   notify-test-env:
     name: Notify PG to Set Up Test Environment
