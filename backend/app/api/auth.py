@@ -39,11 +39,17 @@ def logout(
     token = credentials.credentials
     payload = decode_access_token(token)
     if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="無效的 token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="無效的 token"
+        )
 
-    already_logged_out = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+    already_logged_out = (
+        db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+    )
     if already_logged_out:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token 已登出")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Token 已登出"
+        )
 
     expired_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
     db.add(TokenBlacklist(token=token, expired_at=expired_at))
