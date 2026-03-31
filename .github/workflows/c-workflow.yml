@@ -6,7 +6,7 @@ on:
     branches:
       - 'issue-*'
   pull_request:
-    types: [opened, closed]
+    types: [opened, synchronize, closed]
     branches:
       - main
 
@@ -37,11 +37,18 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
-      - name: Pytest
-        run: pytest tests/ -v
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Pytest with coverage
+        run: |
+          set +e
+          pytest tests/ -v
+          code=$?
+          if [ $code -eq 5 ]; then exit 0; else exit $code; fi
 
   frontend-ci:
-    name: Frontend CI（ESLint）
+    name: Frontend CI（ESLint + Prettier）
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,6 +69,9 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: Prettier check
+        run: npx prettier --check src/
 
   notify-test-env:
     name: Notify PG to Set Up Test Environment

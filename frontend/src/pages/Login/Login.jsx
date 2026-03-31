@@ -34,7 +34,7 @@ export default function Login() {
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg bg-slate-50 focus:border-indigo-500 outline-none"
               placeholder="輸入 Email"
               required
@@ -45,7 +45,7 @@ export default function Login() {
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg bg-slate-50 focus:border-indigo-500 outline-none"
               placeholder="密碼"
               required

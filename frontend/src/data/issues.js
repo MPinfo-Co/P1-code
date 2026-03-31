@@ -1,30 +1,109 @@
 export const suggestRefs = {
   1: [
-    [{ type: 'mitre', label: 'T1071.004', name: 'DNS Tunneling', url: 'https://attack.mitre.org/techniques/T1071/004/' }],
-    [{ type: 'mitre', label: 'T1568.002', name: 'DGA', url: 'https://attack.mitre.org/techniques/T1568/002/' }, { type: 'ref', label: 'VirusTotal: 180.76.76.95', url: 'https://www.virustotal.com/gui/ip-address/180.76.76.95' }],
-    [{ type: 'mitre', label: 'T1573.001', name: 'Encrypted Channel', url: 'https://attack.mitre.org/techniques/T1573/001/' }],
+    [
+      {
+        type: 'mitre',
+        label: 'T1071.004',
+        name: 'DNS Tunneling',
+        url: 'https://attack.mitre.org/techniques/T1071/004/',
+      },
+    ],
+    [
+      {
+        type: 'mitre',
+        label: 'T1568.002',
+        name: 'DGA',
+        url: 'https://attack.mitre.org/techniques/T1568/002/',
+      },
+      {
+        type: 'ref',
+        label: 'VirusTotal: 180.76.76.95',
+        url: 'https://www.virustotal.com/gui/ip-address/180.76.76.95',
+      },
+    ],
+    [
+      {
+        type: 'mitre',
+        label: 'T1573.001',
+        name: 'Encrypted Channel',
+        url: 'https://attack.mitre.org/techniques/T1573/001/',
+      },
+    ],
   ],
   2: [
-    [{ type: 'ref', label: 'NIST SP 800-41', url: 'https://csrc.nist.gov/publications/detail/sp/800-41/rev-1/final' }, { type: 'mitre', label: 'T1190', name: 'Exploit Public-Facing App', url: 'https://attack.mitre.org/techniques/T1190/' }],
-    [{ type: 'ref', label: 'Fortinet GeoIP Config', url: 'https://docs.fortinet.com/document/fortigate/' }],
+    [
+      {
+        type: 'ref',
+        label: 'NIST SP 800-41',
+        url: 'https://csrc.nist.gov/publications/detail/sp/800-41/rev-1/final',
+      },
+      {
+        type: 'mitre',
+        label: 'T1190',
+        name: 'Exploit Public-Facing App',
+        url: 'https://attack.mitre.org/techniques/T1190/',
+      },
+    ],
+    [
+      {
+        type: 'ref',
+        label: 'Fortinet GeoIP Config',
+        url: 'https://docs.fortinet.com/document/fortigate/',
+      },
+    ],
   ],
   3: [
-    [{ type: 'mitre', label: 'T1105', name: 'Ingress Tool Transfer', url: 'https://attack.mitre.org/techniques/T1105/' }, { type: 'ref', label: 'dnscat2', url: 'https://github.com/iagox86/dnscat2' }],
+    [
+      {
+        type: 'mitre',
+        label: 'T1105',
+        name: 'Ingress Tool Transfer',
+        url: 'https://attack.mitre.org/techniques/T1105/',
+      },
+      { type: 'ref', label: 'dnscat2', url: 'https://github.com/iagox86/dnscat2' },
+    ],
     [],
     [],
   ],
   4: [
-    [{ type: 'mitre', label: 'T1110.001', name: 'Password Guessing', url: 'https://attack.mitre.org/techniques/T1110/001/' }],
-    [{ type: 'ref', label: 'Fortinet IPS Sensor', url: 'https://docs.fortinet.com/document/fortigate/' }],
+    [
+      {
+        type: 'mitre',
+        label: 'T1110.001',
+        name: 'Password Guessing',
+        url: 'https://attack.mitre.org/techniques/T1110/001/',
+      },
+    ],
+    [
+      {
+        type: 'ref',
+        label: 'Fortinet IPS Sensor',
+        url: 'https://docs.fortinet.com/document/fortigate/',
+      },
+    ],
     [],
   ],
   5: [
     [],
     [{ type: 'ref', label: 'RFC 6891: EDNS(0)', url: 'https://tools.ietf.org/html/rfc6891' }],
-    [{ type: 'mitre', label: 'T1071.004', name: 'DNS C2', url: 'https://attack.mitre.org/techniques/T1071/004/' }],
+    [
+      {
+        type: 'mitre',
+        label: 'T1071.004',
+        name: 'DNS C2',
+        url: 'https://attack.mitre.org/techniques/T1071/004/',
+      },
+    ],
   ],
   6: [
-    [{ type: 'mitre', label: 'T1595', name: 'Active Scanning', url: 'https://attack.mitre.org/techniques/T1595/' }],
+    [
+      {
+        type: 'mitre',
+        label: 'T1595',
+        name: 'Active Scanning',
+        url: 'https://attack.mitre.org/techniques/T1595/',
+      },
+    ],
     [],
   ],
 }
@@ -62,12 +141,27 @@ export const issues = [
       '（外部 DNS 共 595 筆，目的地 258 個 IP；國家分布：美國 515 / 台灣 29 / 荷蘭 26 / 中國 7 / 新加坡 6）',
     ],
     mitre: [
-      { id: 'T1071.004', name: 'Application Layer Protocol: DNS', url: 'https://attack.mitre.org/techniques/T1071/004/' },
-      { id: 'T1568.002', name: 'Dynamic Resolution: DGA', url: 'https://attack.mitre.org/techniques/T1568/002/' },
-      { id: 'T1573.001', name: 'Encrypted Channel', url: 'https://attack.mitre.org/techniques/T1573/001/' },
+      {
+        id: 'T1071.004',
+        name: 'Application Layer Protocol: DNS',
+        url: 'https://attack.mitre.org/techniques/T1071/004/',
+      },
+      {
+        id: 'T1568.002',
+        name: 'Dynamic Resolution: DGA',
+        url: 'https://attack.mitre.org/techniques/T1568/002/',
+      },
+      {
+        id: 'T1573.001',
+        name: 'Encrypted Channel',
+        url: 'https://attack.mitre.org/techniques/T1573/001/',
+      },
     ],
     refs: [
-      { name: 'VirusTotal: 180.76.76.95', url: 'https://www.virustotal.com/gui/ip-address/180.76.76.95' },
+      {
+        name: 'VirusTotal: 180.76.76.95',
+        url: 'https://www.virustotal.com/gui/ip-address/180.76.76.95',
+      },
       { name: 'MITRE APT41 Group', url: 'https://attack.mitre.org/groups/G0096/' },
     ],
   },
@@ -92,11 +186,21 @@ export const issues = [
       'date=2026-02-23 time=09:13:37 srcip=192.168.10.20 dstip=204.14.183.224 dstcountry="United States" service="DNS" action="accept" policyid=1 policyname="SVR_to_WAN" [根因：DNS Tunneling 外部查詢得以成立]',
     ],
     mitre: [
-      { id: 'T1190', name: 'Exploit Public-Facing Application', url: 'https://attack.mitre.org/techniques/T1190/' },
+      {
+        id: 'T1190',
+        name: 'Exploit Public-Facing Application',
+        url: 'https://attack.mitre.org/techniques/T1190/',
+      },
     ],
     refs: [
-      { name: 'NIST SP 800-41 Firewall Guidelines', url: 'https://csrc.nist.gov/publications/detail/sp/800-41/rev-1/final' },
-      { name: 'Fortinet Best Practice Guide', url: 'https://docs.fortinet.com/document/fortigate/' },
+      {
+        name: 'NIST SP 800-41 Firewall Guidelines',
+        url: 'https://csrc.nist.gov/publications/detail/sp/800-41/rev-1/final',
+      },
+      {
+        name: 'Fortinet Best Practice Guide',
+        url: 'https://docs.fortinet.com/document/fortigate/',
+      },
     ],
   },
   {
@@ -121,8 +225,16 @@ export const issues = [
       'date=2026-02-23 time=13:45:10 srcip=172.18.1.62 dstip=192.168.10.2 dstport=53 action="accept" policyid=52 vpntype="ipsecvpn" sentbyte=623 rcvdbyte=2202 [★ 異常：2.15 KB]',
     ],
     mitre: [
-      { id: 'T1105', name: 'Ingress Tool Transfer', url: 'https://attack.mitre.org/techniques/T1105/' },
-      { id: 'T1071.004', name: 'Application Layer Protocol: DNS', url: 'https://attack.mitre.org/techniques/T1071/004/' },
+      {
+        id: 'T1105',
+        name: 'Ingress Tool Transfer',
+        url: 'https://attack.mitre.org/techniques/T1105/',
+      },
+      {
+        id: 'T1071.004',
+        name: 'Application Layer Protocol: DNS',
+        url: 'https://attack.mitre.org/techniques/T1071/004/',
+      },
     ],
     refs: [
       { name: 'dnscat2 GitHub', url: 'https://github.com/iagox86/dnscat2' },
@@ -152,11 +264,13 @@ export const issues = [
       '（多筆失敗登入，目前均被防火牆攔截，尚無成功登入紀錄）',
     ],
     mitre: [
-      { id: 'T1110.001', name: 'Brute Force: Password Guessing', url: 'https://attack.mitre.org/techniques/T1110/001/' },
+      {
+        id: 'T1110.001',
+        name: 'Brute Force: Password Guessing',
+        url: 'https://attack.mitre.org/techniques/T1110/001/',
+      },
     ],
-    refs: [
-      { name: 'NIST MFA Guidelines', url: 'https://pages.nist.gov/800-63-3/' },
-    ],
+    refs: [{ name: 'NIST MFA Guidelines', url: 'https://pages.nist.gov/800-63-3/' }],
   },
   {
     id: 5,
@@ -180,11 +294,13 @@ export const issues = [
       'date=2026-02-23 time=11:48:46 srcip=172.18.1.61 dstip=192.168.10.2 dstport=53 action="accept" policyid=52 vpntype="ipsecvpn" sentbyte=252 rcvdbyte=556',
     ],
     mitre: [
-      { id: 'T1071.004', name: 'Application Layer Protocol: DNS', url: 'https://attack.mitre.org/techniques/T1071/004/' },
+      {
+        id: 'T1071.004',
+        name: 'Application Layer Protocol: DNS',
+        url: 'https://attack.mitre.org/techniques/T1071/004/',
+      },
     ],
-    refs: [
-      { name: 'RFC 6891: EDNS(0) Extension', url: 'https://tools.ietf.org/html/rfc6891' },
-    ],
+    refs: [{ name: 'RFC 6891: EDNS(0) Extension', url: 'https://tools.ietf.org/html/rfc6891' }],
   },
   {
     id: 6,
@@ -197,7 +313,12 @@ export const issues = [
     affected: 'mpidcfw / WAN 介面 ← Netherlands、France 等高危地區自動化掃描',
     currentStatus: '處理中',
     history: [
-      { date: '2026-02-23 10:15', user: 'Rex Shen', note: '已確認為正常背景雜訊，列入週報觀察。', statusChange: '處理中' },
+      {
+        date: '2026-02-23 10:15',
+        user: 'Rex Shen',
+        note: '已確認為正常背景雜訊，列入週報觀察。',
+        statusChange: '處理中',
+      },
     ],
     desc: `【異常發現】全日高達 173 萬筆防火牆日誌多為外部自動化掃描。雖然來自 Netherlands、France 等高危地區，但均已被 action="deny" 成功攔截。\n此類事件為網際網路常態性背景雜訊，代表防火牆邊界防禦正常運作。此類事件不應納入即時告警，建議整合為週報供管理層參閱，以降低 SOC 分析師工作量。`,
     suggests: [

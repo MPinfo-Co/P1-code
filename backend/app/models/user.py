@@ -11,7 +11,9 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Role(Base):
@@ -26,7 +28,9 @@ class Role(Base):
     can_edit_ai = Column(Boolean, nullable=False, default=False)
     can_manage_kb = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
 
 class UserRole(Base):
