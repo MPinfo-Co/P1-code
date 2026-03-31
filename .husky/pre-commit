@@ -1,1 +1,8 @@
+# Python: run pre-commit checks on staged files
+if command -v pre-commit &> /dev/null; then
+  export PRE_COMMIT_HOME="${PRE_COMMIT_HOME:-$HOME/.pre-commit-cache}"
+  pre-commit run || exit 1
+fi
+
+# Frontend: run lint-staged
 cd frontend && npx lint-staged
