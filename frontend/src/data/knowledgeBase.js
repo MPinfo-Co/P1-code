@@ -9,8 +9,18 @@ export const knowledgeBases = [
       { id: 'd01', name: '資安事件應變SOP_v3.pdf', size: '245 KB', uploadDate: '2026-01-15' },
       { id: 'd02', name: '防火牆政策白名單_IT.txt', size: '12 KB', uploadDate: '2026-01-20' },
       { id: 'd03', name: '資安通報流程_2026Q1.pdf', size: '180 KB', uploadDate: '2026-02-01' },
-      { id: 'd04', name: 'Fortinet_Best_Practice_Guide.pdf', size: '1.2 MB', uploadDate: '2026-01-08' },
-      { id: 'd05', name: 'Windows_Security_Event_ID_Reference.pdf', size: '890 KB', uploadDate: '2026-01-10' },
+      {
+        id: 'd04',
+        name: 'Fortinet_Best_Practice_Guide.pdf',
+        size: '1.2 MB',
+        uploadDate: '2026-01-08',
+      },
+      {
+        id: 'd05',
+        name: 'Windows_Security_Event_ID_Reference.pdf',
+        size: '890 KB',
+        uploadDate: '2026-01-10',
+      },
     ],
     tables: [
       {
@@ -19,8 +29,24 @@ export const knowledgeBases = [
         createdDate: '2026-01-10',
         columns: ['設備名稱', 'IP 位址', 'MAC 位址', '作業系統', '負責人', '位置', '備註'],
         rows: [
-          ['MPIDCFW', '192.168.1.1', '00:09:0F:AA:BB:01', 'FortiOS 7.4', 'Rex Shen', 'IDC 機房 A', '主防火牆'],
-          ['DC-SVR-01', '192.168.10.20', '00:50:56:B2:11:22', 'Windows Server 2022', 'Dama Wang', 'IDC 機房 B', '主 DNS 伺服器'],
+          [
+            'MPIDCFW',
+            '192.168.1.1',
+            '00:09:0F:AA:BB:01',
+            'FortiOS 7.4',
+            'Rex Shen',
+            'IDC 機房 A',
+            '主防火牆',
+          ],
+          [
+            'DC-SVR-01',
+            '192.168.10.20',
+            '00:50:56:B2:11:22',
+            'Windows Server 2022',
+            'Dama Wang',
+            'IDC 機房 B',
+            '主 DNS 伺服器',
+          ],
         ],
       },
       {

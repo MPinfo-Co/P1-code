@@ -2,7 +2,7 @@ export default function Pagination({ current, total, onChange }) {
   if (total <= 1) return null
   return (
     <div className="flex justify-center gap-2 mt-5">
-      {Array.from({ length: total }, (_, i) => i + 1).map(page => (
+      {Array.from({ length: total }, (_, i) => i + 1).map((page) => (
         <button
           key={page}
           onClick={() => onChange(page)}

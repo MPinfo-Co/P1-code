@@ -24,13 +24,14 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={token ? <Navigate to="/" replace /> : <Login />}
-      />
+      <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
       <Route
         path="/"
-        element={<ProtectedRoute><Layout /></ProtectedRoute>}
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
       >
         <Route index element={<Home />} />
         <Route path="ai-partner" element={<AiPartner />} />

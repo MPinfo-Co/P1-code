@@ -57,68 +57,169 @@ export const mockKnowledge = {
 
 export const similarCasesData = {
   1: [
-    { id: 'SC001', date: '2025-11-15', title: 'DNS Tunneling 感染事件', similarity: 92,
-      summary: '內部 DNS 伺服器 192.168.10.15 向中國 IP 持續發出異常 DNS 查詢（Fast-flux 特徵），確認為 dnscat2 工具感染，C2 Beaconing 行為。',
-      outcome: '已完成', resolvedAt: '2025-11-15 14:32', resolvedBy: 'Rex Shen', resolution: '隔離主機、重新安裝 OS，更新防火牆 GeoIP 規則封鎖中國及荷蘭 IP，加強 DNS 解析行為監控。' },
-    { id: 'SC002', date: '2025-08-03', title: '郵件伺服器 C2 Beaconing 偵測', similarity: 74,
+    {
+      id: 'SC001',
+      date: '2025-11-15',
+      title: 'DNS Tunneling 感染事件',
+      similarity: 92,
+      summary:
+        '內部 DNS 伺服器 192.168.10.15 向中國 IP 持續發出異常 DNS 查詢（Fast-flux 特徵），確認為 dnscat2 工具感染，C2 Beaconing 行為。',
+      outcome: '已完成',
+      resolvedAt: '2025-11-15 14:32',
+      resolvedBy: 'Rex Shen',
+      resolution:
+        '隔離主機、重新安裝 OS，更新防火牆 GeoIP 規則封鎖中國及荷蘭 IP，加強 DNS 解析行為監控。',
+    },
+    {
+      id: 'SC002',
+      date: '2025-08-03',
+      title: '郵件伺服器 C2 Beaconing 偵測',
+      similarity: 74,
       summary: '郵件伺服器定期向外部 IP 發出心跳包，傳輸長度異常（87-115 B），確認為惡意後門程式。',
-      outcome: '已完成', resolvedAt: '2025-08-03 09:15', resolvedBy: 'Dama Wang', resolution: '移除惡意後門程式、強化出站流量告警，部署 NDR 側錄規則。' },
+      outcome: '已完成',
+      resolvedAt: '2025-08-03 09:15',
+      resolvedBy: 'Dama Wang',
+      resolution: '移除惡意後門程式、強化出站流量告警，部署 NDR 側錄規則。',
+    },
   ],
   2: [
-    { id: 'SC003', date: '2025-06-20', title: 'SVR_to_WAN 防火牆策略過寬', similarity: 88,
-      summary: '多條防火牆規則允許伺服器段任意對外連線，經稽核發現有 5 台主機利用此策略進行未授權的外部通訊。',
-      outcome: '已完成', resolvedAt: '2025-06-20 16:50', resolvedBy: 'Frank Liu', resolution: '建立目的地白名單、啟用 GeoIP 過濾，策略調整後減少 73% 不必要流量。' },
+    {
+      id: 'SC003',
+      date: '2025-06-20',
+      title: 'SVR_to_WAN 防火牆策略過寬',
+      similarity: 88,
+      summary:
+        '多條防火牆規則允許伺服器段任意對外連線，經稽核發現有 5 台主機利用此策略進行未授權的外部通訊。',
+      outcome: '已完成',
+      resolvedAt: '2025-06-20 16:50',
+      resolvedBy: 'Frank Liu',
+      resolution: '建立目的地白名單、啟用 GeoIP 過濾，策略調整後減少 73% 不必要流量。',
+    },
   ],
   3: [
-    { id: 'SC004', date: '2025-09-12', title: 'VPN 用戶端 DNS Payload 注入', similarity: 91,
-      summary: 'VPN 用戶端收到超大型 DNS 回應（3.1 KB），分析確認為攻擊者使用 iodine 工具進行橫向移動嘗試。',
-      outcome: '已完成', resolvedAt: '2025-09-12 11:20', resolvedBy: 'Rex Shen', resolution: 'PCAP 分析確認為惡意 payload、強制 DNS 快取清理、端點掃描確認未進一步感染。' },
-    { id: 'SC005', date: '2025-12-01', title: 'VPN 異常封包監測（誤報）', similarity: 62,
+    {
+      id: 'SC004',
+      date: '2025-09-12',
+      title: 'VPN 用戶端 DNS Payload 注入',
+      similarity: 91,
+      summary:
+        'VPN 用戶端收到超大型 DNS 回應（3.1 KB），分析確認為攻擊者使用 iodine 工具進行橫向移動嘗試。',
+      outcome: '已完成',
+      resolvedAt: '2025-09-12 11:20',
+      resolvedBy: 'Rex Shen',
+      resolution: 'PCAP 分析確認為惡意 payload、強制 DNS 快取清理、端點掃描確認未進一步感染。',
+    },
+    {
+      id: 'SC005',
+      date: '2025-12-01',
+      title: 'VPN 異常封包監測（誤報）',
+      similarity: 62,
       summary: 'VPN 段多台設備收到異常大型封包，後確認為 EDNS0 合法 TXT 記錄查詢。',
-      outcome: '擱置', resolvedAt: '2025-12-01 08:45', resolvedBy: 'Dama Wang', resolution: '確認為誤報，建立流量閾值 > 2 KB 才觸發高優先告警，降低 SOC 分析負荷。' },
+      outcome: '擱置',
+      resolvedAt: '2025-12-01 08:45',
+      resolvedBy: 'Dama Wang',
+      resolution: '確認為誤報，建立流量閾值 > 2 KB 才觸發高優先告警，降低 SOC 分析負荷。',
+    },
   ],
   4: [
-    { id: 'SC006', date: '2026-01-08', title: '行政帳號 Low-and-Slow 暴力破解', similarity: 95,
-      summary: 'Administrator 帳號遭受來自東歐多個 IP 的低速暴力破解（每分鐘 < 3 次嘗試，持續 48 小時）以規避鎖定偵測。',
-      outcome: '已完成', resolvedAt: '2026-01-08 22:10', resolvedBy: 'Rex Shen', resolution: '啟用 MFA、Fortinet IPS 封鎖來源 IP 段、稽核近 30 天成功登入紀錄確認無入侵。' },
+    {
+      id: 'SC006',
+      date: '2026-01-08',
+      title: '行政帳號 Low-and-Slow 暴力破解',
+      similarity: 95,
+      summary:
+        'Administrator 帳號遭受來自東歐多個 IP 的低速暴力破解（每分鐘 < 3 次嘗試，持續 48 小時）以規避鎖定偵測。',
+      outcome: '已完成',
+      resolvedAt: '2026-01-08 22:10',
+      resolvedBy: 'Rex Shen',
+      resolution: '啟用 MFA、Fortinet IPS 封鎖來源 IP 段、稽核近 30 天成功登入紀錄確認無入侵。',
+    },
   ],
   5: [
-    { id: 'SC007', date: '2025-09-12', title: 'VPN DNS 1.1 KB 異常回應（同期）', similarity: 83,
-      summary: 'VPN 用戶端 172.18.1.55 收到 1.1 KB DNS 回應，與事件 3 同時段發生，後確認為合法 TXT 記錄。',
-      outcome: '擱置', resolvedAt: '2025-09-12 17:30', resolvedBy: 'Frank Liu', resolution: '觀察後確認為誤報，列入持續觀察清單，搭配 PCAP 監控。' },
+    {
+      id: 'SC007',
+      date: '2025-09-12',
+      title: 'VPN DNS 1.1 KB 異常回應（同期）',
+      similarity: 83,
+      summary:
+        'VPN 用戶端 172.18.1.55 收到 1.1 KB DNS 回應，與事件 3 同時段發生，後確認為合法 TXT 記錄。',
+      outcome: '擱置',
+      resolvedAt: '2025-09-12 17:30',
+      resolvedBy: 'Frank Liu',
+      resolution: '觀察後確認為誤報，列入持續觀察清單，搭配 PCAP 監控。',
+    },
   ],
   6: [],
 }
 
 export function getMockReply(userMsg, issue, allIssues) {
   if (!issue) {
-    const highP = allIssues.filter(x => x.starRank >= 4 && x.currentStatus === '未處理')
-    const criticals = allIssues.filter(x => x.starRank === 5)
+    const highP = allIssues.filter((x) => x.starRank >= 4 && x.currentStatus === '未處理')
+    const criticals = allIssues.filter((x) => x.starRank === 5)
     return `【全局資安態勢摘要 — 2026-02-23】\n\n目前清單共 ${allIssues.length} 筆異常事件：\n‣ 最高危（5星）：${criticals.length} 筆 — 需立即處置\n‣ 高優先未處理（4星以上）：${highP.length} 筆\n\n【建議優先處置順序】\n1. Issue #1（5★）DNS C2 Tunneling — 立即隔離 192.168.10.20\n2. Issue #4（4★）暴力破解 — 立即查看是否已有成功登入\n3. Issue #2（4★）SVR_to_WAN 策略 — 今日內收緊防火牆規則\n4. Issue #3（4★）VPN DNS 注入 — 今日完成 PCAP 鑑識\n\n你有特別想討論哪個事件嗎？`
   }
   const kb = mockKnowledge[issue.id]
   if (!kb) return `關於「${issue.title}」，目前無詳細分析資料，請查看事件詳情頁的建議處置方法。`
   const msg = userMsg.toLowerCase()
-  if (msg.includes('摘要') || msg.includes('整體') || msg.includes('summary') || msg.includes('overview'))
+  if (
+    msg.includes('摘要') ||
+    msg.includes('整體') ||
+    msg.includes('summary') ||
+    msg.includes('overview')
+  )
     return kb.摘要
-  if (msg.includes('ioc') || msg.includes('發現') || msg.includes('指標') || msg.includes('indicator') || msg.includes('來源'))
+  if (
+    msg.includes('ioc') ||
+    msg.includes('發現') ||
+    msg.includes('指標') ||
+    msg.includes('indicator') ||
+    msg.includes('來源')
+  )
     return kb.發現
-  if (msg.includes('說明') || msg.includes('原理') || msg.includes('技術') || msg.includes('背景') || msg.includes('什麼是') || msg.includes('補充'))
+  if (
+    msg.includes('說明') ||
+    msg.includes('原理') ||
+    msg.includes('技術') ||
+    msg.includes('背景') ||
+    msg.includes('什麼是') ||
+    msg.includes('補充')
+  )
     return kb.說明
-  if (msg.includes('修復') || msg.includes('處置') || msg.includes('修補') || msg.includes('fix') || msg.includes('remediat') || msg.includes('建議'))
+  if (
+    msg.includes('修復') ||
+    msg.includes('處置') ||
+    msg.includes('修補') ||
+    msg.includes('fix') ||
+    msg.includes('remediat') ||
+    msg.includes('建議')
+  )
     return kb.修復
-  if (msg.includes('步驟') || msg.includes('指令') || msg.includes('command') || msg.includes('cli') || msg.includes('執行') || msg.includes('操作')) {
+  if (
+    msg.includes('步驟') ||
+    msg.includes('指令') ||
+    msg.includes('command') ||
+    msg.includes('cli') ||
+    msg.includes('執行') ||
+    msg.includes('操作')
+  ) {
     const stepKeys = Object.keys(kb.步驟前綴)
     for (const k of stepKeys) {
       if (kb.步驟前綴[k]) return kb.步驟前綴[k]
     }
   }
-  return kb.摘要 + '\n\n您可以繼續詢問：整體摘要、相關 IOC 發現、技術背景說明、修復建議、或具體操作步驟。'
+  return (
+    kb.摘要 +
+    '\n\n您可以繼續詢問：整體摘要、相關 IOC 發現、技術背景說明、修復建議、或具體操作步驟。'
+  )
 }
 
 export function getStepReply(issue, stepIdx) {
   const kb = mockKnowledge[issue.id]
   if (kb && kb.步驟前綴[stepIdx]) return kb.步驟前綴[stepIdx]
   const step = issue.suggests[stepIdx] || ''
-  return `【參考步驟 ${stepIdx + 1} — 詳細說明】\n\n` + step + `\n\n【通用執行程序】\n\n1. 在進行任何操作前，先記錄目前系統狀態（截圖/日誌備份）\n2. 在測試環境驗證指令後，再套用至生產環境\n3. 每個步驟完成後，記錄於處置紀錄（時間、操作人員、結果）\n4. 若操作影響業務服務，需先取得主管授權並通知相關部門\n\n如需更具體的操作指令，請告訴我您使用的設備型號與版本。`
+  return (
+    `【參考步驟 ${stepIdx + 1} — 詳細說明】\n\n` +
+    step +
+    `\n\n【通用執行程序】\n\n1. 在進行任何操作前，先記錄目前系統狀態（截圖/日誌備份）\n2. 在測試環境驗證指令後，再套用至生產環境\n3. 每個步驟完成後，記錄於處置紀錄（時間、操作人員、結果）\n4. 若操作影響業務服務，需先取得主管授權並通知相關部門\n\n如需更具體的操作指令，請告訴我您使用的設備型號與版本。`
+  )
 }

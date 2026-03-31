@@ -23,8 +23,10 @@ const useAuthStore = create((set, get) => ({
   logout: async () => {
     await fetch(`${BASE_URL}/api/auth/logout`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${get().token}` },
-    }).catch((err) => { console.warn('[logout] backend call failed:', err) })
+      headers: { Authorization: `Bearer ${get().token}` },
+    }).catch((err) => {
+      console.warn('[logout] backend call failed:', err)
+    })
     localStorage.removeItem('mp-box-token')
     localStorage.removeItem('mp-box-user') // 清除舊版 mock key
     set({ token: null, user: null })
