@@ -27,3 +27,24 @@ cd frontend && npm install
 
 Commit message 格式：`{type}({scope}): 說明`
 可用 type：`feat` | `fix` | `docs` | `refactor` | `test` | `chore`
+
+## AI 實作指引（PG 階段）
+
+收到 PG Issue 後，依序讀取：
+
+| 需要什麼 | 去哪裡找 |
+|----------|---------|
+| 實作範圍 | PG Issue body「實作範圍」欄位 |
+| API 規格 | `P1-design/Spec/` |
+| 畫面規格 | `P1-design/Prototype/` |
+| 本次異動 delta | `P1-design/TestPlan/issue-{SD#}-diff.md` |
+| 商業邏輯背景 | `P1-analysis/issue-{SA#}/business-logic.md` |
+| 測試標準 | `P1-design/TestPlan/issue-{SD#}.md` |
+
+**pytest 數量 ≥ TestPlan 案例數**，每個 test function 標注對應的 TestPlan ID：
+
+```python
+def test_create_leave_request(client, db_session, auth_headers):
+    """對應 TestPlan issue-5 T1"""
+    ...
+```
