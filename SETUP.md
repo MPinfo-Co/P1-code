@@ -2,9 +2,11 @@
 
 ## 前置需求
 
-- Python 3.11+
-- Node.js 20+
-- Git
+| 工具 | 最低版本 | 驗證指令 |
+|------|---------|---------|
+| Python | 3.11+ | `python --version` |
+| Node.js | 20+ | `node --version` |
+| Git | 任意 | `git --version` |
 
 ## 1. Clone 與安裝
 
@@ -44,9 +46,14 @@ npm install
 
 ## 5. Commit Message 格式
 
-```
-{type}({scope}): 說明
-```
+範例格式：`{type}: 工作說明`
+
+範例：
+- `feat(auth): 新增 JWT refresh token`
+- `fix(api): 修正登入 500 錯誤`
+- `chore(ci): 更新 GitHub Actions`
+
+支援 Type:
 
 | Type | 使用時機 |
 |------|---------|
@@ -56,11 +63,6 @@ npm install
 | `refactor` | 重構 |
 | `test` | 測試相關 |
 | `chore` | 設定、建置相關 |
-
-範例：
-- `feat(auth): 新增 JWT refresh token`
-- `fix(api): 修正登入 500 錯誤`
-- `chore(ci): 更新 GitHub Actions`
 
 scope 非必填，可省略：`fix: 修正登入錯誤訊息`
 
