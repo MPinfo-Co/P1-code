@@ -91,8 +91,7 @@ VS Code 建議設定（`.vscode/settings.json`）：
 echo "x=1" >> backend/app/main.py
 git add backend/app/main.py
 git commit -m "chore: test"
-# 預期：commit 被擋，顯示 ruff 錯誤
-git checkout backend/app/main.py
+# 會被擋，顯示錯誤後，自動修改後重新commit
 ```
 
 ### 驗證前端 hook
