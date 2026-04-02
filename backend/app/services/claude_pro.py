@@ -20,7 +20,11 @@ def _get_client() -> Anthropic:
 SYSTEM_PROMPT = """你是資深資安分析師。根據一整天的 AI 分析結果，產出整合去重後的最終事件清單。
 規則：
 1. 只輸出 JSON 陣列，不加任何說明文字
-2. 合併相同攻擊的重複偵測（相同 match_key 或明顯相同的攻擊）
+2. 積極合併同類事件。以下情況應合併為一筆：
+   - 相同 match_key 的重複偵測
+   - 不同內部 IP 做相同行為（如多台主機都發 NetBIOS 廣播、mDNS 多播、DHCPv6 請求被擋），合併為「內部多主機 XXX」
+   - 不同 IPv6 link-local 位址的相同廣播/多播行為
+   - 本質上是同一個現象只是來源不同的事件
 3. **match_key 必須原樣保留輸入的 key，禁止修改、重新命名或翻譯**。合併多個事件時，使用其中一個原始 match_key
 4. 若事件與昨天的事件相同（延續），填入 continued_from_match_key
 5. detection_count 為所有相關 log 的總數
