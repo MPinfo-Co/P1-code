@@ -34,6 +34,27 @@ def _is_external_ip(ip: str) -> bool:
     return True
 
 
+def _is_broadcast_or_multicast(ip: str) -> bool:
+    """判斷 IP 是否為廣播或多播地址（適用 IPv4 和 IPv6）。"""
+    if not ip:
+        return False
+    # IPv6 multicast (ff00::/8)
+    if ip.lower().startswith("ff"):
+        return True
+    parts = ip.split(".")
+    if len(parts) == 4:
+        # IPv4 broadcast (x.x.x.255)
+        if parts[3] == "255":
+            return True
+        # IPv4 multicast (224.0.0.0 ~ 239.255.255.255)
+        try:
+            if 224 <= int(parts[0]) <= 239:
+                return True
+        except ValueError:
+            pass
+    return False
+
+
 def _generate_group_key(log: dict) -> str | None:
     """
     從 raw log 的 dynamic_columns 產生 group_key（用於合併同類事件）。
@@ -59,7 +80,10 @@ def _generate_group_key(log: dict) -> str | None:
                 dst_prefix = ".".join(dstip.split(".")[:3]) if dstip else "unknown"
                 return f"deny_external_{dst_prefix}"
             else:
-                # 內部被擋：各 srcip 獨立
+                # 內部被擋：廣播/多播依 dstport 分組，單播依 srcip
+                if _is_broadcast_or_multicast(dstip):
+                    dstport = dc.get(f"{_FORTI_PREFIX}dstport", "unknown")
+                    return f"deny_internal_broadcast_p{dstport}"
                 return f"deny_internal_{srcip}"
 
         if level == "warning":

@@ -122,20 +122,59 @@ def _aggregate_deny_external(logs: list[dict]) -> list[dict]:
     return summaries
 
 
+def _is_broadcast_or_multicast(ip: str) -> bool:
+    """判斷 IP 是否為廣播或多播地址（適用 IPv4 和 IPv6）。"""
+    if not ip:
+        return False
+    # IPv6 multicast (ff00::/8)
+    if ip.lower().startswith("ff"):
+        return True
+    parts = ip.split(".")
+    if len(parts) == 4:
+        # IPv4 broadcast (x.x.x.255)
+        if parts[3] == "255":
+            return True
+        # IPv4 multicast (224.0.0.0 ~ 239.255.255.255)
+        try:
+            if 224 <= int(parts[0]) <= 239:
+                return True
+        except ValueError:
+            pass
+    return False
+
+
+def _deny_internal_group_key(log: dict) -> str:
+    """
+    產生 deny_internal 的 group_key。
+    廣播/多播目標 → 依 dstport 分組（同現象合併）
+    單播目標 → 依 srcip 分組（個別行為獨立追蹤）
+    """
+    dstip = _get_forti_field(log, "dstip") or ""
+    if _is_broadcast_or_multicast(dstip):
+        dstport = _get_forti_field(log, "dstport") or "unknown"
+        return f"deny_internal_broadcast_p{dstport}"
+    srcip = _get_forti_field(log, "srcip") or "unknown"
+    return f"deny_internal_{srcip}"
+
+
 def _aggregate_deny_internal(logs: list[dict]) -> list[dict]:
-    """deny 內部來源：Group by srcip。"""
+    """deny 內部來源：廣播/多播依 dstport 分組，單播依 srcip 分組。"""
     groups: dict[str, list[dict]] = defaultdict(list)
     for log in logs:
-        srcip = _get_forti_field(log, "srcip") or "unknown"
-        groups[srcip].append(log)
+        key = _deny_internal_group_key(log)
+        groups[key].append(log)
 
     summaries = []
-    for srcip, group_logs in groups.items():
+    for group_key, group_logs in groups.items():
+        src_ips: dict[str, int] = defaultdict(int)
         dst_ips: dict[str, int] = defaultdict(int)
         dst_ports: dict[str, int] = defaultdict(int)
         timestamps = []
 
         for log in group_logs:
+            srcip = _get_forti_field(log, "srcip")
+            if srcip:
+                src_ips[srcip] += 1
             dstip = _get_forti_field(log, "dstip")
             if dstip:
                 dst_ips[dstip] += 1
@@ -149,9 +188,10 @@ def _aggregate_deny_internal(logs: list[dict]) -> list[dict]:
         summaries.append(
             {
                 "type": "deny_internal",
-                "group_key": f"deny_internal_{srcip}",
-                "srcip": srcip,
+                "group_key": group_key,
                 "total_count": len(group_logs),
+                "unique_src_count": len(src_ips),
+                "top_src_ips": _top_n(src_ips, 10),
                 "dst_ips": _top_n(dst_ips, 10),
                 "top_dst_ports": _top_n(dst_ports),
                 "time_range": _format_time_range(timestamps),
