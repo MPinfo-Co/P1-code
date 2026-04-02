@@ -141,7 +141,7 @@ export default function IssueList() {
       if (applied.start) params.set('date_from', applied.start)
       if (applied.end) params.set('date_to', applied.end)
 
-      const token = localStorage.getItem('access_token')
+      const token = localStorage.getItem('mp-box-token')
       const res = await fetch(`/api/events?${params}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
