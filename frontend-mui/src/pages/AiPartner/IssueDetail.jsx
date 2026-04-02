@@ -1,541 +1,1063 @@
-import { useState, useRef, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useIssues } from '../../contexts/IssuesContext'
-import { suggestRefs, suggestUrgency } from '../../data/issues'
-import { similarCasesData, getMockReply, getStepReply } from '../../data/mockKnowledge'
-import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
-import Button from '@mui/material/Button'
-import IconButton from '@mui/material/IconButton'
-import TextField from '@mui/material/TextField'
-import MenuItem from '@mui/material/MenuItem'
-import Send from '@mui/icons-material/Send'
-import ArrowBackIosNew from '@mui/icons-material/ArrowBackIosNew'
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
+import Chip from "@mui/material/Chip";
+import Card from "@mui/material/Card";
+import CardHeader from "@mui/material/CardHeader";
+import CardContent from "@mui/material/CardContent";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Collapse from "@mui/material/Collapse";
+import CircularProgress from "@mui/material/CircularProgress";
+import Alert from "@mui/material/Alert";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline";
+import ChatOutlined from "@mui/icons-material/ChatOutlined";
+import SearchOutlined from "@mui/icons-material/SearchOutlined";
+import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
+import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
+import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
-// ── helpers ──────────────────────────────────────────────
+// ── constants ──
 
-function formatDesc(text) {
-  if (!text) return null
-  const segments = text.split(/(?=【)/)
-  return segments.map((seg, i) => {
-    if (!seg) return null
-    const m = seg.match(/^【([^\]】]+)】([\s\S]*)$/)
-    if (m) {
-      return (
-        <div key={i} style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, color: '#1e293b', marginBottom: 4, letterSpacing: 0.3 }}>【{m[1]}】</div>
-          <div style={{ paddingLeft: 14, borderLeft: '2px solid #e2e8f0', color: '#334155', fontSize: 13, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{m[2].trim()}</div>
-        </div>
-      )
-    }
-    return <div key={i} style={{ fontSize: 13, color: '#334155', lineHeight: 1.75, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{seg.trim()}</div>
-  })
-}
+const STATUS_LABEL = {
+  pending: "未處理",
+  investigating: "處理中",
+  resolved: "已處理",
+  dismissed: "擱置",
+};
+const STATUS_OPTIONS = Object.entries(STATUS_LABEL);
 
-function StatusIcon({ status, size = 14 }) {
-  if (status === '未處理') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-  if (status === '處理中') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-  if (status === '已完成') return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-}
+// ── helpers ──
 
-function Section({ title, icon, children }) {
-  return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 16, overflow: 'hidden' }}>
-      <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8, fontSize: 15 }}>
-        {icon}{title}
-      </div>
-      <div style={{ padding: 16, background: 'white', fontSize: 14, color: '#334155', lineHeight: 1.6 }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-const URGENCY_STYLE = {
-  '最推薦': { background: '#eef1f8', color: '#2e3f6e', border: '1px solid #c5ccdf' },
-  '次推薦': { background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' },
-  '可選':   { background: '#f8fafc', color: '#94a3b8', border: '1px solid #e2e8f0' },
-}
-
-const OUTCOME_STYLE = {
-  '已完成': { background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' },
-  '擱置':   { background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' },
-  '已緩解': { background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' },
-}
-
-const HISTORY_BADGE = {
-  '已完成': 'color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;',
-  '處理中': 'color:#b45309;background:#fffbeb;border:1px solid #fde68a;',
-  '擱置':   'color:#475569;background:#f8fafc;border:1px solid #cbd5e1;',
-  '未處理': 'color:#dc2626;background:#fef2f2;border:1px solid #fecaca;',
+function authHeaders() {
+  const token = localStorage.getItem("access_token");
+  return token
+    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+    : { "Content-Type": "application/json" };
 }
 
 function nowDT() {
-  return new Date().toISOString().slice(0, 16)
+  return new Date().toISOString().slice(0, 16);
 }
 
-// ── Main Component ────────────────────────────────────────
+function StatusIcon({ status, size = 14 }) {
+  if (status === "pending")
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#ef4444"
+        strokeWidth="2"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    );
+  if (status === "investigating")
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#f59e0b"
+        strokeWidth="2"
+      >
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+      </svg>
+    );
+  if (status === "resolved")
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#10b981"
+        strokeWidth="2"
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    );
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#94a3b8"
+      strokeWidth="2"
+    >
+      <rect x="6" y="4" width="4" height="16" />
+      <rect x="14" y="4" width="4" height="16" />
+    </svg>
+  );
+}
+
+function formatDesc(text) {
+  if (!text) return null;
+  return text.split(/(?=【)/).map((seg, i) => {
+    if (!seg) return null;
+    const m = seg.match(/^【([^\]】]+)】([\s\S]*)$/);
+    if (m)
+      return (
+        <Box key={i} sx={{ mb: 1.5 }}>
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontSize: 13,
+              color: "#1e293b",
+              mb: 0.5,
+              letterSpacing: 0.3,
+            }}
+          >
+            【{m[1]}】
+          </Typography>
+          <Typography
+            sx={{
+              pl: 1.75,
+              borderLeft: "2px solid #e2e8f0",
+              color: "#334155",
+              fontSize: 13,
+              lineHeight: 1.75,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {m[2].trim()}
+          </Typography>
+        </Box>
+      );
+    return (
+      <Typography
+        key={i}
+        sx={{
+          fontSize: 13,
+          color: "#334155",
+          lineHeight: 1.75,
+          mb: 1,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {seg.trim()}
+      </Typography>
+    );
+  });
+}
+
+// ── Main ──
 
 export default function IssueDetail() {
-  const { partnerId, issueId } = useParams()
-  const navigate = useNavigate()
-  const { issues, updateIssue } = useIssues()
+  const { partnerId, issueId } = useParams();
+  const navigate = useNavigate();
 
-  const issue = issues.find(i => i.id === Number(issueId))
-
-  const [activeTab, setActiveTab] = useState('detail')
-  const [showAllLogs, setShowAllLogs] = useState(false)
-  const [chatVisible, setChatVisible] = useState(true)
-  const [chatMsgs, setChatMsgs] = useState([
-    { role: 'assistant', content: '您好，有任何關於此安全事件的疑問，例如詳細處理步驟、技術背景或風險評估，都可以直接詢問。' }
-  ])
-  const [chatInput, setChatInput] = useState('')
-  const chatEndRef = useRef(null)
+  const [event, setEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [tabIndex, setTabIndex] = useState(0);
+  const [chatVisible, setChatVisible] = useState(true);
 
   // history form
-  const [histDate, setHistDate] = useState(nowDT)
-  const [histNote, setHistNote] = useState('')
-  const [histStatus, setHistStatus] = useState('')
+  const [histDate, setHistDate] = useState(nowDT);
+  const [histNote, setHistNote] = useState("");
+  const [histStatus, setHistStatus] = useState("");
 
-  // resolution form
-  const [resHandler, setResHandler] = useState('')
-  const [resTime, setResTime] = useState(nowDT)
-  const [resText, setResText] = useState('')
-
-  // reset chat when issueId changes
-  useEffect(() => {
-    setChatMsgs([{ role: 'assistant', content: '您好，有任何關於此安全事件的疑問，例如詳細處理步驟、技術背景或風險評估，都可以直接詢問。' }])
-    setActiveTab('detail')
-    setShowAllLogs(false)
-    setChatVisible(true)
-    if (issue) {
-      setHistStatus(issue.currentStatus)
-      setResText(issue.resolution || '')
+  const fetchEvent = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/events/${issueId}`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setEvent(data);
+      setHistStatus(data.current_status);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
-  }, [issueId])
+  }, [issueId]);
 
   useEffect(() => {
-    if (issue) setHistStatus(issue.currentStatus)
-  }, [issue?.currentStatus])
-
+    fetchEvent();
+  }, [fetchEvent]);
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMsgs])
+    setTabIndex(0);
+    setChatVisible(true);
+  }, [issueId]);
 
-  if (!issue) {
+  if (loading)
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 12, color: '#94a3b8' }}>
-        <Typography sx={{ fontSize: 18, fontWeight: 600 }}>找不到此事件</Typography>
-        <Button onClick={() => navigate(-1)} sx={{ mt: 2, color: '#2e3f6e', fontSize: 14, fontWeight: 600, textTransform: 'none' }}>← 返回</Button>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "50vh",
+        }}
+      >
+        <CircularProgress size={32} />
       </Box>
-    )
-  }
-
-  const stepRefs = suggestRefs[issue.id] || []
-  const stepUrgency = suggestUrgency[issue.id] || []
-  const assignee = issue.history?.length > 0 ? issue.history[issue.history.length - 1].user : '未指派'
-  const similarCases = similarCasesData[issue.id] || []
-  const showResolution = issue.currentStatus === '已完成'
+    );
+  if (error || !event)
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          py: 12,
+        }}
+      >
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error || "找不到此事件"}
+        </Alert>
+        <Button onClick={() => navigate(-1)} sx={{ color: "#2e3f6e" }}>
+          ← 返回
+        </Button>
+      </Box>
+    );
 
   // ── actions ──
 
-  function addHistoryEntry() {
-    if (!histNote.trim()) { alert('請輸入備註內容'); return }
-    const actualStatusChange = histStatus !== issue.currentStatus ? histStatus : null
-    const noteText = actualStatusChange ? histNote + `　【狀態變更為：${actualStatusChange}】` : histNote
-    const entry = { date: histDate.replace('T', ' '), user: '系統使用者', note: noteText, statusChange: actualStatusChange }
-    updateIssue(issue.id, i => ({
-      history: [...(i.history || []), entry],
-      currentStatus: actualStatusChange || i.currentStatus,
-    }))
-    setHistNote('')
-    setHistDate(nowDT())
+  async function updateStatus(newStatus) {
+    try {
+      const res = await fetch(`/api/events/${issueId}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ current_status: newStatus }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchEvent();
+    } catch (e) {
+      alert(`更新失敗: ${e.message}`);
+    }
   }
 
-  function deleteHistoryEntry(idx) {
-    if (!window.confirm('確定要刪除此筆紀錄？')) return
-    updateIssue(issue.id, i => {
-      const history = i.history.filter((_, j) => j !== idx)
-      let currentStatus = i.currentStatus
-      const lastChange = [...history].reverse().find(h => h.statusChange)
-      if (lastChange) currentStatus = lastChange.statusChange
-      else if (history.length > 0) currentStatus = '處理中'
-      else currentStatus = '未處理'
-      return { history, currentStatus }
-    })
+  async function addHistoryEntry() {
+    if (!histNote.trim()) {
+      alert("請輸入備註內容");
+      return;
+    }
+    if (histStatus !== event.current_status) await updateStatus(histStatus);
+    try {
+      const res = await fetch(`/api/events/${issueId}/history`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          note: histNote,
+          resolved_at:
+            histStatus === "resolved" ? new Date(histDate).toISOString() : null,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setHistNote("");
+      setHistDate(nowDT());
+      await fetchEvent();
+    } catch (e) {
+      alert(`新增失敗: ${e.message}`);
+    }
   }
-
-  function saveResolution() {
-    updateIssue(issue.id, () => ({ resolution: resText, resolutionHandler: resHandler, resolutionTime: resTime }))
-    alert('結案說明已儲存')
-  }
-
-  function sendMsg(content) {
-    const userMsg = content || chatInput.trim()
-    if (!userMsg) return
-    setChatInput('')
-    setChatMsgs(prev => [...prev, { role: 'user', content: userMsg }, { role: 'typing' }])
-    setTimeout(() => {
-      const reply = getMockReply(userMsg, issue, issues)
-      setChatMsgs(prev => prev.filter(m => m.role !== 'typing').concat({ role: 'assistant', content: reply }))
-    }, 400)
-  }
-
-  function sendQuickChat(type) {
-    const labelMap = { '整體摘要': '整體事件摘要', '相關發現': 'IOC 與相關發現', '補充說明': '技術背景補充', '修復建議': '完整修復建議' }
-    const userMsg = `【${labelMap[type] || type}】`
-    setChatMsgs(prev => [...prev, { role: 'user', content: userMsg }, { role: 'typing' }])
-    setTimeout(() => {
-      const reply = getMockReply(type, issue, issues)
-      setChatMsgs(prev => prev.filter(m => m.role !== 'typing').concat({ role: 'assistant', content: reply }))
-    }, 400)
-  }
-
-  function askSuggestStep(stepIdx) {
-    const userMsg = `請說明「${issue.suggests[stepIdx]}」的詳細操作步驟`
-    setChatMsgs(prev => [...prev, { role: 'user', content: userMsg }, { role: 'typing' }])
-    setTimeout(() => {
-      const reply = getStepReply(issue, stepIdx)
-      setChatMsgs(prev => prev.filter(m => m.role !== 'typing').concat({ role: 'assistant', content: reply }))
-    }, 400)
-  }
-
-  // ── render ──
-
-  const tabs = [
-    { id: 'detail', label: '事件詳情', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> },
-    { id: 'similar', label: '歷史事件', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
-    { id: 'diary', label: '處置紀錄', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-  ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)' }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "calc(100vh - 110px)",
+      }}
+    >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, flexShrink: 0 }}>
-        <h2 style={{ color: '#1e293b', fontSize: 18, fontWeight: 800 }}>{issue.title}</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 13, color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>處理狀態:</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: '1.5px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', minWidth: 100 }}>
-              <StatusIcon status={issue.currentStatus} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{issue.currentStatus}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 13, color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>負責人員:</label>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', padding: '6px 12px', border: '1.5px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', minWidth: 80 }}>{assignee}</span>
-          </div>
-          <Button onClick={() => navigate(`/ai-partner/${partnerId}/issues`)}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+          flexShrink: 0,
+        }}
+      >
+        <Typography sx={{ color: "#1e293b", fontSize: 18, fontWeight: 800 }}>
+          {event.title}
+        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: "#475569",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+              }}
+            >
+              處理狀態:
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                px: 1.5,
+                py: 0.75,
+                border: "1.5px solid #e2e8f0",
+                borderRadius: 1.5,
+                bgcolor: "#f8fafc",
+                minWidth: 100,
+              }}
+            >
+              <StatusIcon status={event.current_status} />
+              <Typography
+                sx={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}
+              >
+                {STATUS_LABEL[event.current_status]}
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: "#475569",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+              }}
+            >
+              負責人員:
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#1e293b",
+                px: 1.5,
+                py: 0.75,
+                border: "1.5px solid #e2e8f0",
+                borderRadius: 1.5,
+                bgcolor: "#f8fafc",
+                minWidth: 80,
+              }}
+            >
+              {event.assignee_user_id
+                ? `User #${event.assignee_user_id}`
+                : "未指派"}
+            </Typography>
+          </Box>
+          <Button
+            onClick={() => navigate(`/ai-partner/${partnerId}/issues`)}
             variant="outlined"
-            startIcon={<ArrowBackIosNew sx={{ fontSize: '14px !important' }} />}
-            sx={{ border: '1px solid #cbd5e1', background: 'white', borderRadius: 1, fontSize: 13.5, fontWeight: 600, color: '#334155', textTransform: 'none', '&:hover': { background: '#f8fafc', borderColor: '#94a3b8' } }}>
+            startIcon={<ArrowBackIosNew sx={{ fontSize: "14px !important" }} />}
+            sx={{
+              border: "1px solid #cbd5e1",
+              bgcolor: "white",
+              borderRadius: 1,
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: "#334155",
+              textTransform: "none",
+              "&:hover": { bgcolor: "#f8fafc" },
+            }}
+          >
             回上一頁
           </Button>
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* Two-column body */}
-      <div style={{ display: 'flex', gap: 20, flex: 1, overflow: 'hidden', minHeight: 0 }}>
-
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2.5,
+          flex: 1,
+          overflow: "hidden",
+          minHeight: 0,
+        }}
+      >
         {/* Left: Tabs */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', paddingRight: 4 }}>
-          {/* Tab nav */}
-          <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: 0, flexShrink: 0, background: 'white', borderRadius: '8px 8px 0 0', overflow: 'hidden', border: '1px solid #e2e8f0', borderBottomColor: 'transparent' }}>
-            {tabs.map(tab => (
-              <Button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                disableRipple={false}
-                sx={{
-                  padding: '11px 18px', fontSize: 13, fontWeight: 600,
-                  color: activeTab === tab.id ? '#2e3f6e' : '#64748b',
-                  background: activeTab === tab.id ? 'white' : '#f8fafc',
-                  border: 'none', cursor: 'pointer',
-                  borderBottom: `2px solid ${activeTab === tab.id ? '#2e3f6e' : 'transparent'}`,
-                  borderRight: '1px solid #e2e8f0',
-                  display: 'flex', alignItems: 'center', gap: '7px', whiteSpace: 'nowrap', transition: 'all 0.2s',
-                  borderRadius: 0, textTransform: 'none', minWidth: 0,
-                  '&:hover': { background: activeTab === tab.id ? 'white' : '#eef1f8' }
-                }}>
-                {tab.icon}{tab.label}
-              </Button>
-            ))}
-          </div>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
+          <Tabs
+            value={tabIndex}
+            onChange={(_, v) => setTabIndex(v)}
+            sx={{
+              flexShrink: 0,
+              bgcolor: "white",
+              borderRadius: "8px 8px 0 0",
+              border: "1px solid #e2e8f0",
+              borderBottom: "none",
+              minHeight: 42,
+              "& .MuiTab-root": {
+                minHeight: 42,
+                fontSize: 13,
+                fontWeight: 600,
+                textTransform: "none",
+                color: "#64748b",
+                gap: 0.75,
+              },
+              "& .Mui-selected": { color: "#2e3f6e !important" },
+              "& .MuiTabs-indicator": { bgcolor: "#2e3f6e" },
+            }}
+          >
+            <Tab
+              icon={<InfoOutlined sx={{ fontSize: 16 }} />}
+              iconPosition="start"
+              label="事件詳情"
+            />
+            <Tab
+              icon={<SearchOutlined sx={{ fontSize: 16 }} />}
+              iconPosition="start"
+              label="歷史事件"
+            />
+            <Tab
+              icon={<DescriptionOutlined sx={{ fontSize: 16 }} />}
+              iconPosition="start"
+              label="處置紀錄"
+            />
+          </Tabs>
 
           {/* Tab panels */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 16, background: 'white', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 8px 8px', minHeight: 0 }}>
-
-            {/* Tab 1: 事件詳情 */}
-            {activeTab === 'detail' && (
-              <div>
-                <Section title="事件摘要" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2e3f6e" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}>
-                  {formatDesc(issue.desc)}
-                </Section>
-
-                <Section title="建議處置方法" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}>
-                  {issue.suggests.map((s, idx) => {
-                    const refs = stepRefs[idx] || []
-                    const urg = stepUrgency[idx] || ''
-                    return (
-                      <div key={idx} style={{ display: 'flex', gap: 0, alignItems: 'flex-start', padding: '9px 0', borderBottom: '1px solid #f1f5f9' }}>
-                        <div style={{ flexShrink: 0, width: 58, paddingTop: 2 }}>
-                          {urg && <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 4, marginRight: 7, verticalAlign: 'middle', whiteSpace: 'nowrap', ...URGENCY_STYLE[urg] }}>{urg}</span>}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                          <div style={{ flex: 1, fontSize: 13, color: '#334155', lineHeight: 1.65, paddingTop: 1 }}>
-                            {s}
-                            {refs.length > 0 && (
-                              <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4, marginLeft: 6, verticalAlign: 'middle' }}>
-                                {refs.map((r, ri) => (
-                                  <a key={ri} href={r.url} target="_blank" rel="noreferrer"
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '2px 7px', borderRadius: 4, textDecoration: 'none', fontSize: 11, fontWeight: 700, background: '#f8f8f8', border: '1px solid #d1d5db', color: '#374151' }}>
-                                    {r.label}
-                                    {r.type === 'mitre' && r.name && <span style={{ fontSize: 10, color: '#9ca3af', marginLeft: 2 }}>{r.name}</span>}
-                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 2, opacity: 0.5 }}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                  </a>
-                                ))}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ flexShrink: 0, paddingTop: 1 }}>
-                            <Button onClick={() => askSuggestStep(idx)}
-                              size="small"
-                              sx={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 8px', borderRadius: 1, border: '1px solid #2e3f6e', background: 'white', color: '#2e3f6e', fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', textTransform: 'none', minWidth: 0, '&:hover': { background: '#eef1f8' } }}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M9 13h0M15 13h0" strokeWidth="3" strokeLinecap="round"/><path d="M12 2v4M2 12h2M20 12h2"/></svg>
-                              參考步驟
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </Section>
-
-                <Section title="關聯日誌摘要" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}>
-                  <div style={{ background: '#f8fafc' }}>
-                    {issue.logs.slice(0, 3).map((log, i) => (
-                      <div key={i} style={{ background: '#0f172a', color: '#a5b4fc', padding: 12, borderRadius: 6, fontFamily: 'monospace', fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 5 }}>{log}</div>
-                    ))}
-                    {showAllLogs && issue.logs.slice(3).map((log, i) => (
-                      <div key={i + 3} style={{ background: '#0f172a', color: '#a5b4fc', padding: 12, borderRadius: 6, fontFamily: 'monospace', fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 5, marginTop: 5 }}>{log}</div>
-                    ))}
-                    {issue.logs.length > 3 && (
-                      <Button onClick={() => setShowAllLogs(v => !v)}
-                        size="small"
-                        sx={{ mt: 1.25, fontSize: 12, border: '1px solid #cbd5e1', background: 'white', borderRadius: 1, fontWeight: 600, textTransform: 'none', color: '#334155', '&:hover': { background: '#f8fafc' } }}>
-                        {showAllLogs ? 'Less...' : `顯示完整關聯日誌 (More...)`}
-                      </Button>
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              p: 2,
+              bgcolor: "white",
+              border: "1px solid #e2e8f0",
+              borderTop: "none",
+              borderRadius: "0 0 8px 8px",
+              minHeight: 0,
+            }}
+          >
+            {/* Tab 0: 事件詳情 */}
+            {tabIndex === 0 && (
+              <>
+                <Card variant="outlined" sx={{ mb: 2 }}>
+                  <CardHeader
+                    avatar={<InfoOutlined sx={{ color: "#2e3f6e" }} />}
+                    title="事件摘要"
+                    titleTypographyProps={{
+                      fontWeight: 700,
+                      fontSize: 15,
+                      color: "#1e293b",
+                    }}
+                    sx={{
+                      bgcolor: "#f8fafc",
+                      borderBottom: "1px solid #e2e8f0",
+                      py: 1.5,
+                    }}
+                  />
+                  <CardContent>
+                    {event.description && (
+                      <Typography
+                        sx={{
+                          fontSize: 14,
+                          color: "#334155",
+                          lineHeight: 1.75,
+                          mb: 1.5,
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {event.description}
+                      </Typography>
                     )}
-                  </div>
-                </Section>
-              </div>
-            )}
+                    {formatDesc(event.affected_detail)}
+                  </CardContent>
+                </Card>
 
-            {/* Tab 2: 歷史事件 */}
-            {activeTab === 'similar' && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>歷史事件</span>
-                </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 14, paddingLeft: 24 }}>相似度由 PRO 模型依據事件描述語意、MITRE 技術重疊度、影響設備類型自動計算，於每日分析時寫入。目前顯示為 mock 示意資料。</div>
-                {similarCases.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8', fontSize: 13 }}>
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ marginBottom: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    尚無相似歷史案例記錄
-                  </div>
-                ) : similarCases.map(c => {
-                  const pct = c.similarity
-                  const pctStyle = pct >= 85 ? { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' } : pct >= 70 ? { background: '#fff7ed', color: '#b45309', border: '1px solid #fed7aa' } : { background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' }
-                  const outcomeStyle = OUTCOME_STYLE[c.outcome] || OUTCOME_STYLE['已緩解']
-                  return (
-                    <div key={c.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 12, background: 'white' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 3 }}>{c.title}</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.date}</div>
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, ...pctStyle }}>相似度 {pct}%</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, marginBottom: 8 }}>{c.summary}</div>
-                      <div style={{ background: '#f8fafc', borderRadius: 6, padding: '8px 10px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>最終處置方式</span>
-                          {c.resolvedAt && <span style={{ fontSize: 10, color: '#94a3b8' }}>🕐 {c.resolvedAt}</span>}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.5 }}>{c.resolution}</div>
-                        {c.resolvedBy && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>處理人：{c.resolvedBy}</div>}
-                      </div>
-                      <div style={{ marginTop: 8 }}>
-                        <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, ...outcomeStyle }}>{c.outcome}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Tab 3: 處置紀錄 */}
-            {activeTab === 'diary' && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>處置紀錄</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>— 記錄每次處理動作與備註</span>
-                </div>
-
-                {/* History list */}
-                <div style={{ marginBottom: 14 }}>
-                  {!issue.history || issue.history.length === 0 ? (
-                    <div style={{ fontSize: 13, color: '#94a3b8', padding: '4px 0' }}>（尚無處置紀錄）</div>
-                  ) : issue.history.map((h, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                      <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', minWidth: 110, paddingTop: 1 }}>{h.date}</span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#2e3f6e', whiteSpace: 'nowrap' }}>{h.user}</span>
-                      <span style={{ fontSize: 13, color: '#334155', flex: 1 }}>
-                        {h.note}
-                        {h.statusChange && (
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 3, marginLeft: 6, ...(OUTCOME_STYLE[h.statusChange] || { background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' }) }}>
-                            {h.statusChange}
-                          </span>
-                        )}
-                      </span>
-                      <IconButton onClick={() => deleteHistoryEntry(idx)} title="刪除" size="small"
-                        sx={{ flexShrink: 0, width: 22, height: 22, borderRadius: 1, color: '#94a3b8', '&:hover': { color: '#ef4444', background: '#fef2f2' } }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </IconButton>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Resolution block (shown when status = 已完成) */}
-                {showResolution && (
-                  <div style={{ display: 'block', marginTop: 12, padding: '12px 14px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 8, marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#166534', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                      結案說明（必填）
-                    </div>
-                    <div style={{ fontSize: 11, color: '#4d7c60', marginBottom: 8 }}>狀態已設為「已完成」，請填寫最終處置方式，這將作為日後相似案例的參考依據。</div>
-                    <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <Typography sx={{ fontSize: 11, color: '#166534', fontWeight: 700, display: 'block', mb: 0.375 }}>處理人</Typography>
-                        <TextField type="text" value={resHandler} onChange={e => setResHandler(e.target.value)} placeholder="處理人姓名"
-                          size="small" fullWidth
-                          sx={{ '& .MuiOutlinedInput-root': { height: 32, fontSize: 13, background: 'white', '& fieldset': { borderColor: '#86efac', borderWidth: 1.5 }, '&:hover fieldset': { borderColor: '#4ade80' } }, '& .MuiInputBase-input': { py: 0, color: '#1e293b' } }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <Typography sx={{ fontSize: 11, color: '#166534', fontWeight: 700, display: 'block', mb: 0.375 }}>處置時間</Typography>
-                        <TextField type="datetime-local" value={resTime} onChange={e => setResTime(e.target.value)}
-                          size="small" fullWidth
-                          sx={{ '& .MuiOutlinedInput-root': { height: 32, fontSize: 13, background: 'white', '& fieldset': { borderColor: '#86efac', borderWidth: 1.5 }, '&:hover fieldset': { borderColor: '#4ade80' } }, '& .MuiInputBase-input': { py: 0, color: '#1e293b' } }} />
-                      </div>
-                    </div>
-                    <TextField value={resText} onChange={e => setResText(e.target.value)} multiline rows={3}
-                      placeholder="例如：已隔離主機並重新安裝 OS，更新防火牆 GeoIP 規則封鎖惡意 IP，部署 NDR 監控..."
-                      fullWidth
-                      sx={{ '& .MuiOutlinedInput-root': { fontSize: 13, background: 'white', '& fieldset': { borderColor: '#86efac', borderWidth: 1.5 }, '&:hover fieldset': { borderColor: '#4ade80' } }, '& .MuiInputBase-input': { color: '#1e293b' } }} />
-                    <Button onClick={saveResolution}
-                      sx={{ mt: 1, background: '#166534', color: 'white', border: 'none', borderRadius: 1, fontSize: 12, px: 1.75, py: 0.75, fontWeight: 700, textTransform: 'none', '&:hover': { background: '#14532d' } }}>
-                      儲存結案說明
-                    </Button>
-                  </div>
+                {event.suggests && event.suggests.length > 0 && (
+                  <Card variant="outlined" sx={{ mb: 2 }}>
+                    <CardHeader
+                      avatar={<CheckCircleOutline sx={{ color: "#94a3b8" }} />}
+                      title="建議處置方法"
+                      titleTypographyProps={{
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "#1e293b",
+                      }}
+                      sx={{
+                        bgcolor: "#f8fafc",
+                        borderBottom: "1px solid #e2e8f0",
+                        py: 1.5,
+                      }}
+                    />
+                    <CardContent sx={{ py: 1 }}>
+                      <List dense disablePadding>
+                        {event.suggests.map((s, idx) => {
+                          const urgency =
+                            idx < 2 ? "最推薦" : idx < 4 ? "次推薦" : "可選";
+                          const urgencyStyle = {
+                            最推薦: {
+                              bgcolor: "#eef1f8",
+                              color: "#2e3f6e",
+                              border: "1px solid #c5ccdf",
+                            },
+                            次推薦: {
+                              bgcolor: "#f8fafc",
+                              color: "#475569",
+                              border: "1px solid #cbd5e1",
+                            },
+                            可選: {
+                              bgcolor: "#f8fafc",
+                              color: "#94a3b8",
+                              border: "1px solid #e2e8f0",
+                            },
+                          }[urgency];
+                          // 從事件的 mitre_tags 裡對應溯源（依序分配）
+                          const mitreTag =
+                            event.mitre_tags &&
+                            event.mitre_tags[idx % event.mitre_tags.length];
+                          return (
+                            <ListItem
+                              key={idx}
+                              sx={{
+                                py: 1,
+                                borderBottom: "1px solid #f1f5f9",
+                                alignItems: "flex-start",
+                              }}
+                            >
+                              <Chip
+                                label={urgency}
+                                size="small"
+                                sx={{
+                                  mr: 1.5,
+                                  mt: 0.25,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  borderRadius: 1,
+                                  minWidth: 52,
+                                  height: 22,
+                                  ...urgencyStyle,
+                                }}
+                              />
+                              <ListItemText
+                                primary={s}
+                                primaryTypographyProps={{
+                                  fontSize: 14,
+                                  color: "#334155",
+                                  lineHeight: 1.7,
+                                }}
+                                sx={{ flex: 1 }}
+                              />
+                              {mitreTag && (
+                                <Chip
+                                  label={mitreTag}
+                                  size="small"
+                                  component="a"
+                                  href={`https://attack.mitre.org/techniques/${mitreTag.replace(".", "/")}`}
+                                  target="_blank"
+                                  clickable
+                                  icon={
+                                    <svg
+                                      width="10"
+                                      height="10"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                    >
+                                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                      <polyline points="15 3 21 3 21 9" />
+                                      <line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
+                                  }
+                                  sx={{
+                                    ml: 1,
+                                    mt: 0.25,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    fontFamily: "monospace",
+                                    bgcolor: "#f8f8f8",
+                                    color: "#374151",
+                                    border: "1px solid #d1d5db",
+                                    flexShrink: 0,
+                                    height: 22,
+                                    "&:hover": {
+                                      bgcolor: "#eef1f8",
+                                      borderColor: "#2e3f6e",
+                                    },
+                                  }}
+                                />
+                              )}
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    </CardContent>
+                  </Card>
                 )}
 
-                {/* Add history entry form */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', alignItems: 'flex-end', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <div>
-                    <Typography sx={{ fontSize: 11, color: '#64748b', display: 'block', mb: 0.375 }}>日期</Typography>
-                    <TextField type="datetime-local" value={histDate} onChange={e => setHistDate(e.target.value)}
-                      size="small"
-                      sx={{ '& .MuiOutlinedInput-root': { height: 36, fontSize: 13, '& fieldset': { borderColor: '#cbd5e1' } }, '& .MuiInputBase-input': { py: 0 } }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Typography sx={{ fontSize: 11, color: '#64748b', display: 'block', mb: 0.375 }}>備註</Typography>
-                    <TextField type="text" value={histNote} onChange={e => setHistNote(e.target.value)} placeholder="輸入處理動作備註..."
-                      size="small" fullWidth
-                      sx={{ '& .MuiOutlinedInput-root': { height: 36, fontSize: 13, '& fieldset': { borderColor: '#cbd5e1' } }, '& .MuiInputBase-input': { py: 0 } }} />
-                  </div>
-                  <div>
-                    <Typography sx={{ fontSize: 11, color: '#64748b', display: 'block', mb: 0.375 }}>變更狀態</Typography>
-                    <TextField select value={histStatus} onChange={e => setHistStatus(e.target.value)}
-                      size="small"
-                      sx={{ minWidth: 100, '& .MuiOutlinedInput-root': { height: 36, fontSize: 13, '& fieldset': { borderColor: '#cbd5e1' } }, '& .MuiSelect-select': { py: 0 } }}>
-                      {['未處理', '處理中', '已完成', '擱置'].map(s => <MenuItem key={s} value={s} sx={{ fontSize: 13 }}>{s}</MenuItem>)}
-                    </TextField>
-                  </div>
-                  <Button onClick={addHistoryEntry}
-                    sx={{ height: 36, px: 1.75, background: '#2e3f6e', color: 'white', border: 'none', borderRadius: 1, fontSize: 13, fontWeight: 600, textTransform: 'none', '&:hover': { background: '#1e2d52' } }}>
-                    新增
-                  </Button>
-                </div>
-              </div>
+                {event.logs && event.logs.length > 0 && (
+                  <Card variant="outlined" sx={{ mb: 2 }}>
+                    <CardHeader
+                      avatar={<ChatOutlined sx={{ color: "#475569" }} />}
+                      title={`關聯日誌摘要（${event.logs.length} 筆）`}
+                      titleTypographyProps={{
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "#1e293b",
+                      }}
+                      sx={{
+                        bgcolor: "#f8fafc",
+                        borderBottom: "1px solid #e2e8f0",
+                        py: 1.5,
+                      }}
+                    />
+                    <CardContent sx={{ bgcolor: "#f8fafc" }}>
+                      {event.logs.map((log, i) => {
+                        // log 可能是 string（舊格式）或 object（新格式，含 id/timestamp/host/message）
+                        if (typeof log === "string") {
+                          return (
+                            <Box
+                              key={i}
+                              sx={{
+                                bgcolor: "#0f172a",
+                                color: "#a5b4fc",
+                                p: 1.5,
+                                borderRadius: 1.5,
+                                fontFamily: "monospace",
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                                whiteSpace: "pre-wrap",
+                                mb: 0.625,
+                              }}
+                            >
+                              {log}
+                            </Box>
+                          );
+                        }
+                        const ts = log.timestamp
+                          ? new Date(log.timestamp * 1000).toLocaleString(
+                              "zh-TW",
+                            )
+                          : "";
+                        return (
+                          <Box
+                            key={i}
+                            sx={{
+                              bgcolor: "#0f172a",
+                              borderRadius: 1.5,
+                              mb: 0.75,
+                              overflow: "hidden",
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                gap: 1.5,
+                                px: 1.5,
+                                py: 0.75,
+                                bgcolor: "#1e293b",
+                                fontSize: 11,
+                                color: "#94a3b8",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              {log.id && (
+                                <Chip
+                                  label={`SSB ID: ${log.id}`}
+                                  size="small"
+                                  sx={{
+                                    fontSize: 10,
+                                    height: 18,
+                                    bgcolor: "#334155",
+                                    color: "#94a3b8",
+                                    fontFamily: "monospace",
+                                  }}
+                                />
+                              )}
+                              {ts && <span>{ts}</span>}
+                              {log.host && <span>Host: {log.host}</span>}
+                              {log.program && (
+                                <span>Program: {log.program}</span>
+                              )}
+                            </Box>
+                            <Box
+                              sx={{
+                                p: 1.5,
+                                color: "#a5b4fc",
+                                fontFamily: "monospace",
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {log.message}
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
-          </div>
-        </div>
+
+            {/* Tab 1: 歷史事件（Epic 2） */}
+            {tabIndex === 1 && (
+              <Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    mb: 0.75,
+                  }}
+                >
+                  <SearchOutlined sx={{ color: "#94a3b8", fontSize: 18 }} />
+                  <Typography
+                    sx={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}
+                  >
+                    歷史事件
+                  </Typography>
+                </Box>
+                <Typography
+                  sx={{ fontSize: 11, color: "#94a3b8", mb: 1.75, pl: 3.25 }}
+                >
+                  相似度由 PRO 模型依據事件描述語意、MITRE
+                  技術重疊度、影響設備類型自動計算，於每日分析時寫入。
+                </Typography>
+                <Box sx={{ textAlign: "center", py: 4, color: "#94a3b8" }}>
+                  <SearchOutlined
+                    sx={{ fontSize: 40, color: "#cbd5e1", mb: 1 }}
+                  />
+                  <Typography sx={{ fontSize: 13 }}>
+                    尚無相似歷史案例記錄
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
+            {/* Tab 2: 處置紀錄 */}
+            {tabIndex === 2 && (
+              <Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    mb: 1.75,
+                  }}
+                >
+                  <HistoryOutlined sx={{ color: "#94a3b8", fontSize: 18 }} />
+                  <Typography
+                    sx={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}
+                  >
+                    處置紀錄
+                  </Typography>
+                  <Typography sx={{ fontSize: 11, color: "#94a3b8" }}>
+                    — 記錄每次處理動作與備註
+                  </Typography>
+                </Box>
+
+                {/* History list */}
+                <Box sx={{ mb: 1.75 }}>
+                  {!event.history || event.history.length === 0 ? (
+                    <Typography
+                      sx={{ fontSize: 13, color: "#94a3b8", py: 0.5 }}
+                    >
+                      （尚無處置紀錄）
+                    </Typography>
+                  ) : (
+                    <List dense disablePadding>
+                      {event.history.map((h) => (
+                        <ListItem
+                          key={h.id}
+                          sx={{
+                            py: 1,
+                            borderBottom: "1px solid #f1f5f9",
+                            alignItems: "flex-start",
+                            px: 0,
+                          }}
+                        >
+                          <ListItemText
+                            primary={
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  gap: 1.25,
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Typography
+                                  sx={{
+                                    fontSize: 11,
+                                    color: "#94a3b8",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {new Date(h.created_at).toLocaleString(
+                                    "zh-TW",
+                                  )}
+                                </Typography>
+                                <Chip
+                                  label={
+                                    h.action === "status_change"
+                                      ? `${STATUS_LABEL[h.old_status] || h.old_status} → ${STATUS_LABEL[h.new_status] || h.new_status}`
+                                      : h.action === "assign"
+                                        ? "指派變更"
+                                        : h.action === "resolve"
+                                          ? "結案"
+                                          : "留言"
+                                  }
+                                  size="small"
+                                  sx={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    bgcolor: "#eef1f8",
+                                    color: "#2e3f6e",
+                                    height: 22,
+                                  }}
+                                />
+                              </Box>
+                            }
+                            secondary={h.note}
+                            secondaryTypographyProps={{
+                              fontSize: 13,
+                              color: "#334155",
+                              mt: 0.5,
+                            }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Box>
+
+                {/* Add history form */}
+                <Card variant="outlined" sx={{ bgcolor: "#f8fafc" }}>
+                  <CardContent
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "nowrap",
+                      alignItems: "flex-end",
+                      "&:last-child": { pb: 2 },
+                    }}
+                  >
+                    <Box>
+                      <Typography
+                        sx={{ fontSize: 11, color: "#64748b", mb: 0.375 }}
+                      >
+                        日期
+                      </Typography>
+                      <TextField
+                        type="datetime-local"
+                        value={histDate}
+                        onChange={(e) => setHistDate(e.target.value)}
+                        size="small"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            height: 36,
+                            fontSize: 13,
+                            "& fieldset": { borderColor: "#cbd5e1" },
+                          },
+                          "& .MuiInputBase-input": { py: 0 },
+                        }}
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        sx={{ fontSize: 11, color: "#64748b", mb: 0.375 }}
+                      >
+                        備註
+                      </Typography>
+                      <TextField
+                        value={histNote}
+                        onChange={(e) => setHistNote(e.target.value)}
+                        placeholder="輸入處理動作備註..."
+                        size="small"
+                        fullWidth
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            height: 36,
+                            fontSize: 13,
+                            "& fieldset": { borderColor: "#cbd5e1" },
+                          },
+                          "& .MuiInputBase-input": { py: 0 },
+                        }}
+                      />
+                    </Box>
+                    <Box>
+                      <Typography
+                        sx={{ fontSize: 11, color: "#64748b", mb: 0.375 }}
+                      >
+                        變更狀態
+                      </Typography>
+                      <TextField
+                        select
+                        value={histStatus}
+                        onChange={(e) => setHistStatus(e.target.value)}
+                        size="small"
+                        sx={{
+                          minWidth: 100,
+                          "& .MuiOutlinedInput-root": {
+                            height: 36,
+                            fontSize: 13,
+                            "& fieldset": { borderColor: "#cbd5e1" },
+                          },
+                          "& .MuiSelect-select": { py: 0 },
+                        }}
+                      >
+                        {STATUS_OPTIONS.map(([val, label]) => (
+                          <MenuItem key={val} value={val} sx={{ fontSize: 13 }}>
+                            {label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Box>
+                    <Button
+                      onClick={addHistoryEntry}
+                      sx={{
+                        height: 36,
+                        px: 1.75,
+                        bgcolor: "#2e3f6e",
+                        color: "white",
+                        borderRadius: 1,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        textTransform: "none",
+                        "&:hover": { bgcolor: "#1e2d52" },
+                      }}
+                    >
+                      新增
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
+          </Box>
+        </Box>
 
         {/* Right: Chat Panel */}
-        <div style={{ width: chatVisible ? 360 : 40, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', transition: 'width 0.2s' }}>
-          {/* Chat header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexShrink: 0 }}>
+        <Box
+          sx={{
+            width: chatVisible ? 360 : 40,
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            overflow: "hidden",
+            transition: "width 0.2s",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 1,
+              flexShrink: 0,
+            }}
+          >
             {chatVisible && (
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2e3f6e" strokeWidth="2"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M9 13h0M15 13h0" strokeWidth="3" strokeLinecap="round"/><path d="M12 2v4M2 12h2M20 12h2"/></svg>
+              <Typography
+                sx={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#1e293b",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                }}
+              >
+                <SmartToyOutlined sx={{ fontSize: 18, color: "#2e3f6e" }} />
                 諮詢資安專家
-              </div>
+              </Typography>
             )}
-            <IconButton onClick={() => setChatVisible(v => !v)} title={chatVisible ? '收合' : '展開'}
-              sx={{ width: 28, height: 28, borderRadius: 1, border: '1.5px solid #cbd5e1', background: 'white', flexShrink: 0, marginLeft: chatVisible ? 0 : 'auto', '&:hover': { background: '#eef1f8', borderColor: '#2e3f6e' } }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2e3f6e" strokeWidth="2.5">
-                {chatVisible ? <polyline points="15 18 9 12 15 6"/> : <polyline points="9 18 15 12 9 6"/>}
-              </svg>
+            <IconButton
+              onClick={() => setChatVisible((v) => !v)}
+              title={chatVisible ? "收合" : "展開"}
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1,
+                border: "1.5px solid #cbd5e1",
+                bgcolor: "white",
+                flexShrink: 0,
+                ml: chatVisible ? 0 : "auto",
+                "&:hover": { bgcolor: "#eef1f8", borderColor: "#2e3f6e" },
+              }}
+            >
+              {chatVisible ? (
+                <ChevronRightIcon sx={{ fontSize: 18, color: "#2e3f6e" }} />
+              ) : (
+                <ChevronLeftIcon sx={{ fontSize: 18, color: "#2e3f6e" }} />
+              )}
             </IconButton>
-          </div>
+          </Box>
 
-          {chatVisible && (
-            <div style={{ background: 'white', borderRadius: 12, display: 'flex', flexDirection: 'column', border: '1px solid #e2e8f0', minHeight: 0, overflow: 'hidden', flex: 1 }}>
-              {/* Messages */}
-              <div style={{ flex: 1, padding: 15, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
-                {chatMsgs.map((m, i) => (
-                  <div key={i} style={{
-                    padding: '10px 14px', borderRadius: 10, maxWidth: '85%', lineHeight: 1.5, fontSize: 14, whiteSpace: 'pre-wrap',
-                    ...(m.role === 'user' ? { background: '#2e3f6e', color: 'white', alignSelf: 'flex-end' } :
-                       m.role === 'typing' ? { background: '#f1f5f9', color: '#94a3b8', alignSelf: 'flex-start', border: '1px solid #e2e8f0', fontStyle: 'italic' } :
-                       { background: '#f1f5f9', alignSelf: 'flex-start', border: '1px solid #e2e8f0' })
-                  }}>
-                    {m.role === 'typing' ? '資安專家分析中…' : m.content}
-                  </div>
-                ))}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Quick chips */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, padding: '8px 10px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                {['整體摘要', '相關發現', '補充說明', '修復建議'].map(type => (
-                  <Button key={type} onClick={() => sendQuickChat(type)}
-                    sx={{ padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #c5ccdf', background: 'white', color: '#2e3f6e', fontSize: 12, fontWeight: 700, textTransform: 'none', whiteSpace: 'nowrap', justifyContent: 'flex-start', minWidth: 0, '&:hover': { background: '#eef1f8', borderColor: '#2e3f6e' } }}>
-                    {type}
-                  </Button>
-                ))}
-              </div>
-
-              {/* Input */}
-              <div style={{ padding: 12, borderTop: '1px solid #e2e8f0', display: 'flex', gap: 8, alignItems: 'center', background: '#f8fafc', borderRadius: '0 0 12px 12px' }}>
-                <TextField
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendMsg()}
-                  placeholder="請針對此事件提出疑問..."
-                  size="small"
-                  sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '20px', fontSize: 13, '& fieldset': { borderColor: '#cbd5e1' } } }}
+          <Collapse
+            in={chatVisible}
+            orientation="horizontal"
+            sx={{ flex: 1, minHeight: 0 }}
+          >
+            <Card
+              variant="outlined"
+              sx={{
+                borderRadius: 3,
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 0,
+                height: "100%",
+              }}
+            >
+              <CardContent
+                sx={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#94a3b8",
+                }}
+              >
+                <SmartToyOutlined
+                  sx={{ fontSize: 48, color: "#cbd5e1", mb: 1.5 }}
                 />
-                <IconButton onClick={() => sendMsg()}
-                  sx={{ background: '#2e3f6e', color: 'white', width: 38, height: 38, flexShrink: 0, '&:hover': { background: '#1e2d52' } }}>
-                  <Send sx={{ fontSize: 18 }} />
-                </IconButton>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    mb: 0.5,
+                  }}
+                >
+                  AI 諮詢功能
+                </Typography>
+                <Typography
+                  sx={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}
+                >
+                  即將推出 — 可針對事件詢問詳細處理步驟、技術背景或風險評估
+                </Typography>
+              </CardContent>
+            </Card>
+          </Collapse>
+        </Box>
+      </Box>
+    </Box>
+  );
 }
