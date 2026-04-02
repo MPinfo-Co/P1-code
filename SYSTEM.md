@@ -46,11 +46,23 @@ DELETE FROM flash_results; DELETE FROM daily_analysis; DELETE FROM log_batches;
 | 類型 | group_key 格式 | 合併範圍 |
 |------|---------------|---------|
 | FortiGate deny 外部 | `deny_external_{dstip前三段}` | 同目標網段 |
-| FortiGate deny 內部 | `deny_internal_{srcip}` | 各內部 IP 獨立 |
+| FortiGate deny 內部（廣播/多播） | `deny_internal_broadcast_p{dstport}` | 同 port 的廣播行為（不分 IP） |
+| FortiGate deny 內部（單播） | `deny_internal_{srcip}` | 各內部 IP 獨立 |
 | FortiGate warning | `warning_{subtype}` | 同類型警告 |
 | Windows | `{event_id}_{username}` | 同帳號同事件類型 |
 
+**廣播/多播判斷：** dstip 為 x.x.x.255（IPv4 廣播）、224.x~239.x（IPv4 多播）、ff 開頭（IPv6 多播）→ 依 port 分組，不分來源 IP。其他 dstip → 依 srcip 分組。這個邏輯通用於所有客戶環境，不需要維護 port 清單。
+
 **為什麼不讓 AI 產 key？** AI 措辭不穩定，同攻擊可能產不同 key，無法合併。Sonnet prompt 已強制保留程式產的 key。
+
+### Sonnet 合併規則（Pro Task）
+
+Sonnet 在每日彙整時會依三個條件判斷是否合併不同 group_key 的事件：
+1. **同一類安全現象** — 行為相同（都是廣播被擋、都是掃描等）
+2. **同一個根因** — 同一個設定問題或同一波攻擊
+3. **同一個處置方式** — 資安專家的處理動作相同
+
+安全閥：單一事件最多合併 5 個不同 group_key，超過代表太寬泛。
 
 ### 合併流程
 
