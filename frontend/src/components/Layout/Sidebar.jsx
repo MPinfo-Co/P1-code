@@ -1,109 +1,166 @@
-// src/components/Layout/Sidebar.jsx
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
+import Drawer from '@mui/material/Drawer'
+import List from '@mui/material/List'
+import ListItemButton from '@mui/material/ListItemButton'
+import ListItemIcon from '@mui/material/ListItemIcon'
+import ListItemText from '@mui/material/ListItemText'
+import Collapse from '@mui/material/Collapse'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+
+const DRAWER_WIDTH = 260
+
+const iconSx = { color: '#94a3b8', minWidth: 36 }
+const textSx = { '& .MuiListItemText-primary': { fontSize: 14, fontWeight: 500, color: '#94a3b8' } }
+const activeSx = {
+  borderLeft: '4px solid #6366f1',
+  bgcolor: '#1e293b',
+  '& .MuiListItemText-primary': { color: 'white', fontWeight: 600 },
+  '& .MuiListItemIcon-root': { color: 'white' },
+}
 
 export default function Sidebar() {
   const [settingOpen, setSettingOpen] = useState(false)
   const { user } = useAuth()
+  const navigate = useNavigate()
   const canSeeSetting = user?.role === '管理員'
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-400 flex flex-col h-full">
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: DRAWER_WIDTH,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: DRAWER_WIDTH,
+          bgcolor: '#0f172a',
+          borderRight: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+        },
+      }}
+    >
       {/* Brand */}
-      <NavLink
-        to="/ai-partner"
-        className="px-6 py-5 text-2xl font-extrabold text-white border-b border-slate-800 flex items-center gap-2"
+      <Box
+        onClick={() => navigate('/ai-partner')}
+        sx={{ px: 3, py: 2.5, borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
       >
-        MP-Box
-      </NavLink>
+        <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'white' }}>MP-Box</Typography>
+      </Box>
 
       {/* Nav */}
-      <ul className="flex-1 py-5">
-        <li>
-          <NavLink
-            to="/ai-partner"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-6 py-3 font-medium transition-all ${
-                isActive
-                  ? 'border-l-4 border-indigo-500 text-white bg-slate-800'
-                  : 'hover:text-white'
-              }`
-            }
-          >
-            <svg className="w-5 h-5 stroke-current fill-none" strokeWidth="1.5" viewBox="0 0 24 24">
-              <rect x="4" y="8" width="16" height="12" rx="2" />
-              <path d="M9 13h0M15 13h0" strokeWidth="3" strokeLinecap="round" />
-              <path d="M12 2v4M2 12h2M20 12h2" />
-            </svg>
-            AI夥伴
-          </NavLink>
-        </li>
-        <li>
-          <NavLink
-            to="/kb"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-6 py-3 font-medium transition-all ${
-                isActive
-                  ? 'border-l-4 border-indigo-500 text-white bg-slate-800'
-                  : 'hover:text-white'
-              }`
-            }
-          >
-            <svg className="w-5 h-5 stroke-current fill-none" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
-            知識庫
-          </NavLink>
-        </li>
-        {canSeeSetting && (
-          <li>
-            <button
-              onClick={() => setSettingOpen((o) => !o)}
-              className="w-full flex items-center gap-3 px-6 py-3 font-medium hover:text-white transition-all"
+      <List sx={{ flex: 1, py: 1.5 }} disablePadding>
+        <NavLink to="/ai-partner" style={{ textDecoration: 'none' }}>
+          {({ isActive }) => (
+            <ListItemButton
+              sx={{
+                px: 3,
+                py: 1.2,
+                ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+              }}
             >
-              <svg
-                className="w-5 h-5 stroke-current fill-none"
-                strokeWidth="1.5"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-              設定 {settingOpen ? '▴' : '▾'}
-            </button>
-            <ul className={`nav-submenu bg-slate-950 ${settingOpen ? 'open' : ''}`}>
-              <li>
-                <NavLink
-                  to="/settings/account"
-                  className="block py-2.5 pl-14 text-sm hover:text-white"
-                >
-                  帳號
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  to="/settings/role"
-                  className="block py-2.5 pl-14 text-sm hover:text-white"
-                >
-                  角色
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  to="/settings/ai-config"
-                  className="block py-2.5 pl-14 text-sm hover:text-white"
-                >
-                  AI夥伴管理
-                </NavLink>
-              </li>
-            </ul>
-          </li>
-        )}
-      </ul>
+              <ListItemIcon sx={iconSx}>
+                <SmartToyOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="AI夥伴" sx={textSx} />
+            </ListItemButton>
+          )}
+        </NavLink>
 
-      <div className="px-6 py-3 text-xs text-slate-500 border-t border-slate-800">v73</div>
-    </aside>
+        <NavLink to="/kb" style={{ textDecoration: 'none' }}>
+          {({ isActive }) => (
+            <ListItemButton
+              sx={{
+                px: 3,
+                py: 1.2,
+                ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+              }}
+            >
+              <ListItemIcon sx={iconSx}>
+                <MenuBookOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="知識庫" sx={textSx} />
+            </ListItemButton>
+          )}
+        </NavLink>
+
+        {canSeeSetting && (
+          <>
+            <ListItemButton
+              onClick={() => setSettingOpen((o) => !o)}
+              sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
+            >
+              <ListItemIcon sx={iconSx}>
+                <SettingsOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="設定" sx={textSx} />
+              {settingOpen ? (
+                <ExpandLessIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+              ) : (
+                <ExpandMoreIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+              )}
+            </ListItemButton>
+            <Collapse in={settingOpen} timeout="auto" unmountOnExit>
+              <List disablePadding sx={{ bgcolor: '#0b1120' }}>
+                {[
+                  {
+                    to: '/settings/account',
+                    label: '帳號',
+                    icon: <ManageAccountsOutlinedIcon fontSize="small" />,
+                  },
+                  {
+                    to: '/settings/role',
+                    label: '角色',
+                    icon: <GroupsOutlinedIcon fontSize="small" />,
+                  },
+                  {
+                    to: '/settings/ai-config',
+                    label: 'AI夥伴管理',
+                    icon: <TuneOutlinedIcon fontSize="small" />,
+                  },
+                ].map((item) => (
+                  <NavLink key={item.to} to={item.to} style={{ textDecoration: 'none' }}>
+                    {({ isActive }) => (
+                      <ListItemButton
+                        sx={{
+                          pl: 7,
+                          py: 1,
+                          ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+                        }}
+                      >
+                        <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>{item.icon}</ListItemIcon>
+                        <ListItemText
+                          primary={item.label}
+                          sx={{
+                            '& .MuiListItemText-primary': {
+                              fontSize: 13,
+                              color: isActive ? 'white' : '#94a3b8',
+                            },
+                          }}
+                        />
+                      </ListItemButton>
+                    )}
+                  </NavLink>
+                ))}
+              </List>
+            </Collapse>
+          </>
+        )}
+      </List>
+
+      <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #1e293b' }}>
+        <Typography sx={{ fontSize: 11, color: '#475569' }}>v73</Typography>
+      </Box>
+    </Drawer>
   )
 }
