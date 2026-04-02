@@ -6,6 +6,10 @@ MP-BOX P1-code — React 19 + FastAPI 的企業 AI 應用平台。
 
 詳細架構與開發流程見根目錄的 `../CLAUDE.md`（P1-project）。
 
+## 系統技術文件
+
+MP-Box 的完整系統架構、資料流、SSB 整合、事件合併機制，見 [`SYSTEM.md`](./SYSTEM.md)。
+
 ## 開發環境（首次設定）
 
 詳見 `SETUP.md`，摘要：
