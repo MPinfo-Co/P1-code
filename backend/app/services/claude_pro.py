@@ -1,0 +1,85 @@
+import json
+import logging
+
+from anthropic import Anthropic
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+_client: Anthropic | None = None
+
+
+def _get_client() -> Anthropic:
+    global _client
+    if _client is None:
+        _client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    return _client
+
+
+SYSTEM_PROMPT = """你是資深資安分析師。根據一整天的 AI 分析結果，產出整合去重後的最終事件清單。
+規則：
+1. 只輸出 JSON 陣列，不加任何說明文字
+2. 合併相同攻擊的重複偵測（相同 match_key 或明顯相同的攻擊）
+3. **match_key 必須原樣保留輸入的 key，禁止修改、重新命名或翻譯**。合併多個事件時，使用其中一個原始 match_key
+4. 若事件與昨天的事件相同（延續），填入 continued_from_match_key
+5. detection_count 為所有相關 log 的總數
+6. suggests 提供 3-5 條具體處置建議
+7. affected_detail 使用【】標籤格式：
+   - 【異常發現】必填。用一段話說明發生什麼事，包含受影響的設備/帳號/IP
+   - 【風險分析】必填。說明嚴重性、可能後果、為什麼需要關注
+   - 【攻擊來源】選填。有明確來源 IP 或主機時才填"""
+
+USER_PROMPT_TEMPLATE = """今天日期：{today}
+
+今天偵測到的事件候選（依 match_key 分群，每群代表同類事件的所有偵測）：
+{grouped_events_json}
+
+昨天的已確認事件（用於判斷是否為延續事件）：
+{previous_events_json}
+
+請輸出整合後的最終事件清單，每筆格式：
+{{
+  "match_key": "必須原樣使用輸入的 key，禁止修改",
+  "star_rank": 1-5,
+  "title": "最終事件標題（50字以內）",
+  "description": "事件說明（200字以內）",
+  "affected_summary": "20字以內，格式：對象（補充）",
+  "affected_detail": "【異常發現】發生什麼事+受影響對象（必填）\\n【風險分析】嚴重性與可能後果（必填）\\n【攻擊來源】IP清單（有明確來源才填）",
+  "detection_count": 123,
+  "ioc_list": ["IP 或域名"],
+  "mitre_tags": ["TXXXX"],
+  "suggests": ["處置步驟 1", "處置步驟 2"],
+  "continued_from_match_key": "昨天的 match_key（若為延續事件），否則 null"
+}}"""
+
+
+def aggregate_daily(
+    grouped_events: dict[str, list[dict]],
+    previous_events: list[dict],
+    today: str,
+) -> list[dict]:
+    prompt = USER_PROMPT_TEMPLATE.format(
+        today=today,
+        grouped_events_json=json.dumps(grouped_events, ensure_ascii=False, indent=2),
+        previous_events_json=json.dumps(previous_events, ensure_ascii=False),
+    )
+
+    client = _get_client()
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=8192,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    text = message.content[0].text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        text = "\n".join(lines[1:-1]).strip()
+
+    events = json.loads(text)
+    if not isinstance(events, list):
+        raise ValueError(f"Claude Sonnet returned non-array: {type(events)}")
+
+    return events
