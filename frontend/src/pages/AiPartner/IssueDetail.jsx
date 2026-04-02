@@ -42,7 +42,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_LABEL)
 // ── helpers ──
 
 function authHeaders() {
-  const token = localStorage.getItem('access_token')
+  const token = localStorage.getItem('mp-box-token')
   return token
     ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     : { 'Content-Type': 'application/json' }

@@ -33,7 +33,8 @@ export default function Sidebar() {
   const [settingOpen, setSettingOpen] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
-  const canSeeSetting = user?.role === '管理員'
+  // TODO: 等後端 users API 回傳角色後改回 role 判斷
+  const canSeeSetting = !!user
 
   return (
     <Drawer

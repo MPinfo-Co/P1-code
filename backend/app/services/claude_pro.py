@@ -66,20 +66,53 @@ def aggregate_daily(
     )
 
     client = _get_client()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=8192,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    import re
+    import time as _time
 
-    text = message.content[0].text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1]).strip()
+    for attempt in range(3):
+        if attempt > 0:
+            logger.warning(f"Sonnet retry {attempt + 1}/3...")
+            _time.sleep(65)
 
-    events = json.loads(text)
-    if not isinstance(events, list):
-        raise ValueError(f"Claude Sonnet returned non-array: {type(events)}")
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=16384,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+        )
 
-    return events
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:-1]).strip()
+
+        # 修復常見 JSON 問題：trailing commas
+        text = re.sub(r",\s*([}\]])", r"\1", text)
+
+        try:
+            events = json.loads(text)
+        except json.JSONDecodeError:
+            # 嘗試找到 JSON 陣列的範圍
+            start = text.find("[")
+            end = text.rfind("]")
+            if start != -1 and end != -1:
+                text = text[start : end + 1]
+                text = re.sub(r",\s*([}\]])", r"\1", text)
+                try:
+                    events = json.loads(text)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        f"Sonnet attempt {attempt + 1} returned invalid JSON"
+                    )
+                    continue
+            else:
+                logger.warning(f"Sonnet attempt {attempt + 1} returned invalid JSON")
+                continue
+
+        if not isinstance(events, list):
+            logger.warning(f"Sonnet attempt {attempt + 1} returned non-array")
+            continue
+
+        return events
+
+    raise ValueError("Sonnet failed to produce valid JSON after 3 attempts")

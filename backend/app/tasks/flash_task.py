@@ -1,4 +1,5 @@
 import logging
+import time
 from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 
@@ -439,6 +440,12 @@ def _process_chunk(
 
     for attempt in range(settings.FLASH_MAX_RETRY):
         try:
+            if attempt > 0:
+                wait = 65 * (attempt + 1)  # 第 2 次等 130 秒，第 3 次等 195 秒
+                logger.info(
+                    f"chunk {chunk_index} retry {attempt + 1}, waiting {wait}s for rate limit..."
+                )
+                time.sleep(wait)
             events = analyze_chunk(chunk)
             # 用程式產的 match_key 覆蓋 Haiku 的（含摘要的 group_key）
             _override_match_keys(events, key_lookup, summary_key_lookup)

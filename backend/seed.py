@@ -31,7 +31,7 @@ DEFAULT_ROLES = [
 ]
 
 ADMIN_EMAIL = "admin@mpinfo.com.tw"
-ADMIN_PASSWORD = "@Admin1234"
+ADMIN_PASSWORD = "admin123"
 ADMIN_NAME = "Admin"
 
 
