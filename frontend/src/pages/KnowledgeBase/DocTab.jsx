@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import Pagination from '../../components/ui/Pagination'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import Pagination from '@mui/material/Pagination'
 
 const PAGE_SIZE = 5
 
@@ -12,54 +16,95 @@ export default function DocTab({ kb }) {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-3">
-        <div>
-          <span className="text-sm font-bold text-slate-800">非結構化文件</span>
-          <span className="text-xs text-slate-400 ml-2">
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <Box>
+          <Typography component="span" sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+            非結構化文件
+          </Typography>
+          <Typography component="span" sx={{ fontSize: 12, color: '#94a3b8', ml: 1 }}>
             上傳 PDF / Word / TXT，系統自動進行向量化索引
-          </span>
-        </div>
-        <button className="px-3.5 py-1.5 bg-[#2e3f6e] text-white rounded-md text-sm font-semibold hover:bg-[#1e2d52] transition-colors">
+          </Typography>
+        </Box>
+        <Button variant="contained" size="small" sx={{ fontSize: 13 }}>
           ↑ 上傳文件
-        </button>
-      </div>
-      <input
+        </Button>
+      </Box>
+
+      <TextField
+        size="small"
         value={search}
         onChange={(e) => {
           setSearch(e.target.value)
           setPage(1)
         }}
         placeholder="搜尋檔案名稱..."
-        className="px-3 py-2 border border-slate-300 rounded-md text-sm outline-none w-64 mb-3"
+        sx={{ width: 256, mb: 1.5 }}
       />
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
+
+      <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+        <Box component="thead">
+          <Box component="tr">
             {['檔案名稱', '大小', '上傳日期', '操作'].map((h) => (
-              <th
+              <Box
+                component="th"
                 key={h}
-                className="text-left px-3 py-3 bg-slate-50 text-slate-700 font-bold text-sm border-b-2 border-slate-200"
+                sx={{
+                  textAlign: 'left',
+                  px: 1.5,
+                  py: 1.5,
+                  bgcolor: '#f8fafc',
+                  color: '#334155',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  borderBottom: '2px solid #e2e8f0',
+                }}
               >
                 {h}
-              </th>
+              </Box>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </Box>
+        </Box>
+        <Box component="tbody">
           {paged.map((doc) => (
-            <tr key={doc.id} className="border-b border-slate-100 hover:bg-slate-50">
-              <td className="px-3 py-3 text-sm text-slate-700">{doc.name}</td>
-              <td className="px-3 py-3 text-sm text-slate-500">{doc.size}</td>
-              <td className="px-3 py-3 text-sm text-slate-500">{doc.uploadDate}</td>
-              <td className="px-3 py-3">
-                <button className="text-xs text-red-500 font-semibold hover:underline">刪除</button>
-              </td>
-            </tr>
+            <Box
+              component="tr"
+              key={doc.id}
+              sx={{ borderBottom: '1px solid #f1f5f9', '&:hover': { bgcolor: '#f8fafc' } }}
+            >
+              <Box component="td" sx={{ px: 1.5, py: 1.5, fontSize: 13, color: '#334155' }}>
+                {doc.name}
+              </Box>
+              <Box component="td" sx={{ px: 1.5, py: 1.5, fontSize: 13, color: '#64748b' }}>
+                {doc.size}
+              </Box>
+              <Box component="td" sx={{ px: 1.5, py: 1.5, fontSize: 13, color: '#64748b' }}>
+                {doc.uploadDate}
+              </Box>
+              <Box component="td" sx={{ px: 1.5, py: 1.5 }}>
+                <Button
+                  size="small"
+                  sx={{ fontSize: 12, color: '#ef4444', fontWeight: 600, minWidth: 'unset', p: 0 }}
+                >
+                  刪除
+                </Button>
+              </Box>
+            </Box>
           ))}
-        </tbody>
-      </table>
-      <Pagination current={page} total={totalPages} onChange={setPage} />
-    </div>
+        </Box>
+      </Box>
+
+      {totalPages > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(_, v) => setPage(v)}
+            size="small"
+            sx={{ '& .Mui-selected': { bgcolor: '#2e3f6e', color: 'white' } }}
+          />
+        </Box>
+      )}
+    </Box>
   )
 }

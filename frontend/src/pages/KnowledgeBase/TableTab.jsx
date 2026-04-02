@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import Button from '@mui/material/Button'
 
 export default function TableTab({ kb }) {
   const [selectedTableId, setSelectedTableId] = useState(null)
@@ -6,75 +9,105 @@ export default function TableTab({ kb }) {
   if (selectedTableId) {
     const table = kb.tables.find((t) => t.id === selectedTableId)
     return (
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-slate-800">{table.name}</h3>
-          <button
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography sx={{ fontWeight: 700, color: '#1e293b' }}>{table.name}</Typography>
+          <Button
+            size="small"
             onClick={() => setSelectedTableId(null)}
-            className="text-sm text-slate-500 font-semibold hover:text-slate-800"
+            sx={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}
           >
             ← 回列表
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse border border-slate-200 text-sm">
-            <thead>
-              <tr>
+          </Button>
+        </Box>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <Box component="thead">
+              <Box component="tr">
                 {table.columns.map((col) => (
-                  <th
+                  <Box
+                    component="th"
                     key={col}
-                    className="px-3 py-2.5 bg-slate-50 text-slate-700 font-bold border border-slate-200 text-left"
+                    sx={{
+                      px: 1.5,
+                      py: 1.5,
+                      bgcolor: '#f8fafc',
+                      color: '#334155',
+                      fontWeight: 700,
+                      border: '1px solid #e2e8f0',
+                      textAlign: 'left',
+                    }}
                   >
                     {col}
-                  </th>
+                  </Box>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </Box>
+            </Box>
+            <Box component="tbody">
               {table.rows.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50">
+                <Box component="tr" key={i} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
                   {row.map((cell, j) => (
-                    <td key={j} className="px-3 py-2.5 border border-slate-200 text-slate-600">
+                    <Box
+                      component="td"
+                      key={j}
+                      sx={{ px: 1.5, py: 1.5, border: '1px solid #e2e8f0', color: '#475569' }}
+                    >
                       {cell}
-                    </td>
+                    </Box>
                   ))}
-                </tr>
+                </Box>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     )
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <span className="font-bold text-slate-800 text-sm">結構化資料表</span>
-          <span className="text-xs text-slate-400 ml-2">可自訂建立或匯入 Excel/CSV</span>
-        </div>
-        <button className="px-3.5 py-1.5 bg-[#2e3f6e] text-white rounded-md text-sm font-semibold hover:bg-[#1e2d52] transition-colors">
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box>
+          <Typography component="span" sx={{ fontWeight: 700, color: '#1e293b', fontSize: 13 }}>
+            結構化資料表
+          </Typography>
+          <Typography component="span" sx={{ fontSize: 12, color: '#94a3b8', ml: 1 }}>
+            可自訂建立或匯入 Excel/CSV
+          </Typography>
+        </Box>
+        <Button variant="contained" size="small" sx={{ fontSize: 13 }}>
           + 新增資料表
-        </button>
-      </div>
-      <div className="grid gap-3">
+        </Button>
+      </Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {kb.tables.map((table) => (
-          <div
+          <Box
             key={table.id}
             onClick={() => setSelectedTableId(table.id)}
-            className="border border-slate-200 rounded-lg p-4 cursor-pointer hover:bg-slate-50 flex justify-between items-center transition-colors"
+            sx={{
+              border: '1px solid #e2e8f0',
+              borderRadius: 1,
+              p: 2,
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              '&:hover': { bgcolor: '#f8fafc' },
+              transition: 'background-color 0.2s',
+            }}
           >
-            <div>
-              <p className="font-semibold text-slate-800 text-sm">{table.name}</p>
-              <p className="text-xs text-slate-400 mt-1">
+            <Box>
+              <Typography sx={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>
+                {table.name}
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: '#94a3b8', mt: 0.5 }}>
                 {table.columns.length} 欄 · {table.rows.length} 筆 · 建立 {table.createdDate}
-              </p>
-            </div>
-            <span className="text-slate-400 text-sm">→</span>
-          </div>
+              </Typography>
+            </Box>
+            <Typography sx={{ color: '#94a3b8', fontSize: 13 }}>→</Typography>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Box>
   )
 }

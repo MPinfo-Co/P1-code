@@ -1,6 +1,9 @@
-// src/components/Layout/Header.jsx
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
+import AppBar from '@mui/material/AppBar'
+import Toolbar from '@mui/material/Toolbar'
+import Typography from '@mui/material/Typography'
+import Button from '@mui/material/Button'
 
 const PAGE_TITLES = {
   '/': '首頁',
@@ -14,26 +17,29 @@ const PAGE_TITLES = {
 export default function Header() {
   const { logout } = useAuth()
   const { pathname } = useLocation()
-  const navigate = useNavigate()
 
-  // Find the most specific matching path
   const title =
     Object.entries(PAGE_TITLES)
       .filter(([path]) => pathname === path || pathname.startsWith(path + '/'))
       .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? 'MP-Box'
 
   return (
-    <header className="bg-white border-b border-slate-200 flex items-center justify-between px-8 h-[70px]">
-      <h1 className="text-lg font-extrabold text-slate-900">{title}</h1>
-      <button
-        onClick={() => {
-          logout()
-          navigate('/login')
-        }}
-        className="text-red-500 font-semibold text-sm hover:text-red-700 transition-colors"
-      >
-        登出
-      </button>
-    </header>
+    <AppBar
+      position="static"
+      elevation={0}
+      sx={{ bgcolor: 'white', borderBottom: '1px solid #e2e8f0' }}
+    >
+      <Toolbar sx={{ justifyContent: 'space-between', minHeight: '70px !important' }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
+          {title}
+        </Typography>
+        <Button
+          onClick={logout}
+          sx={{ color: '#ef4444', fontWeight: 600, '&:hover': { bgcolor: '#fef2f2' } }}
+        >
+          登出
+        </Button>
+      </Toolbar>
+    </AppBar>
   )
 }

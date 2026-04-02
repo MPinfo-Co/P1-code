@@ -1,27 +1,18 @@
-// src/components/Layout/Layout.jsx
 import { Outlet } from 'react-router-dom'
+import { Box } from '@mui/material'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
 export default function Layout() {
   return (
-    <div
-      className="h-screen grid"
-      style={{
-        gridTemplateColumns: '260px 1fr',
-        gridTemplateRows: '70px 1fr',
-        gridTemplateAreas: '"sidebar header" "sidebar main"',
-      }}
-    >
-      <div style={{ gridArea: 'sidebar' }}>
-        <Sidebar />
-      </div>
-      <div style={{ gridArea: 'header' }}>
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      <Sidebar />
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Header />
-      </div>
-      <main style={{ gridArea: 'main' }} className="overflow-y-auto bg-slate-50 p-8">
-        <Outlet />
-      </main>
-    </div>
+        <Box component="main" sx={{ flex: 1, overflow: 'auto', bgcolor: '#f8fafc', p: 4 }}>
+          <Outlet />
+        </Box>
+      </Box>
+    </Box>
   )
 }
