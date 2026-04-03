@@ -4,7 +4,7 @@
 
 | 工具 | 最低版本 | 驗證指令 |
 |------|---------|---------|
-| Python | 3.11+ | `python --version` |
+| Python | 3.12+ | `python --version` |
 | Node.js | 20+ | `node --version` |
 | Git | 任意 | `git --version` |
 
@@ -41,12 +41,34 @@ npm install
 ```
 
 `npm install` 會透過 `prepare` script 自動設定 husky，啟用以下本地 hook：
-- **pre-commit**：對暫存的 `.js/.jsx` 檔執行 ESLint + Prettier，`.css/.json` 執行 Prettier
+- **pre-commit**：對暫存的 `.ts/.tsx/.js/.jsx` 檔執行 ESLint + Prettier，`.css/.json` 執行 Prettier
 - **commit-msg**：commitlint 驗證 commit message 格式
 
-## 5. Commit Message 格式
+## 5. 環境變數設定
 
-範例格式：`{type}: 工作說明`
+在 `backend/` 下建立 `.env`（不可 commit，已列入 `.gitignore`）：
+
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/mpbox
+SECRET_KEY=your-secret-key
+```
+
+本地啟動 PostgreSQL（使用 Docker Compose）：
+
+```bash
+docker compose up -d db
+```
+
+確認連線：
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+## 6. Commit Message 格式
+
+範例格式：`{type}({scope}): 工作說明`
 
 範例：
 - `feat(auth): 新增 JWT refresh token`
@@ -64,13 +86,11 @@ npm install
 | `test` | 測試相關 |
 | `chore` | 設定、建置相關 |
 
-scope 非必填，可省略：`fix: 修正登入錯誤訊息`
-
-## 6. 推薦 IDE 插件（VS Code）
+## 7. 推薦 IDE 插件（VS Code）
 
 | 插件 | 用途 |
 |------|------|
-| ESLint（dbaeumer.vscode-eslint） | 即時顯示 JS/JSX 錯誤 |
+| ESLint（dbaeumer.vscode-eslint） | 即時顯示 TS/TSX 錯誤 |
 | Prettier（esbenp.prettier-vscode） | 儲存時自動格式化 |
 | Ruff（charliermarsh.ruff） | 即時顯示 Python lint/format 錯誤 |
 
@@ -85,15 +105,19 @@ VS Code 建議設定（`.vscode/settings.json`）：
 }
 ```
 
-## 7. 驗證環境
+## 8. 驗證環境
 
 ### 驗證 Python hook
 ```bash
-# 製造格式錯誤後測試
-echo "x=1" >> backend/app/main.py
-git add backend/app/main.py
+# 建立暫存測試檔
+echo "x=1" > /tmp/test_lint.py
+cp /tmp/test_lint.py backend/app/test_lint_tmp.py
+git add backend/app/test_lint_tmp.py
 git commit -m "chore: test"
-# 會被擋，顯示錯誤後，自動修改後重新commit
+# 會被擋，顯示 ruff 錯誤
+# 驗證完畢後移除暫存檔
+git restore --staged backend/app/test_lint_tmp.py
+rm backend/app/test_lint_tmp.py
 ```
 
 ### 驗證前端 hook
@@ -107,7 +131,7 @@ git commit --allow-empty -m "chore: 測試"
 git reset HEAD~1
 ```
 
-## 8. CI 檢查項目
+## 9. CI 檢查項目
 
 每次 push 到 `issue-*` branch 或開 PR 時，CI 自動執行：
 
