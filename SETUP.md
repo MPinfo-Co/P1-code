@@ -49,9 +49,9 @@ npm install
 範例格式：`{type}: 工作說明`
 
 範例：
-- `feat(auth): 新增 JWT refresh token`
-- `fix(api): 修正登入 500 錯誤`
-- `chore(ci): 更新 GitHub Actions`
+- `feat: 新增 JWT refresh token`
+- `fix: 修正登入 500 錯誤`
+- `chore: 更新 GitHub Actions`
 
 支援 Type:
 
@@ -63,8 +63,6 @@ npm install
 | `refactor` | 重構 |
 | `test` | 測試相關 |
 | `chore` | 設定、建置相關 |
-
-scope 非必填，可省略：`fix: 修正登入錯誤訊息`
 
 ## 6. 推薦 IDE 插件（VS Code）
 
