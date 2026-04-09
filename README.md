@@ -19,8 +19,6 @@ P1-project（PM）→ P1-analysis（SA）→ P1-design（SD）
 P1-code/
 ├── frontend/                     # React 19 + Vite + TypeScript + MUI
 ├── backend/                      # Python FastAPI + SQLAlchemy + PostgreSQL
-├── PG測試報告/
-│   └── issue-{N}.md              # 測試報告（系統建立框架，PG 填寫結果）
 └── VersionDiff/
     └── issue-{N}_{author}_{date}.md  # merge 時自動產生，記錄程式碼異動
 ```
