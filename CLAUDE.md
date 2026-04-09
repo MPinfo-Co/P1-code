@@ -29,7 +29,7 @@ cd frontend && npm install
 - **前端**：`ESLint` + `Prettier`（僅對暫存檔案）
 - **Commit message**：commitlint 驗證格式
 
-Commit message 格式：`{type}({scope}): 說明`
+Commit message 格式：`{type}: 工作說明`
 可用 type：`feat` | `fix` | `docs` | `refactor` | `test` | `chore`
 
 ## AI 實作指引（PG 階段）
