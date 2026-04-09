@@ -41,7 +41,7 @@ npm install
 ```
 
 `npm install` 會透過 `prepare` script 自動設定 husky，啟用以下本地 hook：
-- **pre-commit**：對暫存的 `.js/.jsx` 檔執行 ESLint + Prettier，`.css/.json` 執行 Prettier
+- **pre-commit**：對暫存的 `.js/.jsx/.ts/.tsx` 檔執行 ESLint + Prettier，`.css/.json` 執行 Prettier
 - **commit-msg**：commitlint 驗證 commit message 格式
 
 ## 5. Commit Message 格式

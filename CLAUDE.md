@@ -26,7 +26,7 @@ cd frontend && npm install
 
 每次 `git commit` 自動執行：
 - **Python**：`ruff check`（lint）+ `ruff format`（格式化）
-- **前端**：`ESLint` + `Prettier`（僅對暫存檔案）
+- **前端**：`ESLint` + `Prettier`（僅對暫存檔案，涵蓋 `.js/.jsx/.ts/.tsx`）
 - **Commit message**：commitlint 驗證格式
 
 Commit message 格式：`{type}: 工作說明`
@@ -44,6 +44,8 @@ Commit message 格式：`{type}: 工作說明`
 | 本次異動 delta | `P1-design/TestPlan/issue-{SD#}-diff.md` |
 | 商業邏輯背景 | `P1-analysis/issue-{SA#}/business-logic.md` |
 | 測試標準 | `P1-design/TestPlan/issue-{SD#}.md` |
+
+**前端新檔案一律使用 `.tsx`**，舊 `.jsx` 不需強制遷移（漸進式）。
 
 **pytest 數量 ≥ TestPlan 案例數**，每個 test function 標注對應的 TestPlan ID：
 
