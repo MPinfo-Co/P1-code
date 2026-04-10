@@ -1,13 +1,38 @@
+import importlib.util
+from pathlib import Path
+
+from alembic.operations import Operations
+from alembic.runtime.migration import MigrationContext
 from sqlalchemy import text
 
-from app.db.seed import seed_admin, seed_roles
+_MIGRATION_PATH = (
+    Path(__file__).parent.parent
+    / "alembic"
+    / "versions"
+    / "538d0579a48c_seed_initial_roles_and_admin.py"
+)
+
+
+def _load_migration():
+    spec = importlib.util.spec_from_file_location("seed_migration", _MIGRATION_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_migration = _load_migration()
+
+
+def _run_upgrade(engine):
+    with engine.begin() as conn:
+        ctx = MigrationContext.configure(conn)
+        with Operations.context(ctx):
+            _migration.upgrade()
 
 
 def test_admin_login_success(client, engine):
     """對應 TestPlan T1"""
-    with engine.begin() as conn:
-        seed_roles(conn)
-        seed_admin(conn)
+    _run_upgrade(engine)
 
     response = client.post(
         "/api/auth/login",
@@ -19,9 +44,7 @@ def test_admin_login_success(client, engine):
 
 def test_admin_login_wrong_password(client, engine):
     """對應 TestPlan T2"""
-    with engine.begin() as conn:
-        seed_roles(conn)
-        seed_admin(conn)
+    _run_upgrade(engine)
 
     response = client.post(
         "/api/auth/login",
@@ -33,13 +56,8 @@ def test_admin_login_wrong_password(client, engine):
 
 def test_seed_idempotent(engine):
     """對應 TestPlan T3"""
-    with engine.begin() as conn:
-        seed_roles(conn)
-        seed_admin(conn)
-
-    with engine.begin() as conn:
-        seed_roles(conn)
-        seed_admin(conn)
+    _run_upgrade(engine)
+    _run_upgrade(engine)
 
     with engine.connect() as conn:
         admin_role_count = conn.execute(
