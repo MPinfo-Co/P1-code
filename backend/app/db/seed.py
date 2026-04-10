@@ -64,7 +64,7 @@ def seed_admin(conn: sa.engine.Connection) -> None:
     result = conn.execute(
         sa.text(
             "INSERT INTO users (name, email, password_hash, is_active) "
-            "VALUES (:name, :email, :password_hash, :is_active)"
+            "VALUES (:name, :email, :password_hash, :is_active) RETURNING id"
         ),
         {
             "name": _ADMIN_NAME,
@@ -73,7 +73,7 @@ def seed_admin(conn: sa.engine.Connection) -> None:
             "is_active": True,
         },
     )
-    user_id = result.lastrowid
+    user_id = result.fetchone()[0]
 
     admin_role = conn.execute(
         sa.text("SELECT id FROM roles WHERE name = 'admin'"),
