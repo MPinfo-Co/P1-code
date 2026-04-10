@@ -66,10 +66,11 @@ def upgrade() -> None:
     ).fetchone()
     if not admin_user:
         password_hash = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
-        result = conn.execute(
+        user_id = conn.execute(
             sa.text(
                 "INSERT INTO users (name, email, password_hash, is_active) "
-                "VALUES (:name, :email, :password_hash, :is_active)"
+                "VALUES (:name, :email, :password_hash, :is_active) "
+                "RETURNING id"
             ),
             {
                 "name": "Admin",
@@ -77,8 +78,7 @@ def upgrade() -> None:
                 "password_hash": password_hash,
                 "is_active": True,
             },
-        )
-        user_id = result.lastrowid
+        ).scalar()
         admin_role = conn.execute(
             sa.text("SELECT id FROM roles WHERE name = 'admin'"),
         ).fetchone()
