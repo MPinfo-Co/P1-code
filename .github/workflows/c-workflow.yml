@@ -103,7 +103,7 @@ jobs:
               '- [ ] 本地啟動後端：`cd backend && uvicorn main:app --reload`',
               '- [ ] 本地啟動前端：`cd frontend && npm run dev`',
               '- [ ] 確認資料庫連線正常',
-              '- [ ] 依照 TestPlan 逐一執行測試案例，填寫測試報告',
+              '- [ ] 依照 TDD 逐一執行測試案例，填寫測試報告',
               '',
               `測試報告請存放於 \`PG測試報告/issue-${issueNum}.md\`（N = PG Issue 編號）。`,
             ].join('\n');
