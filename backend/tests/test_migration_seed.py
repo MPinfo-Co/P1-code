@@ -31,7 +31,7 @@ def _run_upgrade(engine):
 
 
 def test_admin_login_success(client, engine):
-    """對應 TestPlan T1"""
+    """對應 TDD T1"""
     _run_upgrade(engine)
 
     response = client.post(
@@ -43,7 +43,7 @@ def test_admin_login_success(client, engine):
 
 
 def test_admin_login_wrong_password(client, engine):
-    """對應 TestPlan T2"""
+    """對應 TDD T2"""
     _run_upgrade(engine)
 
     response = client.post(
@@ -55,7 +55,7 @@ def test_admin_login_wrong_password(client, engine):
 
 
 def test_seed_idempotent(engine):
-    """對應 TestPlan T3"""
+    """對應 TDD T3"""
     _run_upgrade(engine)
     _run_upgrade(engine)
 
