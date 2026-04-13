@@ -46,7 +46,7 @@ npm install
 
 ## 5. Commit Message 格式
 
-範例格式：`{type}: 工作說明`
+範例格式：`{type}(scope?): 工作說明`
 
 範例：
 - `feat: 新增 JWT refresh token`
