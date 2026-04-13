@@ -4,7 +4,7 @@
 
 | 工具 | 最低版本 | 驗證指令 |
 |------|---------|---------|
-| Python | 3.11+ | `python --version` |
+| Python | 3.12+ | `python --version` |
 | Node.js | 20+ | `node --version` |
 | Git | 任意 | `git --version` |
 
