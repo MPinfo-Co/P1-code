@@ -19,7 +19,7 @@ def ingest_logs(
     x_ingest_key: str = Header(default=""),
     db: Session = Depends(get_db),
 ):
-    if not settings.INGEST_SECRET or x_ingest_key != settings.INGEST_SECRET:
+    if settings.INGEST_SECRET and x_ingest_key != settings.INGEST_SECRET:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Invalid ingest key"
         )
