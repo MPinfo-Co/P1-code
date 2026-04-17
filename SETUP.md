@@ -4,7 +4,7 @@
 
 | 工具 | 最低版本 | 驗證指令 |
 |------|---------|---------|
-| Python | 3.11+ | `python --version` |
+| Python | 3.12+ | `python --version` |
 | Node.js | 20+ | `node --version` |
 | Git | 任意 | `git --version` |
 
@@ -19,6 +19,8 @@ cd P1-code
 
 ```bash
 cd backend
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 cd ..
 ```
@@ -46,7 +48,7 @@ npm install
 
 ## 5. Commit Message 格式
 
-範例格式：`{type}: 工作說明`
+範例格式：`{type}(scope?): 工作說明`
 
 範例：
 - `feat: 新增 JWT refresh token`

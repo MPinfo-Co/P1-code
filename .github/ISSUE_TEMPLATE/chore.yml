@@ -10,6 +10,13 @@ body:
       description: 要做什麼？
     validations:
       required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完成條件
+      description: 怎樣算完成？
+    validations:
+      required: true
   - type: markdown
     attributes:
       value: |

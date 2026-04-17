@@ -103,7 +103,7 @@ jobs:
               '- [ ] 本地啟動後端：`cd backend && uvicorn main:app --reload`',
               '- [ ] 本地啟動前端：`cd frontend && npm run dev`',
               '- [ ] 確認資料庫連線正常',
-              '- [ ] 依照 TestPlan 逐一執行測試案例，填寫測試報告',
+              '- [ ] 依照 TDD 逐一執行測試案例，填寫測試報告',
               '',
               `測試報告請存放於 \`PG測試報告/issue-${issueNum}.md\`（N = PG Issue 編號）。`,
             ].join('\n');
@@ -115,8 +115,8 @@ jobs:
               body,
             });
 
-  generate-version-diff:
-    name: Generate VersionDiff
+  close-issues:
+    name: Close Issues
     runs-on: ubuntu-latest
     if: >
       github.event.pull_request.merged == true &&
@@ -130,7 +130,7 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           private_key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Generate VersionDiff file
+      - name: Close PG Issue and Epic Issue
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.app-token.outputs.token }}
@@ -138,76 +138,6 @@ jobs:
             const branchName = context.payload.pull_request.head.ref;
             const match = branchName.match(/^issue-(\d+)-/);
             const issueNum = match ? match[1] : branchName.replace(/^issue-/, '').split('-')[0];
-            const author = context.payload.pull_request.user.login;
-            const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            const headSha = context.payload.pull_request.head.sha;
-            const baseSha = context.payload.pull_request.base.sha;
-            const prTitle = context.payload.pull_request.title;
-
-            // Fetch changed files
-            const filesResp = await github.rest.pulls.listFiles({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              per_page: 300,
-            });
-
-            let fileLines = '';
-            if (filesResp.data.length === 0) {
-              fileLines = '- （本次無程式碼異動）';
-            } else {
-              fileLines = filesResp.data
-                .map(f => `- ${f.filename}：${f.status}`)
-                .join('\n');
-            }
-
-            const content = [
-              `# VersionDiff：Issue #${issueNum} ${prTitle}`,
-              '',
-              '## 修改項目及內容',
-              '<!-- 由 GitHub Actions 自動產生 -->',
-              fileLines,
-              '',
-              '## 關聯項目',
-              `- PG Issue：P1-code #${issueNum}`,
-              `- 上一個 commit：${baseSha.slice(0, 7)}`,
-              `- 本次 commit：${headSha.slice(0, 7)}`,
-            ].join('\n');
-
-            const filePath = `VersionDiff/issue-${issueNum}_${author}_${date}.md`;
-            const encodedContent = Buffer.from(content).toString('base64');
-
-            // Try to get existing file sha for update
-            let existingSha;
-            try {
-              const existing = await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: filePath,
-              });
-              existingSha = existing.data.sha;
-            } catch (e) {
-              if (e.status !== 404) throw e;
-            }
-
-            await github.rest.repos.createOrUpdateFileContents({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: filePath,
-              message: `chore: auto-generate VersionDiff for issue-${issueNum}`,
-              content: encodedContent,
-              ...(existingSha ? { sha: existingSha } : {}),
-              committer: {
-                name: 'github-actions[bot]',
-                email: 'github-actions[bot]@users.noreply.github.com',
-              },
-              author: {
-                name: 'github-actions[bot]',
-                email: 'github-actions[bot]@users.noreply.github.com',
-              },
-            });
-
-            console.log(`VersionDiff file created: ${filePath}`);
 
             // 關閉 PG Issue
             const pgIssueNum = parseInt(issueNum);
