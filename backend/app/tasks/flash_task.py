@@ -1,15 +1,12 @@
 import logging
 import time
 from collections import defaultdict
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timezone
 
 from app.core.config import settings
-from app.db.session import SessionLocal
 from app.models.security_event import FlashResult, LogBatch
+from app.schemas.log_batch import IngestPayload
 from app.services.claude_flash import analyze_chunk
-from app.services.log_preaggregator import preaggregate
-from app.services.ssb_client import SSBClient
-from app.worker import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -76,11 +73,9 @@ def _generate_group_key(log: dict) -> str | None:
 
         if action == "deny":
             if _is_external_ip(srcip):
-                # 外部攻擊：用目標 IP 前三段分組（同網段合併）
                 dst_prefix = ".".join(dstip.split(".")[:3]) if dstip else "unknown"
                 return f"deny_external_{dst_prefix}"
             else:
-                # 內部被擋：廣播/多播依 dstport 分組，單播依 srcip
                 if _is_broadcast_or_multicast(dstip):
                     dstport = dc.get(f"{_FORTI_PREFIX}dstport", "unknown")
                     return f"deny_internal_broadcast_p{dstport}"
@@ -131,53 +126,6 @@ def _build_summary_key_lookup(ai_input: list[dict]) -> dict[str, str]:
     return lookup
 
 
-@celery_app.task(name="app.tasks.flash_task.run_flash_task")
-def run_flash_task() -> None:
-    db = SessionLocal()
-    ssb = SSBClient()
-
-    try:
-        # 1. Retry failed batch
-        failed = (
-            db.query(LogBatch)
-            .filter(LogBatch.status == "failed")
-            .order_by(LogBatch.created_at.desc())
-            .first()
-        )
-        if failed:
-            logger.info(
-                f"Retrying failed batch id={failed.id}, range {failed.time_from} ~ {failed.time_to}"
-            )
-            failed.status = "running"
-            failed.retry_count += 1
-            db.commit()
-            _process_batch(db, ssb, failed)
-
-        # 2. Create new batch for current window
-        last_success = (
-            db.query(LogBatch)
-            .filter(LogBatch.status == "success")
-            .order_by(LogBatch.time_to.desc())
-            .first()
-        )
-        now = datetime.now(timezone.utc)
-        time_from = (
-            last_success.time_to
-            if last_success
-            else now - timedelta(minutes=settings.FLASH_INTERVAL_MINUTES)
-        )
-
-        new_batch = LogBatch(time_from=time_from, time_to=now, status="running")
-        db.add(new_batch)
-        db.commit()
-
-        _process_batch(db, ssb, new_batch)
-
-    finally:
-        db.close()
-        ssb.close()
-
-
 def _merge_events(all_events: list[dict]) -> list[dict]:
     """
     程式層去重合併：同一個 match_key 的事件合在一起。
@@ -192,33 +140,27 @@ def _merge_events(all_events: list[dict]) -> list[dict]:
 
     merged = []
     for match_key, events in grouped.items():
-        base = dict(events[0])  # 用第一筆當基底
+        base = dict(events[0])
 
-        # star_rank 取最高
         base["star_rank"] = max(ev.get("star_rank", 1) for ev in events)
 
-        # log_ids 合併
         all_log_ids = []
         for ev in events:
             all_log_ids.extend(ev.get("log_ids", []))
         base["log_ids"] = list(set(all_log_ids))
 
-        # detection_count = log_ids 總數
         base["detection_count"] = len(base["log_ids"])
 
-        # ioc_list 聯集
         all_ioc = set()
         for ev in events:
             all_ioc.update(ev.get("ioc_list", []))
         base["ioc_list"] = list(all_ioc)
 
-        # mitre_tags 聯集
         all_mitre = set()
         for ev in events:
             all_mitre.update(ev.get("mitre_tags", []))
         base["mitre_tags"] = list(all_mitre)
 
-        # logs 合併（取前 5 條，用 id 去重）
         all_logs = []
         seen_ids = set()
         for ev in events:
@@ -239,7 +181,6 @@ def _update_daily_accumulator(db, today: date, batch_merged: list[dict]) -> None
     把本次 batch 合併後的事件，merge 進當天的累計 flash_result（chunk_index=-1）。
     Sonnet 只需要讀這一筆。
     """
-    # 找當天的累計記錄
     today_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
     today_batches = (
         db.query(LogBatch.id).filter(LogBatch.time_from >= today_start).subquery()
@@ -249,13 +190,12 @@ def _update_daily_accumulator(db, today: date, batch_merged: list[dict]) -> None
         db.query(FlashResult)
         .filter(
             FlashResult.batch_id.in_(today_batches),
-            FlashResult.chunk_index == -1,  # -1 表示累計記錄
+            FlashResult.chunk_index == -1,
         )
         .first()
     )
 
     if accumulator and accumulator.events:
-        # 合併舊累計 + 新 batch
         all_events = list(accumulator.events) + batch_merged
         accumulator.events = _merge_events(all_events)
         accumulator.processed_at = datetime.now(timezone.utc)
@@ -263,12 +203,11 @@ def _update_daily_accumulator(db, today: date, batch_merged: list[dict]) -> None
         accumulator.events = batch_merged
         accumulator.processed_at = datetime.now(timezone.utc)
     else:
-        # 還沒有累計記錄，找今天任一 batch_id 來建
         any_batch = db.query(LogBatch).filter(LogBatch.time_from >= today_start).first()
         if any_batch:
             acc = FlashResult(
                 batch_id=any_batch.id,
-                chunk_index=-1,  # 累計記錄標記
+                chunk_index=-1,
                 chunk_size=0,
                 events=batch_merged,
                 status="success",
@@ -280,93 +219,6 @@ def _update_daily_accumulator(db, today: date, batch_merged: list[dict]) -> None
     logger.info(
         f"Daily accumulator updated: {len(accumulator.events if accumulator and accumulator.events else batch_merged)} events total"
     )
-
-
-def _process_batch(db, ssb: SSBClient, batch: LogBatch) -> None:
-    """拉取 log → 預彙總（full 模式）→ 切 chunk → 逐一 Haiku 分析 → 合併成 1 個 JSON → 更新當天累計。"""
-    try:
-        logs = ssb.fetch_logs(
-            batch.time_from,
-            batch.time_to,
-            settings.effective_search_expression,
-        )
-        batch.records_fetched = len(logs)
-
-        # full 模式：預彙總 FortiGate log，大幅減少送 AI 的資料量
-        summary_key_lookup = None
-        if settings.ANALYSIS_MODE == "full":
-            forti_summaries, windows_logs = preaggregate(logs)
-            ai_input = forti_summaries + windows_logs
-            # 從摘要建立 {representative_log_id: group_key} lookup
-            summary_key_lookup = _build_summary_key_lookup(ai_input)
-            logger.info(
-                f"Preaggregate: {len(logs)} raw logs -> "
-                f"{len(forti_summaries)} FortiGate summaries + "
-                f"{len(windows_logs)} Windows logs = {len(ai_input)} total"
-            )
-        else:
-            ai_input = logs
-
-        # windows_only 模式下 log 量小（~100 筆），不需要切 chunk
-        if settings.ANALYSIS_MODE == "windows_only":
-            chunks = [ai_input] if ai_input else []
-        else:
-            chunks = [
-                ai_input[i : i + settings.FLASH_CHUNK_SIZE]
-                for i in range(0, max(len(ai_input), 1), settings.FLASH_CHUNK_SIZE)
-            ]
-        batch.chunks_total = len(chunks)
-        db.commit()
-
-        # 收集所有 chunk 的事件
-        all_chunk_events = []
-
-        for idx, chunk in enumerate(chunks):
-            # 送 AI 用 chunk（可能含彙總摘要），但 attach 原始 log 用完整 logs
-            events = _process_chunk(
-                db,
-                batch,
-                chunk_index=idx,
-                chunk=chunk,
-                raw_logs=logs,
-                summary_key_lookup=summary_key_lookup,
-            )
-            if events:
-                all_chunk_events.extend(events)
-            batch.chunks_done = idx + 1
-            db.commit()
-
-        # 合併本次 batch 所有 chunk 的事件成 1 個 JSON
-        batch_merged = _merge_events(all_chunk_events)
-        logger.info(
-            f"Batch id={batch.id}: {len(all_chunk_events)} raw events → {len(batch_merged)} merged events"
-        )
-
-        # 存合併結果到一筆 flash_result（chunk_index=999 表示合併結果）
-        if batch_merged:
-            merged_result = FlashResult(
-                batch_id=batch.id,
-                chunk_index=999,  # 合併結果標記
-                chunk_size=batch.records_fetched,
-                events=batch_merged,
-                status="success",
-                processed_at=datetime.now(timezone.utc),
-            )
-            db.add(merged_result)
-            db.commit()
-
-            # 更新當天累計
-            _update_daily_accumulator(db, date.today(), batch_merged)
-
-        batch.status = "success"
-
-    except Exception as exc:
-        batch.status = "failed"
-        batch.error_message = str(exc)
-        logger.exception(f"Batch id={batch.id} failed: {exc}")
-
-    finally:
-        db.commit()
 
 
 def _attach_raw_logs(events: list[dict], chunk: list[dict], max_logs: int = 5) -> None:
@@ -458,22 +310,19 @@ def _process_chunk(
     db.add(flash_result)
     db.commit()
 
-    # 預先為每條原始 log 產好 match_key（彙總摘要沒有 dynamic_columns，會被跳過）
     lookup_source = raw_logs if raw_logs else chunk
     key_lookup = _build_key_lookup(lookup_source)
 
     for attempt in range(settings.FLASH_MAX_RETRY):
         try:
             if attempt > 0:
-                wait = 65 * (attempt + 1)  # 第 2 次等 130 秒，第 3 次等 195 秒
+                wait = 65 * (attempt + 1)
                 logger.info(
                     f"chunk {chunk_index} retry {attempt + 1}, waiting {wait}s for rate limit..."
                 )
                 time.sleep(wait)
             events = analyze_chunk(chunk)
-            # 用程式產的 match_key 覆蓋 Haiku 的（含摘要的 group_key）
             _override_match_keys(events, key_lookup, summary_key_lookup)
-            # 用 log_ids 從原始 log 撈出對應的原始 log（不是從彙總摘要）
             _attach_raw_logs(events, lookup_source)
             flash_result.events = events
             flash_result.status = "success"
@@ -489,3 +338,89 @@ def _process_chunk(
     db.commit()
     logger.error(f"chunk {chunk_index} final failure")
     return None
+
+
+def _process_ingest(db, payload: IngestPayload) -> dict:
+    """
+    處理 adapter 送來的 ingest payload：建立 LogBatch → 切 chunk → Haiku 分析 → 合併 → 更新累計。
+
+    Returns:
+        {"batch_id": int, "events_merged": int}
+    """
+    batch = LogBatch(
+        time_from=payload.time_from,
+        time_to=payload.time_to,
+        records_fetched=payload.records_fetched,
+        status="running",
+    )
+    db.add(batch)
+    db.commit()
+
+    try:
+        logs = payload.logs
+        analysis_mode = payload.analysis_mode
+
+        # full 模式下 payload.logs 已含 FortiGate 彙總摘要（由 adapter 預彙總）
+        # 從摘要建立 {representative_log_id: group_key} lookup
+        summary_key_lookup = None
+        if analysis_mode == "full":
+            summary_key_lookup = _build_summary_key_lookup(logs)
+
+        # windows_only 模式下 log 量小，不需要切 chunk
+        if analysis_mode == "windows_only":
+            chunks = [logs] if logs else []
+        else:
+            chunks = [
+                logs[i : i + settings.FLASH_CHUNK_SIZE]
+                for i in range(0, max(len(logs), 1), settings.FLASH_CHUNK_SIZE)
+            ]
+        batch.chunks_total = len(chunks)
+        db.commit()
+
+        all_chunk_events = []
+        for idx, chunk in enumerate(chunks):
+            events = _process_chunk(
+                db,
+                batch,
+                chunk_index=idx,
+                chunk=chunk,
+                summary_key_lookup=summary_key_lookup,
+            )
+            if events:
+                all_chunk_events.extend(events)
+            batch.chunks_done = idx + 1
+            db.commit()
+
+        batch_merged = _merge_events(all_chunk_events)
+        logger.info(
+            f"Batch id={batch.id}: {len(all_chunk_events)} raw events → {len(batch_merged)} merged events"
+        )
+
+        if batch_merged:
+            merged_result = FlashResult(
+                batch_id=batch.id,
+                chunk_index=999,
+                chunk_size=payload.records_fetched,
+                events=batch_merged,
+                status="success",
+                processed_at=datetime.now(timezone.utc),
+            )
+            db.add(merged_result)
+            db.commit()
+
+            _update_daily_accumulator(db, payload.time_to.date(), batch_merged)
+
+        batch.status = "success"
+
+    except Exception as exc:
+        batch.status = "failed"
+        batch.error_message = str(exc)
+        logger.exception(f"Batch id={batch.id} failed: {exc}")
+
+    finally:
+        db.commit()
+
+    return {
+        "batch_id": batch.id,
+        "events_merged": len(batch_merged) if batch_merged else 0,
+    }
