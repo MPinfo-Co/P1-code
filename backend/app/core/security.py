@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from jose import JWTError, jwt
 
-from app.core.config import settings
+from core.config import settings
 
 
 def hash_password(password: str) -> str:

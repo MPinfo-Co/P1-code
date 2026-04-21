@@ -3,10 +3,10 @@ import logging
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.db.session import get_db
-from app.schemas.log_batch import IngestPayload
-from app.tasks.flash_task import _process_ingest
+from core.config import settings
+from db.session import get_db
+from schemas.log_batch import IngestPayload
+from tasks.flash_task import _process_ingest
 
 logger = logging.getLogger(__name__)
 

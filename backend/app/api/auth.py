@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, decode_access_token, verify_password
-from app.db.session import get_db
-from app.models.token_blacklist import TokenBlacklist
-from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse
+from core.security import create_access_token, decode_access_token, verify_password
+from db.session import get_db
+from models.token_blacklist import TokenBlacklist
+from models.user import User
+from schemas.auth import LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 bearer_scheme = HTTPBearer()
