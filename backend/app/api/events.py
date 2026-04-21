@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from core.deps import get_current_user
 from db.session import get_db
-from models.security_event import EventHistory, SecurityEvent
-from models.user import User
+from db.models.security_event import EventHistory, SecurityEvent
+from db.models.user import User
 from schemas.security_event import (
     EventDetail,
     EventListResponse,

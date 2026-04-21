@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 
 from core.config import settings
-from models.security_event import FlashResult, LogBatch
+from db.models.security_event import FlashResult, LogBatch
 from schemas.log_batch import IngestPayload
 from services.claude_flash import analyze_chunk
 

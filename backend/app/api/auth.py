@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from core.security import create_access_token, decode_access_token, verify_password
 from db.session import get_db
-from models.token_blacklist import TokenBlacklist
-from models.user import User
+from db.models.token_blacklist import TokenBlacklist
+from db.models.user import User
 from schemas.auth import LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])

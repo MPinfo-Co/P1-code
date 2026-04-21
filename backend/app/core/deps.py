@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from core.security import decode_access_token
 from db.session import get_db
-from models.token_blacklist import TokenBlacklist
-from models.user import User
+from db.models.token_blacklist import TokenBlacklist
+from db.models.user import User
 
 bearer_scheme = HTTPBearer()
 
