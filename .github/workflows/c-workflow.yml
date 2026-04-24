@@ -4,7 +4,7 @@ name: C-workflow（CI）
 on:
   push:
     branches:
-      - 'issue-*'
+      - 'pg-*'
   pull_request:
     types: [opened, synchronize, closed]
     branches:
@@ -76,7 +76,7 @@ jobs:
   notify-test-env:
     name: Notify PG to Set Up Test Environment
     runs-on: ubuntu-latest
-    if: startsWith(github.event.pull_request.head.ref, 'issue-')
+    if: startsWith(github.event.pull_request.head.ref, 'pg-')
 
     steps:
       - name: Create GitHub App token
@@ -92,7 +92,7 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const branch = context.payload.pull_request.head.ref;
-            const match = branch.match(/^issue-(\d+)/);
+            const match = branch.match(/^pg-(\d+)/);
             const issueNum = match ? match[1] : '?';
 
             const body = [
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'issue-')
+      startsWith(github.event.pull_request.head.ref, 'pg-')
 
     steps:
       - name: Create GitHub App token
@@ -136,8 +136,8 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const branchName = context.payload.pull_request.head.ref;
-            const match = branchName.match(/^issue-(\d+)-/);
-            const issueNum = match ? match[1] : branchName.replace(/^issue-/, '').split('-')[0];
+            const match = branchName.match(/^pg-(\d+)-/);
+            const issueNum = match ? match[1] : branchName.replace(/^pg-/, '').split('-')[0];
 
             // 關閉 PG Issue
             const pgIssueNum = parseInt(issueNum);
