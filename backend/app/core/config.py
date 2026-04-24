@@ -1,8 +1,10 @@
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    DATABASE_POOL_SIZE: int = 5
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
@@ -26,7 +28,7 @@ class Settings(BaseSettings):
     INGEST_SECRET: str = ""
 
     class Config:
-        env_file = ".env"
+        env_file = Path(__file__).resolve().parent.parent.parent / ".env"
         extra = "ignore"
 
 

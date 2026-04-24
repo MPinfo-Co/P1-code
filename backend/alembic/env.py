@@ -12,7 +12,6 @@ from alembic import context
 
 from app.core.config import settings
 from app.db.session import Base
-import app.models  # noqa: F401
 
 config = context.config
 

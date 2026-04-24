@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from core.deps import get_current_user
-from db.session import get_db
-from db.models.security_event import EventHistory, SecurityEvent
-from db.models.user import User
-from schemas.security_event import (
+from app.core.deps import get_current_user
+from app.db.session import get_db
+from app.db.models.security_event import EventHistory, SecurityEvent
+from app.db.models.user import User
+from app.schemas.security_event import (
     EventDetail,
     EventListResponse,
     EventUpdate,

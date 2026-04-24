@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, func
-from db.session import Base
+from app.db.session import Base
 
 
 class TokenBlacklist(Base):

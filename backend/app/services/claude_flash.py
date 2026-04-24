@@ -4,7 +4,7 @@ import re
 
 from anthropic import Anthropic
 
-from core.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

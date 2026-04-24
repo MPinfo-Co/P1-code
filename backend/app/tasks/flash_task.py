@@ -3,10 +3,10 @@ import time
 from collections import defaultdict
 from datetime import date, datetime, timezone
 
-from core.config import settings
-from db.models.security_event import FlashResult, LogBatch
-from schemas.log_batch import IngestPayload
-from services.claude_flash import analyze_chunk
+from app.core.config import settings
+from app.db.models.security_event import FlashResult, LogBatch
+from app.schemas.log_batch import IngestPayload
+from app.services.claude_flash import analyze_chunk
 
 logger = logging.getLogger(__name__)
 

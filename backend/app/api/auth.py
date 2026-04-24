@@ -4,20 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from core.security import create_access_token, decode_access_token, verify_password
-from db.session import get_db
-from db.models.token_blacklist import TokenBlacklist
-from db.models.user import User
-from schemas.auth import LoginRequest, TokenResponse
+from app.core.security import create_access_token, decode_access_token, verify_password
+from app.db.session import get_db
+from app.db.models.token_blacklist import TokenBlacklist
+from app.db.models.user import User
+from app.schemas.auth import LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 bearer_scheme = HTTPBearer()
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not verify_password(payload.password, user.password_hash):
+def login(api_request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == api_request.email).first()
+    if not user or not verify_password(api_request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="帳號或密碼錯誤",
