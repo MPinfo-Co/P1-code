@@ -1,4 +1,3 @@
-# 規格說明：https://github.com/MPinfo-Co/P1-project/blob/main/docs/github-workflow/chore-workflow.md
 name: Chore-workflow
 
 on:
