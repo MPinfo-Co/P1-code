@@ -4,8 +4,8 @@ FROM python:3.12.13
 # 2. Set the working directory inside the container
 WORKDIR /backend
 
-# 3. Copy code bases
-COPY . ./
+# 3. Copy requirements to image
+COPY requirements.txt requirements.txt
 
 # 4. Install dependencies
 RUN pip install update
@@ -15,4 +15,4 @@ RUN pip install -r requirements.txt
 EXPOSE 8000
 
 # 7. Define the command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./bash.sh"]
