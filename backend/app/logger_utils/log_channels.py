@@ -6,6 +6,7 @@ Exposes three channel getters:
                                     (no retention - kept indefinitely)
     * `get_service_logger()`      - scheduled task output
 """
+
 import json
 from pathlib import Path
 from threading import Lock
@@ -51,7 +52,9 @@ def _register_channel_sink(
         rotation=_ROTATION_POLICY,
         retention=_RETENTION_POLICY,
         format=log_format,
-        filter=lambda record, expected=channel_name: record["extra"].get("log_type") == expected,
+        filter=lambda record, expected=channel_name: (
+            record["extra"].get("log_type") == expected
+        ),
         enqueue=True,
         encoding="utf-8",
     )
@@ -66,7 +69,9 @@ def get_system_logger():
     global _system_sink_id
     if _system_sink_id is None:
         channel_config = _CHANNEL_CONFIGS["system"]
-        log_file_path = _LOG_ROOT_DIRECTORY / channel_config["subdir"] / channel_config["filename"]
+        log_file_path = (
+            _LOG_ROOT_DIRECTORY / channel_config["subdir"] / channel_config["filename"]
+        )
         _system_sink_id = _register_channel_sink(
             "system", log_file_path, _DEFAULT_LOG_FORMAT, channel_config["level"]
         )
@@ -82,7 +87,9 @@ def get_service_logger():
     global _service_sink_id
     if _service_sink_id is None:
         channel_config = _CHANNEL_CONFIGS["service"]
-        log_file_path = _LOG_ROOT_DIRECTORY / channel_config["subdir"] / channel_config["filename"]
+        log_file_path = (
+            _LOG_ROOT_DIRECTORY / channel_config["subdir"] / channel_config["filename"]
+        )
         _service_sink_id = _register_channel_sink(
             "service", log_file_path, _DEFAULT_LOG_FORMAT, channel_config["level"]
         )
@@ -98,7 +105,9 @@ def _register_user_sink(user_id: int, log_level: str, log_file_path: Path) -> in
 
     def is_record_for_this_user(record, expected_user_id: int = user_id) -> bool:
         extra = record["extra"]
-        return extra.get("log_type") == "user" and extra.get("user_id") == expected_user_id
+        return (
+            extra.get("log_type") == "user" and extra.get("user_id") == expected_user_id
+        )
 
     return logger.add(
         log_file_path,

@@ -9,10 +9,12 @@ from datetime import datetime
 
 from .logger_utils import get_system_logger
 
+
 def start_server():
     """
     Start the FastAPI server
     """
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         system_log = get_system_logger()
@@ -31,7 +33,7 @@ def start_server():
         yield
 
         stop_time = datetime.now()
-        duration= stop_time - start_time
+        duration = stop_time - start_time
 
         system_log.info(
             f"""
@@ -43,7 +45,6 @@ def start_server():
         ╚══════════════════════════════════════╝
         """
         )
-
 
     app = FastAPI(title="MP-Box API", lifespan=lifespan)
     app.add_middleware(
@@ -63,5 +64,6 @@ def start_server():
     app.include_router(events_router)
     app.include_router(ingest_router)
     return app
+
 
 app = start_server()
