@@ -10,7 +10,7 @@ from app.db.models.token_blacklist import TokenBlacklist
 from app.db.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 bearer_scheme = HTTPBearer()
 
 
