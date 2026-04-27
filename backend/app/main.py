@@ -4,6 +4,7 @@ from .api.auth import router as auth_router
 from .api.events import router as events_router
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
+from .api.roles import router as roles_router
 from .api.users import router as users_router
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -64,6 +65,7 @@ def start_server():
     app.include_router(auth_router)
     app.include_router(events_router)
     app.include_router(ingest_router)
+    app.include_router(roles_router)
     app.include_router(users_router)
     return app
 

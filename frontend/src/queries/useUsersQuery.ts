@@ -72,7 +72,7 @@ export function useRolesOptionsQuery() {
   return useQuery<RoleOption[]>({
     queryKey: ['roles-options'],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/api/roles`, { headers: authHeaders() })
+      const res = await fetch(`${BASE_URL}/api/roles/options`, { headers: authHeaders() })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body?.message ?? `HTTP ${res.status}`)
