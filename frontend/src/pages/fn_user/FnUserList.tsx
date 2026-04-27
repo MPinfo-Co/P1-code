@@ -265,6 +265,7 @@ export default function FnUserList() {
 
       {/* 新增／修改 Dialog */}
       <FnUserForm
+        key={`${isFormOpen}-${editingUser?.email ?? 'new'}`}
         open={isFormOpen}
         user={editingUser}
         onClose={handleFormClose}

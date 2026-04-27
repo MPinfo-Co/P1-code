@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
@@ -84,6 +84,18 @@ function validate(form: FormState, isEdit: boolean): FormErrors {
 
 // ── Component ─────────────────────────────────────────────────────
 
+function initForm(user?: UserRow | null): FormState {
+  if (user) {
+    return {
+      name: user.name,
+      email: user.email,
+      password: '',
+      roleIds: user.roles.map((r) => r.id),
+    }
+  }
+  return emptyForm()
+}
+
 export default function FnUserForm({ open, user, onClose, onSuccess }: Props) {
   const isEdit = !!user
 
@@ -91,27 +103,9 @@ export default function FnUserForm({ open, user, onClose, onSuccess }: Props) {
   const createUser = useCreateUser()
   const updateUser = useUpdateUser()
 
-  const [form, setForm] = useState<FormState>(emptyForm())
+  const [form, setForm] = useState<FormState>(() => initForm(user))
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
-
-  // 開啟時初始化表單
-  useEffect(() => {
-    if (open) {
-      if (user) {
-        setForm({
-          name: user.name,
-          email: user.email,
-          password: '',
-          roleIds: user.roles.map((r) => r.id),
-        })
-      } else {
-        setForm(emptyForm())
-      }
-      setErrors({})
-      setSubmitError(null)
-    }
-  }, [open, user])
 
   function handleToggleRole(id: number) {
     setForm((prev) => ({
