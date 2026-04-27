@@ -22,7 +22,7 @@ const useAuthStore = create<UserState>((set, get) => (
     email: null,
     password: null,
 
-    login:(email: string, password: string) => {
+    login: async(email: string, password: string) => {
       const res = await fetch(`${BASE_URL}/auth/login`,
         {
           method: 'POST',
