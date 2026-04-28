@@ -6,8 +6,8 @@
 
 | # | 類型 | 工作內容 | 參照規格 | PG執行註記 |
 |---|------|--------|--------| --- |
-| 1 | API  | 建立 `GET /echo`：接收 Query Parameter `message`（string，必填），回傳 JSON `{ "message": "ok", "data": { "message": "<輸入值>" } }` | `Spec/echo/Api/echo_get_api.md` |  |
-| 2 | Test | 撰寫 `/echo` 端點自動化測試案例 | `Spec/echo/Api/echo_get_api.md` |  |
+| 1 | API  | 建立 `GET /echo`：接收 Query Parameter `message`（string，必填），回傳 JSON `{ "message": "ok", "data": { "message": "<輸入值>" } }` | `Spec/echo/Api/echo_get_api.md` | 完成，router 位於 `app/api/echo.py`，已註冊至 main.py |
+| 2 | Test | 撰寫 `/echo` 端點自動化測試案例 | `Spec/echo/Api/echo_get_api.md` | 完成，2 個測試案例全數通過（pytest 2 passed） |
 
 **── AI 填寫結束 ──**
 
@@ -17,7 +17,7 @@
 
 | ID | 類型 | 前置條件 | 操作 | 預期結果 | PG執行註記 |
 |----|------|--------|------|--------| --- |
-| T1 | API  | 服務正常運行 | `GET /echo?message=hello` | HTTP 200；body `{ "message": "ok", "data": { "message": "hello" } }` |  |
-| T2 | API  | 服務正常運行 | `GET /echo`（未傳入 `message` 參數） | HTTP 422；body 包含參數驗證錯誤訊息 |  |
+| T1 | API  | 服務正常運行 | `GET /echo?message=hello` | HTTP 200；body `{ "message": "ok", "data": { "message": "hello" } }` | PASSED |
+| T2 | API  | 服務正常運行 | `GET /echo`（未傳入 `message` 參數） | HTTP 422；body 包含參數驗證錯誤訊息 | PASSED |
 
 **── AI 填寫結束 ──**
