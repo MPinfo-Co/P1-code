@@ -1,4 +1,4 @@
-name: C-workflow（CI）
+name: PG Close
 
 on:
   push:
