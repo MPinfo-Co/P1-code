@@ -16,7 +16,12 @@ from app.db.models.token_blacklist import TokenBlacklist
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
-_SEED_TABLES = [User.__table__, Role.__table__, UserRole.__table__, TokenBlacklist.__table__]
+_SEED_TABLES = [
+    User.__table__,
+    Role.__table__,
+    UserRole.__table__,
+    TokenBlacklist.__table__,
+]
 
 
 @pytest.fixture(scope="function")

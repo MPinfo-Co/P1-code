@@ -225,7 +225,10 @@ export default function FnUserList() {
               pageSizeOptions={[10, 25]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               disableRowSelectionOnClick
-              sx={{ border: 'none', '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' } }}
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+              }}
             />
           )}
         </Box>

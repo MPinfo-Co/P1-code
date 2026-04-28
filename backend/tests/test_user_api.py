@@ -17,6 +17,7 @@ from app.db.models.user import Role, User, UserRole
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_role(db: Session, name: str, can_manage_accounts: bool = False) -> int:
     """Create a role and return its id."""
     role = Role(name=name, can_manage_accounts=can_manage_accounts)
@@ -25,7 +26,9 @@ def _make_role(db: Session, name: str, can_manage_accounts: bool = False) -> int
     return role.id
 
 
-def _make_user(db: Session, email: str, name: str = "Test User", password: str = "password123") -> int:
+def _make_user(
+    db: Session, email: str, name: str = "Test User", password: str = "password123"
+) -> int:
     """Create a user and return its id."""
     user = User(
         name=name,
@@ -76,6 +79,7 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> tuple[int, int]:
 # GET /api/users
 # ---------------------------------------------------------------------------
 
+
 def test_list_users_returns_200(client, engine):
     """對應 T1"""
     admin_id, _, _ = _setup_admin(engine)
@@ -116,7 +120,9 @@ def test_list_users_filter_by_role(client, engine):
     db.commit()
     db.close()
 
-    resp = client.get(f"/api/users?role_id={other_role_id}", headers=_auth_headers(admin_id))
+    resp = client.get(
+        f"/api/users?role_id={other_role_id}", headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
     data = resp.json()["data"]
     emails = [u["email"] for u in data]
@@ -136,7 +142,9 @@ def test_list_users_filter_by_keyword(client, engine):
     db.commit()
     db.close()
 
-    resp = client.get("/api/users?keyword=UniqueKeyword", headers=_auth_headers(admin_id))
+    resp = client.get(
+        "/api/users?keyword=UniqueKeyword", headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
     data = resp.json()["data"]
     emails = [u["email"] for u in data]
@@ -147,6 +155,7 @@ def test_list_users_filter_by_keyword(client, engine):
 # ---------------------------------------------------------------------------
 # POST /api/users
 # ---------------------------------------------------------------------------
+
 
 def test_create_user_returns_201(client, engine):
     """對應 T3"""
@@ -243,6 +252,7 @@ def test_create_user_unauthenticated_returns_401(client, engine):
 # PATCH /api/users/{email}
 # ---------------------------------------------------------------------------
 
+
 def test_update_user_returns_200(client, engine):
     """對應 T7"""
     admin_id, _, _ = _setup_admin(engine)
@@ -308,6 +318,7 @@ def test_update_user_unauthenticated_returns_401(client, engine):
 # DELETE /api/users/{email}
 # ---------------------------------------------------------------------------
 
+
 def test_delete_user_returns_200(client, engine):
     """對應 T9"""
     admin_id, _, _ = _setup_admin(engine)
@@ -320,7 +331,9 @@ def test_delete_user_returns_200(client, engine):
     db.commit()
     db.close()
 
-    resp = client.delete("/api/users/todelete@test.com", headers=_auth_headers(admin_id))
+    resp = client.delete(
+        "/api/users/todelete@test.com", headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
     assert resp.json()["message"] == "刪除成功"
 
@@ -357,6 +370,7 @@ def test_delete_user_unauthenticated_returns_401(client, engine):
 # ---------------------------------------------------------------------------
 # GET /api/roles/options
 # ---------------------------------------------------------------------------
+
 
 def test_get_role_options_returns_200(client, engine):
     """已登入 GET /api/roles/options 應回 200 及角色清單"""
