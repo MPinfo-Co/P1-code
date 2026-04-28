@@ -1,7 +1,7 @@
 // src/pages/fn_user/FnUserList.tsx
 import { useState } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
-import type { GridColDef } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -103,8 +103,8 @@ export default function FnUserList() {
       headerName: '角色',
       flex: 1,
       sortable: false,
-      renderCell: ({ value }: { value: UserRow['roles'] }) =>
-        (value ?? []).map((r) => (
+      renderCell: (params: GridRenderCellParams<UserRow, UserRow['roles']>) =>
+        ((params.value ?? []) as UserRow['roles']).map((r) => (
           <Chip
             key={r.id}
             label={r.name}
@@ -233,6 +233,7 @@ export default function FnUserList() {
 
       {/* Form dialog (new / edit) */}
       <FnUserForm
+        key={editingRow?.email ?? 'new'}
         open={isFormOpen}
         row={editingRow}
         onClose={() => setIsFormOpen(false)}
