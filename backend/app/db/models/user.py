@@ -10,7 +10,7 @@ class User(Base):
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_at = Column(
         TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now()
     )

@@ -45,7 +45,7 @@ const ALL_PARTNERS = [
 
 const PERMISSIONS = [
   { key: 'canAccessAI', label: 'AI 夥伴', desc: '可使用 AI 夥伴進行分析' },
-  { key: 'canManageAccounts', label: '帳號管理', desc: '可新增、修改、刪除使用者帳號' },
+  { key: 'canManageAccounts', label: '使用者管理', desc: '可新增、修改、刪除使用者' },
   { key: 'canManageRoles', label: '角色管理', desc: '可新增、修改、刪除角色與權限' },
   { key: 'canEditAI', label: 'AI 夥伴管理', desc: '可調整 AI 夥伴設定與綁定知識庫' },
   { key: 'canManageKB', label: '知識庫管理', desc: '可新增、編輯知識庫及上傳文件與資料表' },
@@ -266,7 +266,7 @@ export default function Role() {
               />
             </Box>
 
-            {/* 成員帳號 */}
+            {/* 成員 */}
             <Box>
               <Box
                 sx={{
@@ -277,7 +277,7 @@ export default function Role() {
                 }}
               >
                 <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
-                  成員帳號
+                  成員
                 </Typography>
                 <Button
                   size="small"
