@@ -12,7 +12,7 @@ import Typography from '@mui/material/Typography'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
-import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined'
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -116,8 +116,8 @@ export default function Sidebar() {
                 {[
                   {
                     to: '/settings/account',
-                    label: '帳號',
-                    icon: <ManageAccountsOutlinedIcon fontSize="small" />,
+                    label: '帳號管理',
+                    icon: <PeopleAltOutlinedIcon fontSize="small" />,
                   },
                   {
                     to: '/settings/role',
