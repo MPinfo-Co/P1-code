@@ -1,11 +1,8 @@
 name: PG Close
 
 on:
-  push:
-    branches:
-      - 'pg-*'
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [closed]
     branches:
       - main
 
@@ -15,105 +12,6 @@ permissions:
   issues: write
 
 jobs:
-  backend-ci:
-    name: Backend CI（Ruff + Pytest）
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Ruff lint
-        run: ruff check .
-
-      - name: Ruff format check
-        run: ruff format --check .
-
-      - name: Pytest with coverage
-        run: |
-          set +e
-          pytest tests/ -v
-          code=$?
-          if [ $code -eq 5 ]; then exit 0; else exit $code; fi
-
-  frontend-ci:
-    name: Frontend CI（ESLint + Prettier）
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: ESLint
-        run: npm run lint
-
-      - name: Prettier check
-        run: npx prettier --check src/
-
-  notify-test-env:
-    name: Notify PG to Set Up Test Environment
-    runs-on: ubuntu-latest
-    if: startsWith(github.event.pull_request.head.ref, 'pg-')
-
-    steps:
-      - name: Create GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: Comment on PR
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const branch = context.payload.pull_request.head.ref;
-            const match = branch.match(/^pg-(\d+)/);
-            const issueNum = match ? match[1] : '?';
-
-            const body = [
-              '🧪 **PR 已建立，請設定測試環境**',
-              '',
-              '## PG 測試環境 Checklist',
-              '',
-              '- [ ] 本地啟動後端：`cd backend && uvicorn main:app --reload`',
-              '- [ ] 本地啟動前端：`cd frontend && npm run dev`',
-              '- [ ] 確認資料庫連線正常',
-              '- [ ] 依照 TDD 逐一執行測試案例，填寫測試報告',
-              '',
-              `測試報告請存放於 \`PG測試報告/issue-${issueNum}.md\`（N = PG Issue 編號）。`,
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body,
-            });
-
   close-issues:
     name: Close Issues
     runs-on: ubuntu-latest
@@ -128,6 +26,7 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: MPinfo-Co
 
       - name: Close PG Issue and Epic Issue
         uses: actions/github-script@v8
@@ -138,7 +37,6 @@ jobs:
             const match = branchName.match(/^pg-(\d+)-/);
             const issueNum = match ? match[1] : branchName.replace(/^pg-/, '').split('-')[0];
 
-            // 關閉 PG Issue
             const pgIssueNum = parseInt(issueNum);
             if (!isNaN(pgIssueNum)) {
               await github.rest.issues.update({
@@ -150,7 +48,6 @@ jobs:
               });
               console.log(`PG Issue #${pgIssueNum} 已自動關閉`);
 
-              // 關閉對應的 Epic Issue
               try {
                 const pgIssue = await github.rest.issues.get({
                   owner: context.repo.owner,
