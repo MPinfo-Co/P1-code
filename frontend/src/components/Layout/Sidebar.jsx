@@ -116,7 +116,7 @@ export default function Sidebar() {
                 {[
                   {
                     to: '/settings/account',
-                    label: '帳號管理',
+                    label: '使用者管理',
                     icon: <PeopleAltOutlinedIcon fontSize="small" />,
                   },
                   {

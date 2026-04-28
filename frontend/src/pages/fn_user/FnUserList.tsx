@@ -147,10 +147,10 @@ export default function FnUserList() {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
-          帳號管理
+          使用者管理
         </Typography>
         <Button variant="contained" onClick={handleAddClick}>
-          新增帳號
+          新增使用者
         </Button>
       </Box>
 
@@ -225,7 +225,7 @@ export default function FnUserList() {
               pageSizeOptions={[10, 25]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               disableRowSelectionOnClick
-              sx={{ border: 'none' }}
+              sx={{ border: 'none', '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' } }}
             />
           )}
         </Box>

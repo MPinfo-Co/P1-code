@@ -112,7 +112,7 @@ export default function Account() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
-          帳號管理
+          使用者管理
         </Typography>
         <Button
           variant="contained"
@@ -123,7 +123,7 @@ export default function Account() {
             setModalOpen(true)
           }}
         >
-          新增帳號
+          新增使用者
         </Button>
       </Box>
 
@@ -186,7 +186,7 @@ export default function Account() {
       </Box>
 
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>新增帳號</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>新增使用者</DialogTitle>
         <DialogContent
           sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}
         >

@@ -11,7 +11,6 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(
         TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now()
     )

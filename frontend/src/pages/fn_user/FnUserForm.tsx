@@ -101,7 +101,7 @@ export default function FnUserForm({ open, row, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>{isEdit ? '修改帳號' : '新增帳號'}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800 }}>{isEdit ? '修改使用者' : '新增使用者'}</DialogTitle>
       <DialogContent
         sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}
       >
