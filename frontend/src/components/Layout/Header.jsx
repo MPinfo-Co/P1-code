@@ -9,7 +9,7 @@ const PAGE_TITLES = {
   '/': '首頁',
   '/ai-partner': 'AI夥伴',
   '/kb': '知識庫',
-  '/settings/account': '帳號',
+  '/settings/account': '使用者管理',
   '/settings/role': '角色',
   '/settings/ai-config': 'AI夥伴管理',
 }
@@ -29,7 +29,7 @@ export default function Header() {
       elevation={0}
       sx={{ bgcolor: 'white', borderBottom: '1px solid #e2e8f0' }}
     >
-      <Toolbar sx={{ justifyContent: 'space-between', minHeight: '70px !important' }}>
+      <Toolbar sx={{ justifyContent: 'space-between', minHeight: '40px !important', px: '20px' }}>
         <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
           {title}
         </Typography>

@@ -8,8 +8,6 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
@@ -149,7 +147,7 @@ export default function FnUserList() {
         sx={{
           bgcolor: '#f1f5f9',
           borderRadius: '4px',
-          padding: '5px 12px',
+          padding: '3px 12px',
           mb: '5px',
           display: 'flex',
           gap: 2,
@@ -157,39 +155,46 @@ export default function FnUserList() {
           alignItems: 'center',
         }}
       >
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel sx={{ color: '#1e293b', fontWeight: 700 }}>角色職位</InputLabel>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>角色職位:</Typography>
           <Select
             value={filterRole}
-            label="角色職位"
             onChange={(e) => setFilterRole(e.target.value)}
+            size="small"
+            displayEmpty
+            sx={{ height: 24, fontSize: 13, '& .MuiSelect-select': { py: '2px' } }}
           >
             <MenuItem value="all">全部</MenuItem>
             {roleOptions.map((r) => (
-              <MenuItem key={r.id} value={r.name}>
-                {r.name}
-              </MenuItem>
+              <MenuItem key={r.id} value={r.name}>{r.name}</MenuItem>
             ))}
           </Select>
-        </FormControl>
-        <TextField
-          size="small"
-          label="關鍵字搜尋"
-          placeholder="搜尋名稱或信箱..."
-          value={filterKeyword}
-          onChange={(e) => setFilterKeyword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-          sx={{ width: 220 }}
-          InputLabelProps={{ sx: { color: '#1e293b', fontWeight: 700 } }}
-        />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>關鍵字:</Typography>
+          <TextField
+            size="small"
+            placeholder="搜尋名稱或信箱..."
+            value={filterKeyword}
+            onChange={(e) => setFilterKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleApply()}
+            sx={{ width: 200, '& .MuiInputBase-root': { height: 24 }, '& .MuiInputBase-input': { py: '2px', fontSize: 13 } }}
+          />
+        </Box>
         <Button
           variant="outlined"
+          size="small"
           onClick={handleApply}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px' }}
+          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px', height: 24, fontSize: 12 }}
         >
           套用
         </Button>
-        <Button variant="contained" onClick={handleAddClick} sx={{ ml: 'auto' }}>
+        <Button
+          variant="contained"
+          size="small"
+          onClick={handleAddClick}
+          sx={{ ml: 'auto', height: 24, fontSize: 12, borderRadius: '3px' }}
+        >
           新增使用者
         </Button>
       </Box>
@@ -218,10 +223,14 @@ export default function FnUserList() {
               pageSizeOptions={[10, 25]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               disableRowSelectionOnClick
+              rowHeight={36}
+              columnHeaderHeight={36}
               sx={{
                 border: 'none',
                 '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
-                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center', py: '6px' },
+                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+                '& .MuiDataGrid-footerContainer': { minHeight: 36, height: 36, overflow: 'hidden' },
+                '& .MuiTablePagination-toolbar': { minHeight: 36, height: 36, padding: '0 8px' },
               }}
             />
           )}

@@ -54,7 +54,7 @@ export default function Sidebar() {
       {/* Brand */}
       <Box
         onClick={() => navigate('/ai-partner')}
-        sx={{ px: 3, py: 2.5, borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
+        sx={{ px: 3, height: 40, display: 'flex', alignItems: 'center', borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
       >
         <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'white' }}>MP-Box</Typography>
       </Box>
