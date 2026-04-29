@@ -1,7 +1,7 @@
 // src/pages/fn_role/FnRoleList.tsx
 import { useState } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
-import type { GridColDef } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -73,8 +73,8 @@ export default function FnRoleList() {
       field: 'name',
       headerName: '角色名稱',
       flex: 1,
-      renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{params.value}</Typography>
       ),
     },
     {
@@ -82,13 +82,10 @@ export default function FnRoleList() {
       headerName: '使用者',
       flex: 1.5,
       sortable: false,
-      renderCell: ({ value }: { value: RoleRow['users'] }) => {
+      renderCell: (params: GridRenderCellParams) => {
+        const value = params.value as RoleRow['users']
         const names = (value ?? []).map((u) => u.name).join('、')
-        return (
-          <Typography sx={{ fontSize: 13, color: '#64748b' }}>
-            {names || '無'}
-          </Typography>
-        )
+        return <Typography sx={{ fontSize: 13, color: '#64748b' }}>{names || '無'}</Typography>
       },
     },
     {
@@ -96,27 +93,30 @@ export default function FnRoleList() {
       headerName: '執行動作',
       width: 160,
       sortable: false,
-      renderCell: ({ row }: { row: RoleRow }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
-            onClick={() => handleEditClick(row)}
-          >
-            修改
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            sx={{ fontSize: 12 }}
-            onClick={() => handleDeleteClick(row)}
-          >
-            刪除
-          </Button>
-        </Box>
-      ),
+      renderCell: (params: GridRenderCellParams) => {
+        const row = params.row as RoleRow
+        return (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
+              onClick={() => handleEditClick(row)}
+            >
+              修改
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              sx={{ fontSize: 12 }}
+              onClick={() => handleDeleteClick(row)}
+            >
+              刪除
+            </Button>
+          </Box>
+        )
+      },
     },
   ]
 
@@ -136,7 +136,9 @@ export default function FnRoleList() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          <Typography
+            sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}
+          >
             關鍵字:
           </Typography>
           <TextField
@@ -156,7 +158,13 @@ export default function FnRoleList() {
           variant="outlined"
           size="small"
           onClick={handleApply}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px', height: 24, fontSize: 12 }}
+          sx={{
+            borderColor: '#2e3f6e',
+            color: '#2e3f6e',
+            borderRadius: '3px',
+            height: 24,
+            fontSize: 12,
+          }}
         >
           套用
         </Button>
@@ -210,7 +218,7 @@ export default function FnRoleList() {
 
       {/* Form dialog (new / edit) */}
       <FnRoleForm
-        key={editingRow?.id ?? 'new'}
+        key={editingRow?.name ?? 'new'}
         open={isFormOpen}
         row={editingRow}
         onClose={() => setIsFormOpen(false)}
