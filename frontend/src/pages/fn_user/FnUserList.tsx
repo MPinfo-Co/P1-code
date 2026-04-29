@@ -8,8 +8,6 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
@@ -87,7 +85,7 @@ export default function FnUserList() {
       headerName: '名稱',
       flex: 1,
       renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
+        <Typography sx={{ fontSize: 13, fontWeight: 400 }}>{value}</Typography>
       ),
     },
     {
@@ -144,60 +142,60 @@ export default function FnUserList() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
-          使用者管理
-        </Typography>
-        <Button variant="contained" onClick={handleAddClick}>
-          新增使用者
-        </Button>
-      </Box>
-
       {/* Filter bar */}
       <Box
         sx={{
-          bgcolor: 'white',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          p: 2,
-          mb: 2,
+          bgcolor: '#f1f5f9',
+          borderRadius: '4px',
+          padding: '3px 12px',
+          mb: '5px',
           display: 'flex',
           gap: 2,
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
           alignItems: 'center',
         }}
       >
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>角色職位</InputLabel>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>角色職位:</Typography>
           <Select
             value={filterRole}
-            label="角色職位"
             onChange={(e) => setFilterRole(e.target.value)}
+            size="small"
+            displayEmpty
+            sx={{ height: 24, fontSize: 13, '& .MuiSelect-select': { py: '2px' } }}
           >
             <MenuItem value="all">全部</MenuItem>
             {roleOptions.map((r) => (
-              <MenuItem key={r.id} value={r.name}>
-                {r.name}
-              </MenuItem>
+              <MenuItem key={r.id} value={r.name}>{r.name}</MenuItem>
             ))}
           </Select>
-        </FormControl>
-        <TextField
-          size="small"
-          label="關鍵字搜尋"
-          placeholder="搜尋名稱或信箱..."
-          value={filterKeyword}
-          onChange={(e) => setFilterKeyword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-          sx={{ width: 220 }}
-        />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>關鍵字:</Typography>
+          <TextField
+            size="small"
+            placeholder="搜尋名稱或信箱..."
+            value={filterKeyword}
+            onChange={(e) => setFilterKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleApply()}
+            sx={{ width: 200, '& .MuiInputBase-root': { height: 24 }, '& .MuiInputBase-input': { py: '2px', fontSize: 13 } }}
+          />
+        </Box>
         <Button
           variant="outlined"
+          size="small"
           onClick={handleApply}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e' }}
+          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px', height: 24, fontSize: 12 }}
         >
           套用
+        </Button>
+        <Button
+          variant="contained"
+          size="small"
+          onClick={handleAddClick}
+          sx={{ ml: 'auto', height: 24, fontSize: 12, borderRadius: '3px' }}
+        >
+          新增使用者
         </Button>
       </Box>
 
@@ -208,7 +206,7 @@ export default function FnUserList() {
         <Box
           sx={{
             bgcolor: 'white',
-            borderRadius: 2,
+            borderRadius: '4px',
             border: '1px solid #e2e8f0',
             overflow: 'hidden',
           }}
@@ -225,9 +223,14 @@ export default function FnUserList() {
               pageSizeOptions={[10, 25]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               disableRowSelectionOnClick
+              rowHeight={36}
+              columnHeaderHeight={36}
               sx={{
                 border: 'none',
+                '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
                 '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+                '& .MuiDataGrid-footerContainer': { minHeight: 36, height: 36, overflow: 'hidden' },
+                '& .MuiTablePagination-toolbar': { minHeight: 36, height: 36, padding: '0 8px' },
               }}
             />
           )}
