@@ -156,7 +156,11 @@ export default function FnUserList() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>角色職位:</Typography>
+          <Typography
+            sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}
+          >
+            角色職位:
+          </Typography>
           <Select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
@@ -166,26 +170,42 @@ export default function FnUserList() {
           >
             <MenuItem value="all">全部</MenuItem>
             {roleOptions.map((r) => (
-              <MenuItem key={r.id} value={r.name}>{r.name}</MenuItem>
+              <MenuItem key={r.id} value={r.name}>
+                {r.name}
+              </MenuItem>
             ))}
           </Select>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>關鍵字:</Typography>
+          <Typography
+            sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}
+          >
+            關鍵字:
+          </Typography>
           <TextField
             size="small"
             placeholder="搜尋名稱或信箱..."
             value={filterKeyword}
             onChange={(e) => setFilterKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-            sx={{ width: 200, '& .MuiInputBase-root': { height: 24 }, '& .MuiInputBase-input': { py: '2px', fontSize: 13 } }}
+            sx={{
+              width: 200,
+              '& .MuiInputBase-root': { height: 24 },
+              '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
+            }}
           />
         </Box>
         <Button
           variant="outlined"
           size="small"
           onClick={handleApply}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px', height: 24, fontSize: 12 }}
+          sx={{
+            borderColor: '#2e3f6e',
+            color: '#2e3f6e',
+            borderRadius: '3px',
+            height: 24,
+            fontSize: 12,
+          }}
         >
           套用
         </Button>
