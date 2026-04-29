@@ -10,7 +10,7 @@ import IssueList from './pages/AiPartner/IssueList'
 import IssueDetail from './pages/AiPartner/IssueDetail'
 import KnowledgeBase from './pages/KnowledgeBase/KnowledgeBase'
 import FnUserList from './pages/fn_user/FnUserList'
-import Role from './pages/Settings/Role'
+import FnRoleList from './pages/fn_role/FnRoleList'
 import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
 
@@ -40,7 +40,7 @@ function AppRoutes() {
         <Route path="kb" element={<KnowledgeBase />} />
         <Route path="settings" element={<Navigate to="/settings/account" replace />} />
         <Route path="settings/account" element={<FnUserList />} />
-        <Route path="settings/role" element={<Role />} />
+        <Route path="settings/role" element={<FnRoleList />} />
         <Route path="settings/ai-config" element={<AiConfig />} />
       </Route>
       <Route path="*" element={<NotFound />} />
