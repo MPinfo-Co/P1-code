@@ -41,7 +41,8 @@ def list_notices(
         NoticeItem(id=n.id, title=n.title, expires_at=n.expires_at.isoformat())
         for n in rows
     ]
-    return NoticeListOut(data=items)
+    can_manage = _has_notice_permission(auth.user_id, db)
+    return NoticeListOut(data=items, can_manage=can_manage)
 
 
 @router.post("", response_model=NoticeCreateOut, status_code=status.HTTP_201_CREATED)

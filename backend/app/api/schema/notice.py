@@ -16,6 +16,7 @@ class NoticeListOut(BaseModel):
 
     message: str = "查詢成功"
     data: list[NoticeItem]
+    can_manage: bool = False
 
 
 class NoticeCreate(BaseModel):
