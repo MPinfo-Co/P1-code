@@ -41,3 +41,24 @@
 
 - TDD #2/#3（tb_functions / tb_role_function）：現有 Role model 使用 boolean flag 設計（`can_manage_notices`），功能等效但非獨立資料表。schema.md 已更新記載 tb_notices，功能權限欄位在 Role model 實作。
 - middleware 原本將 403 normalise 至 400，已修正為允許 403 pass through，以符合 Spec 規格。
+
+---
+
+## 前端 TDD 規格合規（畫面類型）
+
+| # | 工作內容 | 結果 |
+|---|---------|------|
+| 7 | 建立畫面規格 fn_notice_01_home_block.md（公告區塊 + 新增 Dialog） | ✓ |
+| 8 | 調整首頁 home_01.md：新增系統公告區塊 | ✓ |
+
+## 前端 TypeScript + ESLint
+
+TypeScript: 通過（0 錯誤，1 pre-existing 棄用警告：tsconfig.json baseUrl，存在於 main，非本 branch 引入）
+ESLint: 通過（0 警告）
+
+## 前端備註
+
+- TDD #7：`FnNoticeBlock.tsx` 實作公告清單（標題 + 有效期限欄位）、「目前無公告」空狀態、`canManage` 條件控制顯示「新增公告」按鈕；`FnNoticeForm.tsx` 實作新增公告 Dialog（標題 text input、內容 textarea、有效期限 date picker），三欄位皆必填，本地端驗證規則（不可為空、有效期限須為今日或未來）符合規格。
+- TDD #8：`Home.jsx` 已引入並渲染 `FnNoticeBlock`，`home_01.md` 有記載系統公告區塊規格連結。
+- `useNoticesQuery.ts`：GET `/api/notices`（帶 Bearer token）與 POST `/api/notices`（帶 JSON body）路徑與 method 均符合規格，POST 成功後執行 `invalidateQueries` 刷新清單。
+- `fn_notice_list_api.md` 的 data 欄位在規格中以中文「標題」標記，但 useNoticesQuery.ts 使用英文欄位名 `title` / `expires_at`，與後端實作一致，屬後端回傳欄位命名，無規格衝突。
