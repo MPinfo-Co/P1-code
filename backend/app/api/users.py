@@ -6,10 +6,58 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.db.models.user import Role, User, UserRole
-from app.schemas.user import UserCreate, UserItem, UserUpdate
+from app.db.models.user import Function, Role, RoleFunction, User, UserRole
+from app.schemas.user import UserCreate, UserItem, UserOptionItem, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+# ---------------------------------------------------------------------------
+# Permission helper
+# ---------------------------------------------------------------------------
+
+
+def _check_fn_user(db: Session, current_user: User) -> None:
+    """Raise 403 if current_user's roles do not include fn_user function."""
+    has_perm = (
+        db.query(RoleFunction)
+        .join(UserRole, RoleFunction.role_id == UserRole.role_id)
+        .join(Function, RoleFunction.function_id == Function.function_id)
+        .filter(UserRole.user_id == current_user.id)
+        .filter(Function.function_name == "fn_user")
+        .first()
+    )
+    if not has_perm:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users/options  (login required, no fn_user permission needed)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/options", status_code=200)
+def get_user_options(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """取得使用者選項清單（僅含 is_active=True 的使用者）"""
+    users = (
+        db.query(User)
+        .filter(User.is_active.is_(True))
+        .order_by(User.name.asc())
+        .all()
+    )
+    data = [UserOptionItem(id=u.id, name=u.name) for u in users]
+    return {"message": "查詢成功", "data": data}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users
+# ---------------------------------------------------------------------------
 
 
 @router.get("", status_code=200)
@@ -20,8 +68,7 @@ def list_users(
     current_user: User = Depends(get_current_user),
 ):
     """查詢使用者列表"""
-    # Permission check
-    _check_manage_accounts(db, current_user)
+    _check_fn_user(db, current_user)
 
     q = (
         db.query(User)
@@ -60,6 +107,11 @@ def list_users(
     return {"message": "查詢成功", "data": result}
 
 
+# ---------------------------------------------------------------------------
+# POST /api/users
+# ---------------------------------------------------------------------------
+
+
 @router.post("", status_code=201)
 def create_user(
     body: UserCreate,
@@ -67,31 +119,26 @@ def create_user(
     current_user: User = Depends(get_current_user),
 ):
     """新增使用者"""
-    # Permission check
-    _check_manage_accounts(db, current_user)
+    _check_fn_user(db, current_user)
 
-    # Validate name length
     if len(body.name) > 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="使用者顯示名稱不可超過 100 字",
         )
 
-    # Validate password length
     if len(body.password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="密碼最少 8 字元",
         )
 
-    # Validate roles not empty
     if not body.role_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="角色未設定",
         )
 
-    # Check email uniqueness
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
         raise HTTPException(
@@ -99,7 +146,6 @@ def create_user(
             detail="此 Email 已被使用",
         )
 
-    # Create user
     new_user = User(
         name=body.name,
         email=body.email,
@@ -108,14 +154,18 @@ def create_user(
         updated_by=current_user.id,
     )
     db.add(new_user)
-    db.flush()  # get new_user.id without commit
+    db.flush()
 
-    # Create user roles
-    for role_id in body.role_ids:
-        db.add(UserRole(user_id=new_user.id, role_id=role_id))
+    for rid in body.role_ids:
+        db.add(UserRole(user_id=new_user.id, role_id=rid))
 
     db.commit()
     return {"message": "新增成功"}
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/users/{email}
+# ---------------------------------------------------------------------------
 
 
 @router.patch("/{email}", status_code=200)
@@ -126,10 +176,8 @@ def update_user(
     current_user: User = Depends(get_current_user),
 ):
     """更新使用者"""
-    # Permission check
-    _check_manage_accounts(db, current_user)
+    _check_fn_user(db, current_user)
 
-    # Check user exists
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(
@@ -137,28 +185,24 @@ def update_user(
             detail="使用者不存在",
         )
 
-    # Validate name if provided
     if body.name is not None and len(body.name) > 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="使用者顯示名稱不可超過 100 字",
         )
 
-    # Validate password if provided
     if body.password is not None and len(body.password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="密碼至少需要 8 個字元",
         )
 
-    # Validate roles if provided (must not be empty list)
     if body.role_ids is not None and len(body.role_ids) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="角色不可為空",
         )
 
-    # Apply updates
     if body.name is not None:
         user.name = body.name
 
@@ -167,12 +211,17 @@ def update_user(
 
     if body.role_ids is not None:
         db.query(UserRole).filter(UserRole.user_id == user.id).delete()
-        for role_id in body.role_ids:
-            db.add(UserRole(user_id=user.id, role_id=role_id))
+        for rid in body.role_ids:
+            db.add(UserRole(user_id=user.id, role_id=rid))
 
     user.updated_by = current_user.id
     db.commit()
     return {"message": "更新成功"}
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/users/{email}
+# ---------------------------------------------------------------------------
 
 
 @router.delete("/{email}", status_code=200)
@@ -182,10 +231,8 @@ def delete_user(
     current_user: User = Depends(get_current_user),
 ):
     """刪除使用者"""
-    # Permission check
-    _check_manage_accounts(db, current_user)
+    _check_fn_user(db, current_user)
 
-    # Check user exists
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(
@@ -193,33 +240,13 @@ def delete_user(
             detail="使用者不存在",
         )
 
-    # Prevent self-deletion
     if user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="無法刪除自己的帳號",
         )
 
-    # Delete user roles first
     db.query(UserRole).filter(UserRole.user_id == user.id).delete()
-
-    # Delete user
     db.delete(user)
     db.commit()
     return {"message": "刪除成功"}
-
-
-def _check_manage_accounts(db: Session, current_user: User) -> None:
-    """Raise 403 if current_user has no can_manage_accounts permission."""
-    has_perm = (
-        db.query(Role)
-        .join(UserRole, Role.id == UserRole.role_id)
-        .filter(UserRole.user_id == current_user.id)
-        .filter(Role.can_manage_accounts.is_(True))
-        .first()
-    )
-    if not has_perm:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="您沒有執行此操作的權限",
-        )

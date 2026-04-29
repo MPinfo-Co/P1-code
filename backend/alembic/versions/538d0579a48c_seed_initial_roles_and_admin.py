@@ -19,24 +19,8 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 _DEFAULT_ROLES = [
-    {
-        "name": "admin",
-        "can_access_ai": True,
-        "can_use_kb": True,
-        "can_manage_accounts": True,
-        "can_manage_roles": True,
-        "can_edit_ai": True,
-        "can_manage_kb": True,
-    },
-    {
-        "name": "user",
-        "can_access_ai": True,
-        "can_use_kb": True,
-        "can_manage_accounts": False,
-        "can_manage_roles": False,
-        "can_edit_ai": False,
-        "can_manage_kb": False,
-    },
+    {"name": "admin"},
+    {"name": "user"},
 ]
 
 
@@ -50,13 +34,7 @@ def upgrade() -> None:
         ).fetchone()
         if not exists:
             conn.execute(
-                sa.text(
-                    "INSERT INTO roles "
-                    "(name, can_access_ai, can_use_kb, can_manage_accounts, "
-                    "can_manage_roles, can_edit_ai, can_manage_kb) "
-                    "VALUES (:name, :can_access_ai, :can_use_kb, :can_manage_accounts, "
-                    ":can_manage_roles, :can_edit_ai, :can_manage_kb)"
-                ),
+                sa.text("INSERT INTO roles (name) VALUES (:name)"),
                 role,
             )
 

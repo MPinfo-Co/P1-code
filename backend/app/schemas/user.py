@@ -37,3 +37,10 @@ class RoleOptionItem(BaseModel):
     name: str
 
     model_config = {"from_attributes": True}
+
+
+class UserOptionItem(BaseModel):
+    id: int
+    name: str
+
+    model_config = {"from_attributes": True}
