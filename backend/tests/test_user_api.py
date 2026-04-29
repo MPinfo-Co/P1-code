@@ -1,5 +1,6 @@
 """
 Tests for fn_user APIs:
+  GET    /api/users/options
   GET    /api/users
   POST   /api/users
   PATCH  /api/users/{email}
@@ -10,7 +11,7 @@ Tests for fn_user APIs:
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.security import create_access_token, hash_password
-from app.db.models.user import Role, User, UserRole
+from app.db.models.user import Function, Role, RoleFunction, User, UserRole
 
 
 # ---------------------------------------------------------------------------
@@ -18,9 +19,17 @@ from app.db.models.user import Role, User, UserRole
 # ---------------------------------------------------------------------------
 
 
-def _make_role(db: Session, name: str, can_manage_accounts: bool = False) -> int:
+def _make_function(db: Session, function_id: int, function_name: str) -> int:
+    """Create a function and return its id."""
+    fn = Function(function_id=function_id, function_name=function_name)
+    db.add(fn)
+    db.flush()
+    return fn.function_id
+
+
+def _make_role(db: Session, name: str) -> int:
     """Create a role and return its id."""
-    role = Role(name=name, can_manage_accounts=can_manage_accounts)
+    role = Role(name=name)
     db.add(role)
     db.flush()
     return role.id
@@ -46,16 +55,23 @@ def _assign_role(db: Session, user_id: int, role_id: int) -> None:
     db.flush()
 
 
+def _assign_function(db: Session, role_id: int, function_id: int) -> None:
+    db.add(RoleFunction(role_id=role_id, function_id=function_id))
+    db.flush()
+
+
 def _auth_headers(user_id: int) -> dict:
     token = create_access_token({"sub": str(user_id)})
     return {"Authorization": f"Bearer {token}"}
 
 
 def _setup_admin(engine) -> tuple[int, int, str]:
-    """Create admin role + admin user. Return (user_id, role_id, email)."""
+    """Create fn_user-permitted role + admin user. Return (user_id, role_id, email)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    role_id = _make_role(db, "admin", can_manage_accounts=True)
+    fn_id = _make_function(db, 1, "fn_user")
+    role_id = _make_role(db, "admin")
+    _assign_function(db, role_id, fn_id)
     user_id = _make_user(db, "admin@test.com", name="Admin User")
     _assign_role(db, user_id, role_id)
     db.commit()
@@ -64,15 +80,65 @@ def _setup_admin(engine) -> tuple[int, int, str]:
 
 
 def _setup_plain_user(engine, email: str = "plain@test.com") -> tuple[int, int]:
-    """Create a user without admin privilege. Return (user_id, role_id)."""
+    """Create a user without fn_user privilege. Return (user_id, role_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    role_id = _make_role(db, "plain_role", can_manage_accounts=False)
+    role_id = _make_role(db, "plain_role")
     user_id = _make_user(db, email, name="Plain User")
     _assign_role(db, user_id, role_id)
     db.commit()
     db.close()
     return user_id, role_id
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users/options
+# ---------------------------------------------------------------------------
+
+
+def test_get_user_options_returns_200(client, engine):
+    """對應 T16"""
+    admin_id, _, _ = _setup_admin(engine)
+
+    resp = client.get("/api/users/options", headers=_auth_headers(admin_id))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "查詢成功"
+    assert isinstance(body["data"], list)
+    # admin user is active, should appear
+    ids = [u["id"] for u in body["data"]]
+    assert admin_id in ids
+
+
+def test_get_user_options_unauthenticated_returns_401(client, engine):
+    """對應 T17"""
+    resp = client.get("/api/users/options")
+    assert resp.status_code == 401
+
+
+def test_get_user_options_only_active(client, engine):
+    """options endpoint only returns active users"""
+    admin_id, _, _ = _setup_admin(engine)
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    inactive = User(
+        name="Inactive",
+        email="inactive@test.com",
+        password_hash=hash_password("password123"),
+        is_active=False,
+    )
+    db.add(inactive)
+    db.flush()
+    inactive_id = inactive.id
+    db.commit()
+    db.close()
+
+    resp = client.get("/api/users/options", headers=_auth_headers(admin_id))
+    assert resp.status_code == 200
+    ids = [u["id"] for u in resp.json()["data"]]
+    # inactive user should NOT appear
+    assert inactive_id not in ids
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +180,7 @@ def test_list_users_filter_by_role(client, engine):
 
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    other_role_id = _make_role(db, "viewer", can_manage_accounts=False)
+    other_role_id = _make_role(db, "viewer")
     viewer_id = _make_user(db, "viewer@test.com", name="Viewer")
     _assign_role(db, viewer_id, other_role_id)
     db.commit()

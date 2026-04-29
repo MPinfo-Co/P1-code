@@ -11,17 +11,10 @@ from fastapi.testclient import TestClient
 
 from app.db.session import get_db
 from app.main import app
-from app.db.models.user import Role, User, UserRole
+from app.db.models.user import Function, Role, RoleFunction, User, UserRole
 from app.db.models.token_blacklist import TokenBlacklist
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
-
-_SEED_TABLES = [
-    User.__table__,
-    Role.__table__,
-    UserRole.__table__,
-    TokenBlacklist.__table__,
-]
 
 
 @pytest.fixture(scope="function")
@@ -31,13 +24,19 @@ def engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    User.__table__.create(bind=_engine, checkfirst=True)
+    # Create tables in dependency order
     Role.__table__.create(bind=_engine, checkfirst=True)
+    User.__table__.create(bind=_engine, checkfirst=True)
     UserRole.__table__.create(bind=_engine, checkfirst=True)
+    Function.__table__.create(bind=_engine, checkfirst=True)
+    RoleFunction.__table__.create(bind=_engine, checkfirst=True)
     TokenBlacklist.__table__.create(bind=_engine, checkfirst=True)
     yield _engine
-    UserRole.__table__.drop(bind=_engine, checkfirst=True)
+    # Drop in reverse dependency order
+    RoleFunction.__table__.drop(bind=_engine, checkfirst=True)
     TokenBlacklist.__table__.drop(bind=_engine, checkfirst=True)
+    UserRole.__table__.drop(bind=_engine, checkfirst=True)
+    Function.__table__.drop(bind=_engine, checkfirst=True)
     User.__table__.drop(bind=_engine, checkfirst=True)
     Role.__table__.drop(bind=_engine, checkfirst=True)
 
