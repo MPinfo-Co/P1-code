@@ -1,56 +1,65 @@
+"""/auth router — issue and revoke JWT access tokens."""
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import jwt
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, decode_access_token, verify_password
-from app.db.session import get_db
-from app.db.models.token_blacklist import TokenBlacklist
-from app.db.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.logger_utils import get_system_logger
+from app.api.schema.auth import LoginRequest, LoginResponse, LogoutResponse
+from app.config.settings import settings
+from app.db.connector import get_db
+from app.db.models import TokenBlacklist, User
+from app.utils.util_store import (
+    AuthContext,
+    authenticate,
+    create_access_token,
+    verify_password,
+)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
-bearer_scheme = HTTPBearer()
+router = APIRouter(prefix="/auth", tags=["auth"])
+system_logger = get_system_logger()
 
-
-@router.post("/login", response_model=TokenResponse)
-def login(api_request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == api_request.email).first()
-    if not user or not verify_password(api_request.password, user.password_hash):
+@router.post("/login", response_model=LoginResponse)
+def login(login_req: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+    """Authenticate `email` + `password` and return a JWT access token."""
+    system_logger.info(f"User with Email: {login_req.email} attempt to login")
+    user = db.query(User).filter(User.email == login_req.email).first()
+    if user is None or not user.is_active or not verify_password(
+        user.password_hash, login_req.password
+    ):
+        system_logger.warning('Error Email input')
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="帳號或密碼錯誤",
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="帳號已停用",
-        )
-    token = create_access_token({"sub": str(user.id)})
-    return TokenResponse(access_token=token)
+    system_logger.info(f"User with Email: {login_req.email} successfully logged in")
+    return LoginResponse(access_token=create_access_token(user.id), user_id=user.id)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", response_model=LogoutResponse)
 def logout(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    auth: AuthContext = Depends(authenticate),
     db: Session = Depends(get_db),
-):
-    token = credentials.credentials
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="無效的 token"
-        )
-
-    already_logged_out = (
-        db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+) -> LogoutResponse:
+    """Revoke the caller's JWT by recording its `jti` in `tb_token_blacklist`."""
+    payload = jwt.decode(
+        auth.token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
     )
-    if already_logged_out:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Token 已登出"
-        )
+    jti = payload["jti"]
+    exp = payload["exp"]
 
-    expired_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-    db.add(TokenBlacklist(token=token, expired_at=expired_at))
+    if db.query(TokenBlacklist).filter(TokenBlacklist.token_jti == jti).first():
+        return LogoutResponse(detail="JWT expired")
+
+    db.add(
+        TokenBlacklist(
+            token_jti=jti,
+            expired_at=datetime.fromtimestamp(exp, tz=timezone.utc).replace(tzinfo=None),
+            updated_by=auth.user_id,
+        )
+    )
     db.commit()
+    return LogoutResponse(detail="Logged out")

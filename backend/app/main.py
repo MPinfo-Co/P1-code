@@ -1,73 +1,67 @@
+"""
+The Entry site of MP-Box
+@version: v0.0.1
+@author: Yinchen
+"""
+
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from .api.auth import router as auth_router
-from .api.events import router as events_router
-from .api.health import router as health_router
-from .api.ingest import router as ingest_router
-from .api.users import router as users_router
-from .api.roles import router as roles_router
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 from .logger_utils import get_system_logger
+from .api.auth import router as auth_router
+from .api.events import router as events_router
+from .api.health import router as health_router
+from .api.ingest import router as ingest_router
+from .api.user import router as user_router
+from .middlewares.request_response_handler import RequestResponseHandlerMiddleware
 
-
-def start_server():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
-    Start the FastAPI server
+    Lifespan of FastAPI app, which executes when FastAPI starts and ends.
     """
-
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        system_log = get_system_logger()
-        start_time = datetime.now()
-        start_time_s = start_time.strftime("%Y-%m-%d %H:%M:%S")
-        system_log.info(
-            f"""
-        ╔══════════════════════════════════════╗
-        ║ 🚀  MP-box                           ║
-        ╠══════════════════════════════════════╣
-        ║ Status : ONLINE                      ║
-        ║ Started: {start_time_s}         ║
-        ╚══════════════════════════════════════╝
-        """
-        )
-        yield
-
-        stop_time = datetime.now()
-        duration = stop_time - start_time
-
-        system_log.info(
-            f"""
-        ╔══════════════════════════════════════╗
-        ║ "Goodbye 👋"                         ║
-        ╠══════════════════════════════════════╣
-        ║ Stop: {start_time_s}            ║
-        ║ Duration: {duration}             ║
-        ╚══════════════════════════════════════╝
-        """
-        )
-
-    app = FastAPI(title="MP-Box API", lifespan=lifespan)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "https://p1-code.vercel.app",
-        ],
-        allow_origin_regex=r"https://.*\.vercel\.app",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+    system_logger = get_system_logger()
+    server_start_time = datetime.now()
+    server_start_time_str = server_start_time.strftime("%Y%m%d-%H%M%S")
+    system_logger.info(f'''
+        ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        ┃  ⚡ Systems initialized           ┃
+        ┃  🌐 MP-Box server                 ┃
+        ┃  ⏱️ Start time: {server_start_time_str}   ┃
+        ┃  🚀 Ready for requests            ┃
+        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+    '''
     )
+    yield
+    server_end_time = datetime.now()
+    server_duration = server_end_time - server_start_time
+    server_end_time_str = server_end_time.strftime("%Y%m%d-%H%M%S")
+    system_logger.info(f'''
+        ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        ┃  ⚡ Systems Stopped               ┃
+        ┃  🌐 MP-Box server                 ┃
+        ┃  ⏱️ Stop time: {server_end_time_str}    ┃
+        ┃  ⏱️ Duration: {server_duration}      ┃
+        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+    '''
+                       )
 
-    app.include_router(health_router)
-    app.include_router(auth_router)
-    app.include_router(events_router)
-    app.include_router(ingest_router)
-    app.include_router(users_router)
-    app.include_router(roles_router)
-    return app
+def create_app():
+    """
+    Function to create FastAPI app
+    :return: FastAPI app
+    """
+    server = FastAPI(lifespan=lifespan)
 
+    server.add_middleware(RequestResponseHandlerMiddleware)
 
-app = start_server()
+    server.include_router(auth_router)
+    server.include_router(events_router)
+    server.include_router(health_router)
+    server.include_router(ingest_router)
+    server.include_router(user_router)
+
+    return server
+
+app = create_app()

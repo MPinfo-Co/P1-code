@@ -19,6 +19,11 @@
             "subdir": "service",
             "filename": "service.log",
             "level": "INFO"
+        },
+        "error": {
+            "subdir": "error",
+            "filename": "error.log",
+            "level": "ERROR"
         }
     }
 }
