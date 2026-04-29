@@ -87,7 +87,7 @@ export default function FnUserList() {
       headerName: '名稱',
       flex: 1,
       renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
+        <Typography sx={{ fontSize: 13, fontWeight: 400 }}>{value}</Typography>
       ),
     },
     {
@@ -144,32 +144,21 @@ export default function FnUserList() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
-          使用者管理
-        </Typography>
-        <Button variant="contained" onClick={handleAddClick}>
-          新增使用者
-        </Button>
-      </Box>
-
       {/* Filter bar */}
       <Box
         sx={{
-          bgcolor: 'white',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          p: 2,
-          mb: 2,
+          bgcolor: '#f1f5f9',
+          borderRadius: '4px',
+          padding: '5px 12px',
+          mb: '5px',
           display: 'flex',
           gap: 2,
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
           alignItems: 'center',
         }}
       >
         <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>角色職位</InputLabel>
+          <InputLabel sx={{ color: '#1e293b', fontWeight: 700 }}>角色職位</InputLabel>
           <Select
             value={filterRole}
             label="角色職位"
@@ -191,13 +180,17 @@ export default function FnUserList() {
           onChange={(e) => setFilterKeyword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleApply()}
           sx={{ width: 220 }}
+          InputLabelProps={{ sx: { color: '#1e293b', fontWeight: 700 } }}
         />
         <Button
           variant="outlined"
           onClick={handleApply}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e' }}
+          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px' }}
         >
           套用
+        </Button>
+        <Button variant="contained" onClick={handleAddClick} sx={{ ml: 'auto' }}>
+          新增使用者
         </Button>
       </Box>
 
@@ -208,7 +201,7 @@ export default function FnUserList() {
         <Box
           sx={{
             bgcolor: 'white',
-            borderRadius: 2,
+            borderRadius: '4px',
             border: '1px solid #e2e8f0',
             overflow: 'hidden',
           }}
@@ -227,7 +220,8 @@ export default function FnUserList() {
               disableRowSelectionOnClick
               sx={{
                 border: 'none',
-                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+                '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
+                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center', py: '6px' },
               }}
             />
           )}
