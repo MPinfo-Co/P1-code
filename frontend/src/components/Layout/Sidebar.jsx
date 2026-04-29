@@ -121,7 +121,7 @@ export default function Sidebar() {
                   },
                   {
                     to: '/settings/role',
-                    label: '角色',
+                    label: '角色管理',
                     icon: <GroupsOutlinedIcon fontSize="small" />,
                   },
                   {
