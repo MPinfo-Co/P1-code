@@ -1,5 +1,5 @@
 // src/pages/fn_role/FnRoleForm.tsx
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
@@ -25,9 +25,13 @@ interface Props {
 export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   const isEdit = row !== null
 
-  const [roleName, setRoleName] = useState('')
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
-  const [selectedFunctionIds, setSelectedFunctionIds] = useState<number[]>([])
+  const [roleName, setRoleName] = useState<string>(() => row?.name ?? '')
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>(() =>
+    row ? row.users.map((u) => u.id) : []
+  )
+  const [selectedFunctionIds, setSelectedFunctionIds] = useState<number[]>(() =>
+    row ? row.functions.map((f) => f.function_id) : []
+  )
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
@@ -38,25 +42,8 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
 
   const isPending = createRole.isPending || updateRole.isPending
 
-  useEffect(() => {
-    if (open) {
-      if (row) {
-        setRoleName(row.name)
-        setSelectedUserIds(row.users.map((u) => u.id))
-        setSelectedFunctionIds(row.functions.map((f) => f.function_id))
-      } else {
-        setRoleName('')
-        setSelectedUserIds([])
-        setSelectedFunctionIds([])
-      }
-      setFormError(null)
-    }
-  }, [open, row])
-
   function handleToggleUser(id: number) {
-    setSelectedUserIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
+    setSelectedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   function handleToggleAllUsers() {
@@ -136,9 +123,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                 mb: 1,
               }}
             >
-              <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
-                成員
-              </Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>成員</Typography>
               <Button
                 size="small"
                 variant="outlined"
@@ -224,7 +209,10 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                   onChange={() => handleToggleFunction(fn.function_id)}
                   style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
                 />
-                <Typography component="strong" sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}>
+                <Typography
+                  component="strong"
+                  sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
+                >
                   {fn.function_name}
                 </Typography>
               </Box>
