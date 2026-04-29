@@ -17,9 +17,7 @@ def get_function_options(
     """取得功能選項清單"""
     functions = db.query(Function).order_by(Function.function_id.asc()).all()
     data = [
-        FunctionOptionItem(
-            function_id=f.function_id, function_name=f.function_name
-        )
+        FunctionOptionItem(function_id=f.function_id, function_name=f.function_name)
         for f in functions
     ]
     return {"message": "查詢成功", "data": data}

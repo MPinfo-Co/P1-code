@@ -165,9 +165,7 @@ def update_role(
 
     if body.name is not None:
         conflict = (
-            db.query(Role)
-            .filter(Role.name == body.name, Role.id != role.id)
-            .first()
+            db.query(Role).filter(Role.name == body.name, Role.id != role.id).first()
         )
         if conflict:
             raise HTTPException(

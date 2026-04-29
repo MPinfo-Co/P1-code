@@ -68,20 +68,34 @@ def downgrade() -> None:
     op.drop_table("functions")
 
     op.add_column(
-        "roles", sa.Column("can_access_ai", sa.Boolean(), nullable=False, server_default="false")
+        "roles",
+        sa.Column(
+            "can_access_ai", sa.Boolean(), nullable=False, server_default="false"
+        ),
     )
     op.add_column(
-        "roles", sa.Column("can_use_kb", sa.Boolean(), nullable=False, server_default="false")
+        "roles",
+        sa.Column("can_use_kb", sa.Boolean(), nullable=False, server_default="false"),
     )
     op.add_column(
-        "roles", sa.Column("can_manage_accounts", sa.Boolean(), nullable=False, server_default="false")
+        "roles",
+        sa.Column(
+            "can_manage_accounts", sa.Boolean(), nullable=False, server_default="false"
+        ),
     )
     op.add_column(
-        "roles", sa.Column("can_manage_roles", sa.Boolean(), nullable=False, server_default="false")
+        "roles",
+        sa.Column(
+            "can_manage_roles", sa.Boolean(), nullable=False, server_default="false"
+        ),
     )
     op.add_column(
-        "roles", sa.Column("can_edit_ai", sa.Boolean(), nullable=False, server_default="false")
+        "roles",
+        sa.Column("can_edit_ai", sa.Boolean(), nullable=False, server_default="false"),
     )
     op.add_column(
-        "roles", sa.Column("can_manage_kb", sa.Boolean(), nullable=False, server_default="false")
+        "roles",
+        sa.Column(
+            "can_manage_kb", sa.Boolean(), nullable=False, server_default="false"
+        ),
     )

@@ -46,10 +46,7 @@ def get_user_options(
 ):
     """取得使用者選項清單（僅含 is_active=True 的使用者）"""
     users = (
-        db.query(User)
-        .filter(User.is_active.is_(True))
-        .order_by(User.name.asc())
-        .all()
+        db.query(User).filter(User.is_active.is_(True)).order_by(User.name.asc()).all()
     )
     data = [UserOptionItem(id=u.id, name=u.name) for u in users]
     return {"message": "查詢成功", "data": data}
