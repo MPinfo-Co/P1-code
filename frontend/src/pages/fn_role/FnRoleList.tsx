@@ -122,6 +122,9 @@ export default function FnRoleList() {
 
   return (
     <Box>
+      <Typography sx={{ fontSize: 20, fontWeight: 800, color: '#1e293b', mb: 2 }}>
+        角色管理
+      </Typography>
       {/* Filter bar */}
       <Box
         sx={{
