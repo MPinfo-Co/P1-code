@@ -11,12 +11,14 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
+from app.db.models.fn_dept import Department
 from app.db.models.fn_user_role import Role, TokenBlacklist, User, UserRole
 from app.db.models.fn_notice import Notice
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
 _SEED_TABLES = [
+    Department.__table__,
     User.__table__,
     Role.__table__,
     UserRole.__table__,

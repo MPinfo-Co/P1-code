@@ -10,6 +10,7 @@ from datetime import datetime
 
 from .logger_utils import get_system_logger
 from .api.auth import router as auth_router
+from .api.dept import router as dept_router
 from .api.events import router as events_router
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
@@ -58,6 +59,7 @@ def create_app():
     server.add_middleware(RequestResponseHandlerMiddleware)
 
     server.include_router(auth_router)
+    server.include_router(dept_router)
     server.include_router(events_router)
     server.include_router(health_router)
     server.include_router(ingest_router)

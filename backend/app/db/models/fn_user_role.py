@@ -18,6 +18,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    department_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("tb_departments.id", use_alter=True, name="fk_user_dept"), nullable=True
+    )
     updated_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("tb_users.id"), nullable=True
     )
@@ -40,6 +43,7 @@ class Role(Base):
     can_edit_ai: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     can_manage_kb: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     can_manage_notices: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    can_manage_depts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
