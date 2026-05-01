@@ -15,6 +15,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
@@ -54,7 +55,14 @@ export default function Sidebar() {
       {/* Brand */}
       <Box
         onClick={() => navigate('/ai-partner')}
-        sx={{ px: 3, height: 40, display: 'flex', alignItems: 'center', borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
+        sx={{
+          px: 3,
+          height: 40,
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid #1e293b',
+          cursor: 'pointer',
+        }}
       >
         <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'white' }}>MP-Box</Typography>
       </Box>
@@ -118,6 +126,11 @@ export default function Sidebar() {
                     to: '/settings/account',
                     label: '使用者管理',
                     icon: <PeopleAltOutlinedIcon fontSize="small" />,
+                  },
+                  {
+                    to: '/settings/dept',
+                    label: '部門管理',
+                    icon: <AccountTreeOutlinedIcon fontSize="small" />,
                   },
                   {
                     to: '/settings/role',
