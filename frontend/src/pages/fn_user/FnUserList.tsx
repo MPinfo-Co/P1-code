@@ -37,8 +37,13 @@ export default function FnUserList() {
   const [deletingRow, setDeletingRow] = useState<UserRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: users = [], isLoading, error } = useUsersQuery(appliedFilter)
+  const { data: rawUsers = [], isLoading, error } = useUsersQuery(appliedFilter)
   const { data: roleOptions = [] } = useRoleOptionsQuery()
+
+  const users = rawUsers.map((u) => ({
+    ...u,
+    roles: u.role_ids.map((rid) => roleOptions.find((r) => r.id === rid)).filter(Boolean) as import('@/queries/useUsersQuery').RoleOption[],
+  }))
   const deleteUser = useDeleteUser()
 
   function handleApply() {
