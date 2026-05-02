@@ -1,5 +1,5 @@
 // src/pages/fn_setting/FnSettingEdit.tsx
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
@@ -18,20 +18,12 @@ interface Props {
   onSuccess: () => void
 }
 
-export default function FnSettingEdit({ open, row, onClose, onSuccess }: Props) {
-  const [paramValue, setParamValue] = useState('')
+function FnSettingEditInner({ open, row, onClose, onSuccess }: Props) {
+  const [paramValue, setParamValue] = useState(row?.param_value ?? '')
   const [valueError, setValueError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const updateSetting = useUpdateSetting()
-
-  useEffect(() => {
-    if (open && row) {
-      setParamValue(row.param_value)
-      setValueError(null)
-      setSubmitError(null)
-    }
-  }, [open, row])
 
   function handleClose() {
     setValueError(null)
@@ -111,4 +103,8 @@ export default function FnSettingEdit({ open, row, onClose, onSuccess }: Props) 
       </DialogActions>
     </Dialog>
   )
+}
+
+export default function FnSettingEdit(props: Props) {
+  return <FnSettingEditInner key={props.row?.param_code ?? ''} {...props} />
 }
