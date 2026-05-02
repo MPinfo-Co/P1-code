@@ -166,7 +166,6 @@ export default function Sidebar() {
                       {({ isActive }) => (
                         <ListItemButton
                           sx={{
-                          sx={{
                             pl: 7,
                             py: 1,
                             ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
