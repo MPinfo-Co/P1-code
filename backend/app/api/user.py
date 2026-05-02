@@ -23,7 +23,7 @@ from app.db.models.fn_user_role import Role
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 
-router = APIRouter(prefix="/api/users", tags=["user"])
+router = APIRouter(prefix="/api/user", tags=["user"])
 roles_router = APIRouter(prefix="/api/roles", tags=["roles"])
 system_logger = get_system_logger()
 
