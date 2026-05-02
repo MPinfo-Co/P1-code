@@ -87,7 +87,7 @@ export function useCreateRole() {
         },
         body: JSON.stringify({
           name: payload.name,
-          member_ids: payload.member_ids ?? [],
+          user_ids: payload.member_ids ?? [],
           function_ids: payload.function_ids ?? [],
         }),
       })
@@ -109,7 +109,7 @@ export function useUpdateRole() {
       const token = getToken()
       const body: Record<string, unknown> = {}
       if (payload.name !== undefined) body.name = payload.name
-      if (payload.member_ids !== undefined) body.member_ids = payload.member_ids
+      if (payload.member_ids !== undefined) body.user_ids = payload.member_ids
       if (payload.function_ids !== undefined) body.function_ids = payload.function_ids
       const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(roleName)}`, {
         method: 'PATCH',
