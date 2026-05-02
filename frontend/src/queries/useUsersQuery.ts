@@ -8,6 +8,7 @@ export interface UserRow {
   email: string
   name: string
   roles: RoleOption[]
+  role_ids?: number[]
 }
 
 export interface RoleOption {

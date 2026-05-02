@@ -85,3 +85,21 @@ class RoleOptionsOut(BaseModel):
 
     message: str = "查詢成功"
     data: list[RoleOptionItem]
+
+
+class UserMeData(BaseModel):
+    """Current user data returned by GET /api/users/me."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
+    functions: list[str] = Field(default_factory=list)
+
+
+class UserMeResponse(BaseModel):
+    """Response for GET /api/users/me."""
+
+    message: str = "成功"
+    data: UserMeData
