@@ -4,11 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.api.schema.events import *  # noqa: F401, F403
+from app.api.schema.events import (
+    EventDetail,
+    EventHistoryCreateRequest,
+    EventHistoryCreateResponse,
+    EventHistoryEntry,
+    EventHistoryListResponse,
+    EventListResponse,
+    EventSummary,
+    EventUpdateRequest,
+)
 from app.db.connector import get_db
 from app.db.models import EventHistory, SecurityEvent
 from app.utils.util_store import AuthContext, authenticate, parse_iso_date
-from app.logger_utils import get_user_logger
 
 router = APIRouter(prefix="/events", tags=["events"])
 

@@ -13,7 +13,7 @@ import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -62,9 +62,9 @@ const FOLDERS = [
       },
       {
         fnKey: 'fn_role',
-        label: '角色',
-        path: '/settings/role',
-        icon: <GroupsOutlinedIcon fontSize="small" />,
+        label: '角色管理',
+        path: '/settings/roles',
+        icon: <ManageAccountsIcon fontSize="small" />,
       },
     ],
   },
@@ -165,6 +165,7 @@ export default function Sidebar() {
                     <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
                       {({ isActive }) => (
                         <ListItemButton
+                          sx={{
                           sx={{
                             pl: 7,
                             py: 1,

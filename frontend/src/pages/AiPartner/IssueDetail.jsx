@@ -196,10 +196,13 @@ export default function IssueDetail() {
   }, [issueId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvent()
   }, [fetchEvent])
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabIndex(0)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChatVisible(true)
   }, [issueId])
 

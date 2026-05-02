@@ -1,12 +1,10 @@
-"""/api/user, /api/users, and /api/roles routers — user management and role options."""
+"""/api/user and /api/users routers — user management."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.schema.user import (
-    RoleOptionItem,
-    RoleOptionsOut,
     UserCreateOut,
     UserCreateRequest,
     UserDeleteOut,
@@ -22,14 +20,14 @@ from app.api.schema.user import (
 from app.db.connector import get_db
 from app.db.models import User, UserRole
 from app.db.models.fn_auth_sidebar import Function, RoleFunction
-from app.db.models.fn_user_role import Role
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 users_router = APIRouter(prefix="/api/users", tags=["users"])
-roles_router = APIRouter(prefix="/api/roles", tags=["roles"])
 system_logger = get_system_logger()
+
+FN_USER_NAME = "fn_user"
 
 
 @users_router.get("/me", response_model=UserMeResponse)
@@ -63,11 +61,17 @@ def get_me(
 
 
 def _has_user_permission(user_id: int, db: Session) -> bool:
-    """Return True if the user has fn_user (can_manage_accounts) permission."""
+    """Return True if the user has fn_user function permission via tb_role_function."""
+    fn = db.query(Function).filter(Function.function_name == FN_USER_NAME).first()
+    if fn is None:
+        return False
     return (
-        db.query(Role)
-        .join(UserRole, Role.id == UserRole.role_id)
-        .filter(UserRole.user_id == user_id, Role.can_manage_accounts.is_(True))
+        db.query(RoleFunction)
+        .join(UserRole, RoleFunction.role_id == UserRole.role_id)
+        .filter(
+            UserRole.user_id == user_id,
+            RoleFunction.function_id == fn.function_id,
+        )
         .first()
         is not None
     )
@@ -262,12 +266,3 @@ def delete_user(
     return UserDeleteOut()
 
 
-@roles_router.get("/options", response_model=RoleOptionsOut)
-def get_role_options(
-    db: Session = Depends(get_db),
-    auth: AuthContext = Depends(authenticate),
-) -> RoleOptionsOut:
-    """Return all roles as lightweight `[{ id, name }]` for dropdowns."""
-    rows = db.query(Role).order_by(Role.name.asc()).all()
-    items = [RoleOptionItem(id=r.id, name=r.name) for r in rows]
-    return RoleOptionsOut(data=items)

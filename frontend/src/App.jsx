@@ -12,6 +12,7 @@ import IssueList from './pages/AiPartner/IssueList'
 import IssueDetail from './pages/AiPartner/IssueDetail'
 import KnowledgeBase from './pages/KnowledgeBase/KnowledgeBase'
 import FnUserList from './pages/fn_user/FnUserList'
+import FnRoleList from './pages/fn_role/FnRoleList'
 import Role from './pages/Settings/Role'
 import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
@@ -82,6 +83,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_user">
               <FnUserList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="settings/roles"
+          element={
+            <PermissionGuard fnKey="fn_role">
+              <FnRoleList />
             </PermissionGuard>
           }
         />
