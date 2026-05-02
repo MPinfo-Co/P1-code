@@ -26,25 +26,25 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
-      {/* <Route
+      <Route
         path="/"
         element={
           <ProtectedRoute>
             <Layout />
           </ProtectedRoute>
         }
-      > */}
-      <Route index element={<Home />} />
-      <Route path="ai-partner" element={<AiPartner />} />
-      <Route path="ai-partner/:partnerId/issues" element={<IssueList />} />
-      <Route path="ai-partner/:partnerId/issues/:issueId" element={<IssueDetail />} />
-      <Route path="kb" element={<KnowledgeBase />} />
-      <Route path="settings" element={<Navigate to="/settings/account" replace />} />
-      <Route path="settings/account" element={<FnUserList />} />
-      <Route path="settings/role" element={<Role />} />
-      <Route path="settings/ai-config" element={<AiConfig />} />
-      <Route path="settings/system-params" element={<FnSettingList />} />
-      {/* </Route> */}
+      >
+        <Route index element={<Home />} />
+        <Route path="ai-partner" element={<AiPartner />} />
+        <Route path="ai-partner/:partnerId/issues" element={<IssueList />} />
+        <Route path="ai-partner/:partnerId/issues/:issueId" element={<IssueDetail />} />
+        <Route path="kb" element={<KnowledgeBase />} />
+        <Route path="settings" element={<Navigate to="/settings/account" replace />} />
+        <Route path="settings/account" element={<FnUserList />} />
+        <Route path="settings/role" element={<Role />} />
+        <Route path="settings/ai-config" element={<AiConfig />} />
+        <Route path="settings/system-params" element={<FnSettingList />} />
+      </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

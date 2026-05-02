@@ -5,9 +5,11 @@ import useAuthStore from '@/stores/authStore'
 const BASE_URL = import.meta.env.VITE_API_URL
 
 export interface UserRow {
+  id: number
   email: string
   name: string
   is_active: boolean
+  role_ids: number[]
   roles: RoleOption[]
 }
 
@@ -52,7 +54,7 @@ export function useUsersQuery(params: QueryParams = {}) {
       })
       if (!res.ok) throw new Error('查詢失敗')
       const json = await res.json()
-      return json.data ?? json
+      return json.items ?? []
     },
   })
 }

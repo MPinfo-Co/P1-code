@@ -5,11 +5,13 @@ The Entry site of MP-Box
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 from .logger_utils import get_system_logger
 from .api.auth import router as auth_router
+from .api.roles import router as roles_router
 from .api.events import router as events_router
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
@@ -56,9 +58,17 @@ def create_app():
     """
     server = FastAPI(lifespan=lifespan)
 
+    server.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     server.add_middleware(RequestResponseHandlerMiddleware)
 
     server.include_router(auth_router)
+    server.include_router(roles_router)
     server.include_router(events_router)
     server.include_router(health_router)
     server.include_router(ingest_router)
