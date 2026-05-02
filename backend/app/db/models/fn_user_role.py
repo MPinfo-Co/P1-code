@@ -17,7 +17,6 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     updated_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("tb_users.id"), nullable=True
     )

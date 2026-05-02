@@ -15,7 +15,7 @@ from app.utils.util_store import create_access_token, hash_password
 
 
 def _make_user(db: Session, email: str, name: str = "Test User") -> int:
-    user = User(name=name, email=email, password_hash=hash_password("pw"), is_active=True)
+    user = User(name=name, email=email, password_hash=hash_password("pw"))
     db.add(user)
     db.flush()
     return user.id

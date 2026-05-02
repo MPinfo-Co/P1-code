@@ -26,7 +26,7 @@ def login(login_req: LoginRequest, db: Session = Depends(get_db)) -> LoginRespon
     """Authenticate `email` + `password` and return a JWT access token."""
     system_logger.info(f"User with Email: {login_req.email} attempt to login")
     user = db.query(User).filter(User.email == login_req.email).first()
-    if user is None or not user.is_active or not verify_password(
+    if user is None or not verify_password(
         user.password_hash, login_req.password
     ):
         system_logger.warning('Error Email input')
