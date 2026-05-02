@@ -1,25 +1,42 @@
-"""/user router — list, create, update, and soft-delete users."""
+"""/api/user and /api/roles routers — user management and role options."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.schema.user import (
+    RoleOptionItem,
+    RoleOptionsOut,
+    UserCreateOut,
     UserCreateRequest,
-    UserCreateResponse,
-    UserDeleteResponse,
-    UserListResponse,
-    UserSummary,
+    UserDeleteOut,
+    UserItem,
+    UserListOut,
+    UserOptionItem,
+    UserOptionsOut,
+    UserUpdateOut,
     UserUpdateRequest,
-    UserUpdateResponse,
 )
 from app.db.connector import get_db
 from app.db.models import User, UserRole
+from app.db.models.fn_user_role import Role
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 
-router = APIRouter(prefix="/user", tags=["user"])
+router = APIRouter(prefix="/api/user", tags=["user"])
+roles_router = APIRouter(prefix="/api/roles", tags=["roles"])
 system_logger = get_system_logger()
+
+
+def _has_user_permission(user_id: int, db: Session) -> bool:
+    """Return True if the user has fn_user (can_manage_accounts) permission."""
+    return (
+        db.query(Role)
+        .join(UserRole, Role.id == UserRole.role_id)
+        .filter(UserRole.user_id == user_id, Role.can_manage_accounts.is_(True))
+        .first()
+        is not None
+    )
 
 
 def _collect_role_ids(db: Session, user_ids: list[int]) -> dict[int, list[int]]:
@@ -33,18 +50,24 @@ def _collect_role_ids(db: Session, user_ids: list[int]) -> dict[int, list[int]]:
     return out
 
 
-@router.get("", response_model=UserListResponse)
+@router.get("", response_model=UserListOut)
 def get_user_list(
     role_id: int | None = Query(None, description="Filter to users having this role."),
     keyword: str | None = Query(None, description="LIKE match on name or email."),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
-) -> UserListResponse:
+) -> UserListOut:
     """List users in `tb_users`, optionally filtered by role and name/email keyword."""
+    if not _has_user_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
     query = db.query(User)
 
     if role_id is not None:
-        sub = db.query(UserRole.user_id).filter(UserRole.role_id == role_id).subquery()
+        sub = db.query(UserRole.user_id).filter(UserRole.role_id == role_id).scalar_subquery()
         query = query.filter(User.id.in_(sub))
 
     if keyword:
@@ -55,37 +78,53 @@ def get_user_list(
     role_map = _collect_role_ids(db, [u.id for u in rows])
 
     items = [
-        UserSummary(
+        UserItem(
             id=u.id,
             name=u.name,
             email=u.email,
-            is_active=u.is_active,
             role_ids=role_map.get(u.id, []),
             updated_at=u.updated_at,
         )
         for u in rows
     ]
-    return UserListResponse(items=items, total=len(items))
+    return UserListOut(data=items)
 
 
-@router.post("", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserCreateOut, status_code=status.HTTP_201_CREATED)
 def create_user(
     payload: UserCreateRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
-) -> UserCreateResponse:
+) -> UserCreateOut:
     """Create a user in `tb_users` and assign roles in `tb_user_roles`."""
+    if not _has_user_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+    if len(payload.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="密碼最少 8 字元",
+        )
+
+    if not payload.role_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="角色未設定",
+        )
+
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="此 Email 已被使用",
         )
 
     user = User(
         name=payload.name,
         email=payload.email,
         password_hash=hash_password(payload.password),
-        is_active=True,
         updated_by=auth.user_id,
     )
     db.add(user)
@@ -95,73 +134,106 @@ def create_user(
         db.add(UserRole(user_id=user.id, role_id=rid))
 
     db.commit()
-    db.refresh(user)
     system_logger.info(f"User {auth.user_id} created user {user.id} ({user.email})")
-    return UserCreateResponse(id=user.id, name=user.name, email=user.email)
+    return UserCreateOut()
 
 
-def _apply_user_changes(user: User, changes: dict, db: Session) -> None:
-    """Apply name/email/password/role_ids changes to `user` in place."""
-    if "name" in changes:
-        user.name = changes["name"]
-    if "email" in changes:
-        user.email = changes["email"]
-    if "password" in changes:
+@router.get("/options", response_model=UserOptionsOut)
+def get_user_options(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> UserOptionsOut:
+    """Return all users as lightweight `[{ id, name }]` for dropdowns."""
+    rows = db.query(User).order_by(User.name.asc()).all()
+    items = [UserOptionItem(id=u.id, name=u.name) for u in rows]
+    return UserOptionsOut(data=items)
+
+
+@router.patch("/{email}", response_model=UserUpdateOut)
+def update_user(
+    email: str,
+    payload: UserUpdateRequest,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> UserUpdateOut:
+    """Update name/password/role_ids on a user identified by email."""
+    if not _has_user_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在")
+
+    changes = payload.model_dump(exclude_unset=True)
+
+    if "password" in changes and changes["password"] is not None:
+        if len(changes["password"]) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="密碼至少需要 8 個字元",
+            )
         user.password_hash = hash_password(changes["password"])
-    if "role_ids" in changes:
+
+    if "name" in changes and changes["name"] is not None:
+        user.name = changes["name"]
+
+    if "role_ids" in changes and changes["role_ids"] is not None:
+        if len(changes["role_ids"]) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="角色不可為空",
+            )
         db.query(UserRole).filter(UserRole.user_id == user.id).delete()
         for rid in changes["role_ids"]:
             db.add(UserRole(user_id=user.id, role_id=rid))
 
+    user.updated_by = auth.user_id
+    db.commit()
+    system_logger.info(f"User {auth.user_id} updated user {user.id} ({email})")
+    return UserUpdateOut()
 
-@router.patch("/{user_id}", response_model=UserUpdateResponse)
-def update_user(
-    user_id: int,
-    payload: UserUpdateRequest,
+
+@router.delete("/{email}", response_model=UserDeleteOut)
+def delete_user(
+    email: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
-) -> UserUpdateResponse:
-    """Update name/email/password/role_ids on a user; all fields are optional."""
-    user = db.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    changes = payload.model_dump(exclude_unset=True)
-    if not changes:
+) -> UserDeleteOut:
+    """Delete a user and their role assignments from `tb_users`."""
+    if not _has_user_permission(auth.user_id, db):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No updatable fields supplied.",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
         )
 
-    new_email = changes.get("email")
-    if new_email and new_email != user.email:
-        if db.query(User).filter(User.email == new_email).first():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered.",
-            )
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在")
 
-    _apply_user_changes(user, changes, db)
-    user.updated_by = auth.user_id
+    # Prevent self-deletion: look up the requesting user's email
+    requesting_user = db.query(User).filter(User.id == auth.user_id).first()
+    if requesting_user and requesting_user.email == email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="無法刪除自己的帳號",
+        )
 
+    db.query(UserRole).filter(UserRole.user_id == user.id).delete()
+    db.delete(user)
     db.commit()
-    system_logger.info(f"User {auth.user_id} updated user {user_id}")
-    return UserUpdateResponse(id=user_id)
+    system_logger.info(f"User {auth.user_id} deleted user {user.id} ({email})")
+    return UserDeleteOut()
 
 
-@router.delete("/{user_id}", response_model=UserDeleteResponse)
-def delete_user(
-    user_id: int,
+@roles_router.get("/options", response_model=RoleOptionsOut)
+def get_role_options(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
-) -> UserDeleteResponse:
-    """Soft-delete a user by setting `is_active=False` on `tb_users`."""
-    user = db.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    user.is_active = False
-    user.updated_by = auth.user_id
-    db.commit()
-    system_logger.info(f"User {auth.user_id} deactivated user {user_id}")
-    return UserDeleteResponse(id=user_id)
+) -> RoleOptionsOut:
+    """Return all roles as lightweight `[{ id, name }]` for dropdowns."""
+    rows = db.query(Role).order_by(Role.name.asc()).all()
+    items = [RoleOptionItem(id=r.id, name=r.name) for r in rows]
+    return RoleOptionsOut(data=items)
