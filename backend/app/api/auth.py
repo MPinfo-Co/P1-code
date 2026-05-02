@@ -18,7 +18,7 @@ from app.utils.util_store import (
     verify_password,
 )
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 system_logger = get_system_logger()
 
 @router.post("/login", response_model=LoginResponse)

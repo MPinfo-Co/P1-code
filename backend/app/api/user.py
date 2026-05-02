@@ -18,7 +18,7 @@ from app.db.models import User, UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 
-router = APIRouter(prefix="/user", tags=["user"])
+router = APIRouter(prefix="/api/users", tags=["user"])
 system_logger = get_system_logger()
 
 
@@ -114,15 +114,15 @@ def _apply_user_changes(user: User, changes: dict, db: Session) -> None:
             db.add(UserRole(user_id=user.id, role_id=rid))
 
 
-@router.patch("/{user_id}", response_model=UserUpdateResponse)
+@router.patch("/{email}", response_model=UserUpdateResponse)
 def update_user(
-    user_id: int,
+    email: str,
     payload: UserUpdateRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> UserUpdateResponse:
     """Update name/email/password/role_ids on a user; all fields are optional."""
-    user = db.get(User, user_id)
+    user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -145,23 +145,23 @@ def update_user(
     user.updated_by = auth.user_id
 
     db.commit()
-    system_logger.info(f"User {auth.user_id} updated user {user_id}")
-    return UserUpdateResponse(id=user_id)
+    system_logger.info(f"User {auth.user_id} updated user {user.id} ({email})")
+    return UserUpdateResponse(id=user.id)
 
 
-@router.delete("/{user_id}", response_model=UserDeleteResponse)
+@router.delete("/{email}", response_model=UserDeleteResponse)
 def delete_user(
-    user_id: int,
+    email: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> UserDeleteResponse:
     """Soft-delete a user by setting `is_active=False` on `tb_users`."""
-    user = db.get(User, user_id)
+    user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     user.is_active = False
     user.updated_by = auth.user_id
     db.commit()
-    system_logger.info(f"User {auth.user_id} deactivated user {user_id}")
-    return UserDeleteResponse(id=user_id)
+    system_logger.info(f"User {auth.user_id} deactivated user {user.id} ({email})")
+    return UserDeleteResponse(id=user.id)
