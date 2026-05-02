@@ -7,7 +7,7 @@ Covers test spec IDs T6 and T7 from _fn_auth_test_api.md.
 from sqlalchemy.orm import sessionmaker
 
 from app.db.models.fn_user_role import Role, User, UserRole
-from app.db.models.fn_auth_sidebar import Function, FunctionFolder, RoleFunction
+from app.db.models.fn_navbar import Function, FunctionFolder, RoleFunction
 from app.utils.util_store import create_access_token, hash_password
 
 

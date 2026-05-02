@@ -14,7 +14,7 @@ from app.api.schema.roles import (
     RoleUpdateOut,
 )
 from app.db.connector import get_db
-from app.db.models.fn_auth_sidebar import Function, RoleFunction
+from app.db.models.fn_navbar import Function, RoleFunction
 from app.db.models.fn_user_role import Role, User, UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
