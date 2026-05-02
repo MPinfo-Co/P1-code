@@ -1,20 +1,26 @@
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
+import { useNavigationQuery } from '../../queries/useNavigationQuery'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
-import { FOLDERS } from '../../constants/navigation'
-
-const NAV_ITEMS = FOLDERS.flatMap((f) => f.items)
 
 export default function Header() {
   const { logout } = useAuth()
   const { pathname } = useLocation()
+  const { data: navFolders = [] } = useNavigationQuery()
 
+  const navItems = navFolders.flatMap((f) => f.items)
   const title =
-    NAV_ITEMS.filter((item) => pathname === item.path || pathname.startsWith(item.path + '/'))
-      .sort((a, b) => b.path.length - a.path.length)[0]?.label ?? 'MP-Box'
+    navItems
+      .filter(
+        (item) =>
+          pathname === `/${item.function_code}` ||
+          pathname.startsWith(`/${item.function_code}/`)
+      )
+      .sort((a, b) => b.function_code.length - a.function_code.length)[0]
+      ?.function_label ?? 'MP-Box'
 
   return (
     <AppBar

@@ -5,51 +5,12 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 
-export const FOLDERS = [
-  {
-    key: 'ai_partner',
-    label: 'AI 夥伴',
-    defaultOpen: true,
-    icon: <SmartToyOutlinedIcon fontSize="small" />,
-    items: [
-      {
-        fnKey: 'fn_partner',
-        label: 'AI 夥伴',
-        path: '/ai-partner',
-        icon: <SmartToyOutlinedIcon fontSize="small" />,
-      },
-      {
-        fnKey: 'fn_km',
-        label: '知識庫',
-        path: '/kb',
-        icon: <MenuBookOutlinedIcon fontSize="small" />,
-      },
-      {
-        fnKey: 'fn_ai_config',
-        label: 'AI 夥伴管理',
-        path: '/settings/ai-config',
-        icon: <TuneOutlinedIcon fontSize="small" />,
-      },
-    ],
-  },
-  {
-    key: 'settings',
-    label: '設定',
-    defaultOpen: false,
-    icon: <SettingsOutlinedIcon fontSize="small" />,
-    items: [
-      {
-        fnKey: 'fn_user',
-        label: '使用者管理',
-        path: '/settings/account',
-        icon: <PeopleAltOutlinedIcon fontSize="small" />,
-      },
-      {
-        fnKey: 'fn_role',
-        label: '角色管理',
-        path: '/settings/roles',
-        icon: <ManageAccountsIcon fontSize="small" />,
-      },
-    ],
-  },
-]
+export const ICON_MAP = {
+  ai_partner: <SmartToyOutlinedIcon fontSize="small" />,
+  settings: <SettingsOutlinedIcon fontSize="small" />,
+  fn_partner: <SmartToyOutlinedIcon fontSize="small" />,
+  fn_km: <MenuBookOutlinedIcon fontSize="small" />,
+  fn_ai_config: <TuneOutlinedIcon fontSize="small" />,
+  fn_user: <PeopleAltOutlinedIcon fontSize="small" />,
+  fn_role: <ManageAccountsIcon fontSize="small" />,
+}

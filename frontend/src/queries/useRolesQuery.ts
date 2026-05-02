@@ -6,7 +6,7 @@ const BASE_URL = import.meta.env.VITE_API_URL
 
 export interface FunctionOption {
   function_id: number
-  function_name: string
+  function_code: string
 }
 
 export interface RoleUser {

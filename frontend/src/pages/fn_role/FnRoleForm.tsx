@@ -221,7 +221,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                       component="strong"
                       sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
                     >
-                      {fn.function_name}
+                      {fn.function_code}
                     </Typography>
                   </Box>
                 </Box>

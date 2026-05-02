@@ -13,7 +13,6 @@ import IssueDetail from './pages/AiPartner/IssueDetail'
 import KnowledgeBase from './pages/KnowledgeBase/KnowledgeBase'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
-import Role from './pages/Settings/Role'
 import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
@@ -46,7 +45,7 @@ function AppRoutes() {
       >
         <Route index element={<Home />} />
         <Route
-          path="ai-partner"
+          path="fn_partner"
           element={
             <PermissionGuard fnKey="fn_partner">
               <AiPartner />
@@ -54,7 +53,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="ai-partner/:partnerId/issues"
+          path="fn_partner/:partnerId/issues"
           element={
             <PermissionGuard fnKey="fn_partner">
               <IssueList />
@@ -62,7 +61,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="ai-partner/:partnerId/issues/:issueId"
+          path="fn_partner/:partnerId/issues/:issueId"
           element={
             <PermissionGuard fnKey="fn_partner">
               <IssueDetail />
@@ -70,16 +69,15 @@ function AppRoutes() {
           }
         />
         <Route
-          path="kb"
+          path="fn_km"
           element={
             <PermissionGuard fnKey="fn_km">
               <KnowledgeBase />
             </PermissionGuard>
           }
         />
-        <Route path="settings" element={<Navigate to="/settings/account" replace />} />
         <Route
-          path="settings/account"
+          path="fn_user"
           element={
             <PermissionGuard fnKey="fn_user">
               <FnUserList />
@@ -87,7 +85,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="settings/roles"
+          path="fn_role"
           element={
             <PermissionGuard fnKey="fn_role">
               <FnRoleList />
@@ -95,15 +93,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="settings/role"
-          element={
-            <PermissionGuard fnKey="fn_role">
-              <Role />
-            </PermissionGuard>
-          }
-        />
-        <Route
-          path="settings/ai-config"
+          path="fn_ai_config"
           element={
             <PermissionGuard fnKey="fn_ai_config">
               <AiConfig />

@@ -358,7 +358,7 @@ export default function IssueDetail() {
             </Typography>
           </Box>
           <Button
-            onClick={() => navigate(`/ai-partner/${partnerId}/issues`)}
+            onClick={() => navigate(`/fn_partner/${partnerId}/issues`)}
             variant="outlined"
             startIcon={<ArrowBackIosNew sx={{ fontSize: '14px !important' }} />}
             sx={{

@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
+import { ICON_MAP } from '../../constants/navigation'
+import { useNavigationQuery } from '../../queries/useNavigationQuery'
 import Drawer from '@mui/material/Drawer'
 import List from '@mui/material/List'
 import ListItemButton from '@mui/material/ListItemButton'
@@ -9,66 +11,10 @@ import ListItemText from '@mui/material/ListItemText'
 import Collapse from '@mui/material/Collapse'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
-import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
-import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
 const DRAWER_WIDTH = 260
-
-// ── 目錄與功能定義（對應 tb_function_folder + tb_functions seed data）──
-const FOLDERS = [
-  {
-    key: 'ai_partner',
-    label: 'AI 夥伴',
-    defaultOpen: true,
-    icon: <SmartToyOutlinedIcon fontSize="small" />,
-    items: [
-      {
-        fnKey: 'fn_partner',
-        label: 'AI 夥伴',
-        path: '/ai-partner',
-        icon: <SmartToyOutlinedIcon fontSize="small" />,
-      },
-      {
-        fnKey: 'fn_km',
-        label: '知識庫',
-        path: '/kb',
-        icon: <MenuBookOutlinedIcon fontSize="small" />,
-      },
-      {
-        fnKey: 'fn_ai_config',
-        label: 'AI 夥伴管理',
-        path: '/settings/ai-config',
-        icon: <TuneOutlinedIcon fontSize="small" />,
-      },
-    ],
-  },
-  {
-    key: 'settings',
-    label: '設定',
-    defaultOpen: false,
-    icon: <SettingsOutlinedIcon fontSize="small" />,
-    items: [
-      {
-        fnKey: 'fn_user',
-        label: '使用者管理',
-        path: '/settings/account',
-        icon: <PeopleAltOutlinedIcon fontSize="small" />,
-      },
-      {
-        fnKey: 'fn_role',
-        label: '角色管理',
-        path: '/settings/roles',
-        icon: <ManageAccountsIcon fontSize="small" />,
-      },
-    ],
-  },
-]
 
 const iconSx = { color: '#94a3b8', minWidth: 36 }
 const textSx = { '& .MuiListItemText-primary': { fontSize: 14, fontWeight: 500, color: '#94a3b8' } }
@@ -82,21 +28,27 @@ const activeSx = {
 export default function Sidebar() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { data: navFolders = [] } = useNavigationQuery()
 
-  // Initialise open state from defaultOpen per folder
-  const [openFolders, setOpenFolders] = useState(() => {
-    const initial = {}
-    FOLDERS.forEach((f) => {
-      initial[f.key] = f.defaultOpen
-    })
-    return initial
-  })
+  const [openFolders, setOpenFolders] = useState({})
 
-  // Derive allowed functions from user.functions (from GET /api/users/me)
-  const allowedFunctions = user && Array.isArray(user.functions) ? new Set(user.functions) : null // null = not loaded yet; show nothing until resolved
+  useEffect(() => {
+    if (navFolders.length > 0) {
+      setOpenFolders((prev) => {
+        const next = {}
+        navFolders.forEach((f) => {
+          next[f.folder_code] = prev[f.folder_code] ?? f.default_open
+        })
+        return next
+      })
+    }
+  }, [navFolders])
 
-  function handleToggleFolder(key) {
-    setOpenFolders((prev) => ({ ...prev, [key]: !prev[key] }))
+  const allowedFunctions =
+    user && Array.isArray(user.functions) ? new Set(user.functions) : null
+
+  function handleToggleFolder(code) {
+    setOpenFolders((prev) => ({ ...prev, [code]: !prev[code] }))
   }
 
   return (
@@ -116,7 +68,7 @@ export default function Sidebar() {
     >
       {/* Brand */}
       <Box
-        onClick={() => navigate('/ai-partner')}
+        onClick={() => navigate('/fn_partner')}
         sx={{
           px: 3,
           height: 40,
@@ -129,40 +81,36 @@ export default function Sidebar() {
         <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'white' }}>MP-Box</Typography>
       </Box>
 
-      {/* Nav — two-level: folder → items */}
+      {/* Nav */}
       <List sx={{ flex: 1, py: 1.5 }} disablePadding>
-        {FOLDERS.map((folder) => {
-          // Filter visible items by user permissions
+        {navFolders.map((folder) => {
           const visibleItems = allowedFunctions
-            ? folder.items.filter((item) => allowedFunctions.has(item.fnKey))
+            ? folder.items.filter((item) => allowedFunctions.has(item.function_code))
             : []
-
-          // Hide entire folder if no items are accessible
           if (visibleItems.length === 0) return null
-
-          const isOpen = openFolders[folder.key]
-
+          const isOpen = openFolders[folder.folder_code]
           return (
-            <Box key={folder.key}>
-              {/* Folder header */}
+            <Box key={folder.folder_code}>
               <ListItemButton
-                onClick={() => handleToggleFolder(folder.key)}
+                onClick={() => handleToggleFolder(folder.folder_code)}
                 sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
               >
-                <ListItemIcon sx={iconSx}>{folder.icon}</ListItemIcon>
-                <ListItemText primary={folder.label} sx={textSx} />
+                <ListItemIcon sx={iconSx}>{ICON_MAP[folder.folder_code]}</ListItemIcon>
+                <ListItemText primary={folder.folder_label} sx={textSx} />
                 {isOpen ? (
                   <ExpandLessIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
                 ) : (
                   <ExpandMoreIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
                 )}
               </ListItemButton>
-
-              {/* Folder items */}
               <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <List disablePadding sx={{ bgcolor: '#0b1120' }}>
                   {visibleItems.map((item) => (
-                    <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
+                    <NavLink
+                      key={item.function_code}
+                      to={`/${item.function_code}`}
+                      style={{ textDecoration: 'none' }}
+                    >
                       {({ isActive }) => (
                         <ListItemButton
                           sx={{
@@ -171,9 +119,11 @@ export default function Sidebar() {
                             ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
                           }}
                         >
-                          <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>{item.icon}</ListItemIcon>
+                          <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>
+                            {ICON_MAP[item.function_code]}
+                          </ListItemIcon>
                           <ListItemText
-                            primary={item.label}
+                            primary={item.function_label}
                             sx={{
                               '& .MuiListItemText-primary': {
                                 fontSize: 13,
