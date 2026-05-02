@@ -212,7 +212,7 @@ export default function IssueList() {
           variant="outlined"
           startIcon={<ArrowBackOutlinedIcon />}
           size="small"
-          onClick={() => navigate('/ai-partner')}
+          onClick={() => navigate('/fn_partner')}
           sx={{ color: '#64748b', borderColor: '#cbd5e1' }}
         >
           回上一頁
@@ -377,7 +377,7 @@ export default function IssueList() {
                     <TableRow
                       key={row.id}
                       hover
-                      onClick={() => navigate(`/ai-partner/${partnerId}/issues/${row.id}`)}
+                      onClick={() => navigate(`/fn_partner/${partnerId}/issues/${row.id}`)}
                       sx={{
                         cursor: 'pointer',
                         '&:hover': { bgcolor: '#f8fafc' },
@@ -497,7 +497,7 @@ export default function IssueList() {
                           variant="contained"
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/ai-partner/${partnerId}/issues/${row.id}`)
+                            navigate(`/fn_partner/${partnerId}/issues/${row.id}`)
                           }}
                           sx={{
                             fontSize: 13.5,

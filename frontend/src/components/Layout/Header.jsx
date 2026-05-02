@@ -1,27 +1,26 @@
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
+import { useNavigationQuery } from '../../queries/useNavigationQuery'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 
-const PAGE_TITLES = {
-  '/': '首頁',
-  '/ai-partner': 'AI夥伴',
-  '/kb': '知識庫',
-  '/settings/account': '使用者管理',
-  '/settings/role': '角色',
-  '/settings/ai-config': 'AI夥伴管理',
-}
-
 export default function Header() {
   const { logout } = useAuth()
   const { pathname } = useLocation()
+  const { data: navFolders = [] } = useNavigationQuery()
 
+  const navItems = navFolders.flatMap((f) => f.items)
   const title =
-    Object.entries(PAGE_TITLES)
-      .filter(([path]) => pathname === path || pathname.startsWith(path + '/'))
-      .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? 'MP-Box'
+    navItems
+      .filter(
+        (item) =>
+          pathname === `/${item.function_code}` ||
+          pathname.startsWith(`/${item.function_code}/`)
+      )
+      .sort((a, b) => b.function_code.length - a.function_code.length)[0]
+      ?.function_label ?? 'MP-Box'
 
   return (
     <AppBar

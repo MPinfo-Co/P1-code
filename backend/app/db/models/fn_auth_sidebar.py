@@ -12,7 +12,8 @@ class FunctionFolder(Base):
     __tablename__ = "tb_function_folder"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    folder_code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    folder_label: Mapped[str] = mapped_column(String(50), nullable=False)
     default_open: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
@@ -25,7 +26,8 @@ class Function(Base):
     __tablename__ = "tb_functions"
 
     function_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    function_name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    function_code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    function_label: Mapped[str] = mapped_column(String(50), nullable=False)
     folder_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_function_folder.id"), nullable=False
     )

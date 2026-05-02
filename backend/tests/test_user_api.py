@@ -11,6 +11,7 @@ Tests for fn_user APIs:
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.utils.util_store import create_access_token, hash_password
+from app.db.models.fn_auth_sidebar import Function, FunctionFolder, RoleFunction
 from app.db.models.fn_user_role import Role, User, UserRole
 
 
@@ -19,9 +20,25 @@ from app.db.models.fn_user_role import Role, User, UserRole
 # ---------------------------------------------------------------------------
 
 
-def _make_role(db: Session, name: str, can_manage_accounts: bool = False) -> int:
+def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2) -> int:
+    """Create a function folder and return its id."""
+    folder = FunctionFolder(folder_code=name, folder_label=name, default_open=False, sort_order=sort_order)
+    db.add(folder)
+    db.flush()
+    return folder.id
+
+
+def _make_function(db: Session, name: str, folder_id: int, sort_order: int = 1) -> int:
+    """Create a function entry and return its function_id."""
+    fn = Function(function_code=name, function_label=name, folder_id=folder_id, sort_order=sort_order)
+    db.add(fn)
+    db.flush()
+    return fn.function_id
+
+
+def _make_role(db: Session, name: str) -> int:
     """Create a role and return its id."""
-    role = Role(name=name, can_manage_accounts=can_manage_accounts)
+    role = Role(name=name)
     db.add(role)
     db.flush()
     return role.id
@@ -46,30 +63,39 @@ def _assign_role(db: Session, user_id: int, role_id: int) -> None:
     db.flush()
 
 
+def _grant_function(db: Session, role_id: int, function_id: int) -> None:
+    db.add(RoleFunction(role_id=role_id, function_id=function_id))
+    db.flush()
+
+
 def _auth_headers(user_id: int) -> dict:
     token = create_access_token(user_id)
     return {"Authorization": f"Bearer {token}"}
 
 
 def _setup_admin(engine) -> tuple[int, int, str]:
-    """Create admin role + admin user. Return (user_id, role_id, email)."""
+    """Create admin role + admin user with fn_user permission. Return (user_id, role_id, email)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    role_id = _make_role(db, "admin", can_manage_accounts=True)
+    folder_id = _make_function_folder(db, "設定", 2)
+    fn_user_id = _make_function(db, "fn_user", folder_id, 1)
+    role_id = _make_role(db, "admin")
     user_id = _make_user(db, "admin@test.com", name="Admin User")
     _assign_role(db, user_id, role_id)
+    _grant_function(db, role_id, fn_user_id)
     db.commit()
     db.close()
     return user_id, role_id, "admin@test.com"
 
 
 def _setup_plain_user(engine, email: str = "plain@test.com") -> tuple[int, int]:
-    """Create a user without admin privilege. Return (user_id, role_id)."""
+    """Create a user without fn_user privilege. Return (user_id, role_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    role_id = _make_role(db, "plain_role", can_manage_accounts=False)
+    role_id = _make_role(db, "plain_role")
     user_id = _make_user(db, email, name="Plain User")
     _assign_role(db, user_id, role_id)
+    # No fn_user function granted to plain_role
     db.commit()
     db.close()
     return user_id, role_id
@@ -126,7 +152,7 @@ def test_list_users_filter_by_role(client, engine):
 
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    other_role_id = _make_role(db, "viewer", can_manage_accounts=False)
+    other_role_id = _make_role(db, "viewer")
     viewer_id = _make_user(db, "viewer@test.com", name="Viewer")
     _assign_role(db, viewer_id, other_role_id)
     db.commit()
