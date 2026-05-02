@@ -28,18 +28,18 @@ def _seed_folders_and_functions(engine) -> None:
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     # Create folders
-    db.add(FunctionFolder(id=1, name="AI 夥伴", default_open=True, sort_order=1))
-    db.add(FunctionFolder(id=2, name="設定", default_open=False, sort_order=2))
+    db.add(FunctionFolder(id=1, folder_code="ai_partner", folder_label="AI 夥伴", default_open=True, sort_order=1))
+    db.add(FunctionFolder(id=2, folder_code="settings", folder_label="設定", default_open=False, sort_order=2))
     db.flush()
     # Create functions (fn_setting removed per issue-171)
-    for func_id, func_name, folder_id, sort in [
-        (1, "fn_partner", 1, 1),
-        (2, "fn_km", 1, 2),
-        (3, "fn_ai_config", 1, 3),
-        (4, "fn_user", 2, 1),
-        (5, "fn_role", 2, 2),
+    for func_id, func_name, func_label, folder_id, sort in [
+        (1, "fn_partner", "AI 夥伴", 1, 1),
+        (2, "fn_km", "知識庫", 1, 2),
+        (3, "fn_ai_config", "AI 夥伴管理", 1, 3),
+        (4, "fn_user", "使用者管理", 2, 1),
+        (5, "fn_role", "角色管理", 2, 2),
     ]:
-        db.add(Function(function_id=func_id, function_name=func_name, folder_id=folder_id, sort_order=sort))
+        db.add(Function(function_id=func_id, function_code=func_name, function_label=func_label, folder_id=folder_id, sort_order=sort))
     db.commit()
     db.close()
 

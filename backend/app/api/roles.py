@@ -29,7 +29,7 @@ FN_USER_NAME = "fn_user"
 
 def _has_fn_role_permission(user_id: int, db: Session) -> bool:
     """Return True if the user has fn_role function permission via tb_role_function."""
-    fn = db.query(Function).filter(Function.function_name == FN_ROLE_NAME).first()
+    fn = db.query(Function).filter(Function.function_code == FN_ROLE_NAME).first()
     if fn is None:
         return False
     return (
@@ -81,7 +81,7 @@ def list_roles(
             .all()
         )
         functions = [
-            RoleFunctionItem(function_id=f.function_id, function_name=f.function_name)
+            RoleFunctionItem(function_id=f.function_id, function_code=f.function_code)
             for f in fn_rows
         ]
 
@@ -228,5 +228,5 @@ def get_function_options(
 ):
     """Return all functions as lightweight [{ function_id, function_name }] sorted by function_id."""
     rows = db.query(Function).order_by(Function.function_id.asc()).all()
-    items = [{"function_id": f.function_id, "function_name": f.function_name} for f in rows]
+    items = [{"function_id": f.function_id, "function_code": f.function_code} for f in rows]
     return {"message": "查詢成功", "data": items}

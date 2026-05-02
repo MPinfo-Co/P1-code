@@ -7,7 +7,7 @@ class RoleFunctionItem(BaseModel):
     """Single function item within a role."""
 
     function_id: int
-    function_name: str
+    function_code: str
 
 
 class RoleUserItem(BaseModel):
@@ -71,7 +71,7 @@ class FunctionOptionItem(BaseModel):
     """Single item in the function options list."""
 
     function_id: int
-    function_name: str
+    function_code: str
 
 
 class FunctionOptionsOut(BaseModel):
