@@ -31,9 +31,16 @@
 
 ## pytest 結果
 
-通過：24 / 總計：28（含 4 個預存在失敗，與本 issue 無關）
+通過：24 / 總計：28（執行 `--ignore=tests/test_migration_seed.py` 排除預存在集合錯誤）
+
+| 測試檔 | 結果 | 備註 |
+|--------|------|------|
+| test_user_api.py | 24 通過 | 全部通過 |
+| test_ingest.py | 4 失敗 | 預存在問題，與本 issue 無關 |
+| test_migration_seed.py | 集合錯誤（FileNotFoundError） | 預存在問題，與本 issue 無關 |
 
 ## 備註
 
-- `tests/test_migration_seed.py`（集合錯誤）及 `tests/test_ingest.py`（4 個失敗）在本 issue 實作前即已存在，與 fn_notice/fn_setting 移除無關，屬既有問題。
+- `tests/test_migration_seed.py` 集合錯誤（FileNotFoundError：alembic/versions/538d0579a48c_seed_initial_roles_and_admin.py 不存在）在本 issue 實作前即已存在，與 fn_notice/fn_setting 移除無關。
+- `tests/test_ingest.py` 4 個失敗（AttributeError: app.api.ingest 沒有 settings 屬性）在本 issue 實作前即已存在，屬既有問題。
 - 移除 fn_setting 後，Role model 中的 can_manage_notices 及 can_manage_settings 欄位一併從 ORM 移除，migration 中同步以 drop_column 處理。
