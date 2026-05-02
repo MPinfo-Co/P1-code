@@ -1,4 +1,4 @@
-"""ORM models for fn_auth sidebar: tb_function_folder, tb_functions, tb_role_function."""
+"""ORM models for fn_navbar: tb_function_folder, tb_functions, tb_role_function."""
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,7 +7,7 @@ from .base import Base
 
 
 class FunctionFolder(Base):
-    """Sidebar 目錄，管理功能分組的名稱與展開狀態。"""
+    """Navbar 目錄，管理功能分組的名稱與展開狀態。"""
 
     __tablename__ = "tb_function_folder"
 
@@ -21,7 +21,7 @@ class FunctionFolder(Base):
 
 
 class Function(Base):
-    """系統功能清單，每筆對應一個 Sidebar 功能項目。"""
+    """系統功能清單，每筆對應一個 Navbar 功能項目。"""
 
     __tablename__ = "tb_functions"
 

@@ -19,7 +19,7 @@ from app.api.schema.user import (
 )
 from app.db.connector import get_db
 from app.db.models import User, UserRole
-from app.db.models.fn_auth_sidebar import Function, RoleFunction
+from app.db.models.fn_navbar import Function, RoleFunction
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 

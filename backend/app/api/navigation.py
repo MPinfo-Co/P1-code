@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.connector import get_db
-from app.db.models.fn_auth_sidebar import Function, FunctionFolder
+from app.db.models.fn_navbar import Function, FunctionFolder
 from app.utils.util_store import AuthContext, authenticate
 
 router = APIRouter(prefix="/api/navigation", tags=["navigation"])
