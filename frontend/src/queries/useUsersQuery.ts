@@ -7,7 +7,6 @@ const BASE_URL = import.meta.env.VITE_API_URL
 export interface UserRow {
   email: string
   name: string
-  is_active: boolean
   roles: RoleOption[]
 }
 
