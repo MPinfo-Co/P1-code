@@ -22,10 +22,9 @@ def _setup_and_seed(engine) -> int:
     db.flush()
     for fid, code, label, folder_id, sort in [
         (1, "fn_partner", "AI 夥伴", 1, 1),
-        (2, "fn_km", "知識庫", 1, 2),
-        (3, "fn_ai_config", "AI 夥伴管理", 1, 3),
-        (4, "fn_user", "使用者管理", 2, 1),
-        (5, "fn_role", "角色管理", 2, 2),
+        (2, "fn_ai_config", "AI 夥伴管理", 1, 2),
+        (3, "fn_user", "使用者管理", 2, 1),
+        (4, "fn_role", "角色管理", 2, 2),
     ]:
         db.add(Function(function_id=fid, function_code=code, function_label=label, folder_id=folder_id, sort_order=sort))
     role = Role(name="admin")
@@ -57,7 +56,7 @@ def test_get_navigation_returns_structure(client, engine):
     assert ai_folder["default_open"] is True
     item_codes = [i["function_code"] for i in ai_folder["items"]]
     assert "fn_partner" in item_codes
-    assert "fn_km" in item_codes
+    assert "fn_ai_config" in item_codes
 
 
 def test_get_navigation_unauthenticated_returns_401(client, engine):

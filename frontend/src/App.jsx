@@ -10,7 +10,6 @@ import Home from './pages/Home/Home'
 import AiPartner from './pages/AiPartner/AiPartner'
 import IssueList from './pages/AiPartner/IssueList'
 import IssueDetail from './pages/AiPartner/IssueDetail'
-import KnowledgeBase from './pages/KnowledgeBase/KnowledgeBase'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
 import AiConfig from './pages/Settings/AiConfig'
@@ -65,14 +64,6 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_partner">
               <IssueDetail />
-            </PermissionGuard>
-          }
-        />
-        <Route
-          path="fn_km"
-          element={
-            <PermissionGuard fnKey="fn_km">
-              <KnowledgeBase />
             </PermissionGuard>
           }
         />

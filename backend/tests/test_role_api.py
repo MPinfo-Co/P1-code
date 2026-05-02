@@ -383,7 +383,7 @@ def test_get_function_options_sorted_by_id(client, engine):
     db = Session_()
     folder_id2 = _make_function_folder(db, "AI 夥伴", 1)
     _make_function(db, "fn_partner", folder_id2, 1)
-    _make_function(db, "fn_km", folder_id2, 2)
+    _make_function(db, "fn_ai_config", folder_id2, 2)
     db.commit()
     db.close()
 

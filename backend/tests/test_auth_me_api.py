@@ -1,7 +1,7 @@
 """
 Tests for GET /api/users/me API.
 
-Covers test spec IDs T6 and T7 from _fn_auth_test_api.md.
+Covers test spec IDs T6 and T7 from _fn_login_test_api.md.
 """
 
 from sqlalchemy.orm import sessionmaker
@@ -31,13 +31,12 @@ def _seed_folders_and_functions(engine) -> None:
     db.add(FunctionFolder(id=1, folder_code="ai_partner", folder_label="AI 夥伴", default_open=True, sort_order=1))
     db.add(FunctionFolder(id=2, folder_code="settings", folder_label="設定", default_open=False, sort_order=2))
     db.flush()
-    # Create functions (fn_setting removed per issue-171)
+    # Create functions (fn_setting removed per issue-171, fn_km removed per naming standardization)
     for func_id, func_name, func_label, folder_id, sort in [
         (1, "fn_partner", "AI 夥伴", 1, 1),
-        (2, "fn_km", "知識庫", 1, 2),
-        (3, "fn_ai_config", "AI 夥伴管理", 1, 3),
-        (4, "fn_user", "使用者管理", 2, 1),
-        (5, "fn_role", "角色管理", 2, 2),
+        (2, "fn_ai_config", "AI 夥伴管理", 1, 2),
+        (3, "fn_user", "使用者管理", 2, 1),
+        (4, "fn_role", "角色管理", 2, 2),
     ]:
         db.add(Function(function_id=func_id, function_code=func_name, function_label=func_label, folder_id=folder_id, sort_order=sort))
     db.commit()
@@ -89,7 +88,7 @@ def test_get_me_returns_200_with_functions(client, engine):
     role_id = _make_role(db, "admin_role")
     user_id = _make_user(db, "rex@test.com", name="Rex Shen")
     _assign_role(db, user_id, role_id)
-    _bind_functions(db, role_id, [1, 2, 3, 4, 5])
+    _bind_functions(db, role_id, [1, 2, 3, 4])
     db.commit()
     db.close()
 
@@ -102,15 +101,14 @@ def test_get_me_returns_200_with_functions(client, engine):
     assert data["name"] == "Rex Shen"
     assert data["email"] == "rex@test.com"
     assert isinstance(data["functions"], list)
-    assert len(data["functions"]) == 5
+    assert len(data["functions"]) == 4
     assert set(data["functions"]) == {
-        "fn_partner", "fn_km", "fn_ai_config", "fn_user", "fn_role"
+        "fn_partner", "fn_ai_config", "fn_user", "fn_role"
     }
-    assert "fn_setting" not in data["functions"]
 
 
 def test_get_me_returns_partial_functions(client, engine):
-    """對應 T6（部分權限）：使用者僅具備 fn_partner、fn_km，functions 只含有權限的功能。"""
+    """對應 T6（部分權限）：使用者僅具備 fn_partner、fn_ai_config，functions 只含有權限的功能。"""
     _setup_tables(engine)
     _seed_folders_and_functions(engine)
 
@@ -119,14 +117,14 @@ def test_get_me_returns_partial_functions(client, engine):
     role_id = _make_role(db, "partial_role")
     user_id = _make_user(db, "robert@test.com", name="Robert")
     _assign_role(db, user_id, role_id)
-    _bind_functions(db, role_id, [1, 2])  # fn_partner, fn_km only
+    _bind_functions(db, role_id, [1, 2])  # fn_partner, fn_ai_config only
     db.commit()
     db.close()
 
     resp = client.get("/api/users/me", headers=_auth_headers(user_id))
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert set(data["functions"]) == {"fn_partner", "fn_km"}
+    assert set(data["functions"]) == {"fn_partner", "fn_ai_config"}
 
 
 def test_get_me_unauthenticated_returns_401(client, engine):
