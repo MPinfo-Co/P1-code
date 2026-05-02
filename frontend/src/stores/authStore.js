@@ -16,7 +16,7 @@ const useAuthStore = create((set, get) => ({
       })
       if (!res.ok) return
       const data = await res.json()
-      set({ user: data })
+      set({ user: data.data })
     } catch (err) {
       console.warn('[fetchMe] failed:', err)
     }

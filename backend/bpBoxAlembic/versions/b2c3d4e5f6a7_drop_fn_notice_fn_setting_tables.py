@@ -19,14 +19,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Remove fn_notice and fn_setting tables and related role columns."""
-    # Drop tb_notices (fn_notice)
-    op.drop_table("tb_notices")
-    # Drop tb_system_params (fn_setting)
-    op.drop_table("tb_system_params")
-    # Drop can_manage_notices column from tb_roles
-    op.drop_column("tb_roles", "can_manage_notices")
-    # Drop can_manage_settings column from tb_roles
-    op.drop_column("tb_roles", "can_manage_settings")
+    op.execute("DROP TABLE IF EXISTS tb_notices")
+    op.execute("DROP TABLE IF EXISTS tb_system_params")
+    op.execute("ALTER TABLE tb_roles DROP COLUMN IF EXISTS can_manage_notices")
+    op.execute("ALTER TABLE tb_roles DROP COLUMN IF EXISTS can_manage_settings")
 
 
 def downgrade() -> None:
