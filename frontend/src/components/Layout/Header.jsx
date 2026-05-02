@@ -4,24 +4,17 @@ import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
+import { FOLDERS } from '../../constants/navigation'
 
-const PAGE_TITLES = {
-  '/': '首頁',
-  '/ai-partner': 'AI夥伴',
-  '/kb': '知識庫',
-  '/settings/account': '使用者管理',
-  '/settings/role': '角色',
-  '/settings/ai-config': 'AI夥伴管理',
-}
+const NAV_ITEMS = FOLDERS.flatMap((f) => f.items)
 
 export default function Header() {
   const { logout } = useAuth()
   const { pathname } = useLocation()
 
   const title =
-    Object.entries(PAGE_TITLES)
-      .filter(([path]) => pathname === path || pathname.startsWith(path + '/'))
-      .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? 'MP-Box'
+    NAV_ITEMS.filter((item) => pathname === item.path || pathname.startsWith(item.path + '/'))
+      .sort((a, b) => b.path.length - a.path.length)[0]?.label ?? 'MP-Box'
 
   return (
     <AppBar
