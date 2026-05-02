@@ -1,4 +1,4 @@
-"""/api/user and /api/roles routers — user management and role options."""
+"""/api/user, /api/users, and /api/roles routers — user management and role options."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
@@ -12,6 +12,8 @@ from app.api.schema.user import (
     UserDeleteOut,
     UserItem,
     UserListOut,
+    UserMeData,
+    UserMeResponse,
     UserOptionItem,
     UserOptionsOut,
     UserUpdateOut,
@@ -19,13 +21,45 @@ from app.api.schema.user import (
 )
 from app.db.connector import get_db
 from app.db.models import User, UserRole
+from app.db.models.fn_auth_sidebar import Function, RoleFunction
 from app.db.models.fn_user_role import Role
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 
 router = APIRouter(prefix="/api/user", tags=["user"])
+users_router = APIRouter(prefix="/api/users", tags=["users"])
 roles_router = APIRouter(prefix="/api/roles", tags=["roles"])
 system_logger = get_system_logger()
+
+
+@users_router.get("/me", response_model=UserMeResponse)
+def get_me(
+    auth: AuthContext = Depends(authenticate),
+    db: Session = Depends(get_db),
+) -> UserMeResponse:
+    """Return the current user's basic info and accessible function list."""
+    user = db.query(User).filter(User.id == auth.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="請重新登入")
+
+    # Collect function_names via user_roles → role_function → functions (deduplicated)
+    function_names = (
+        db.query(Function.function_name)
+        .join(RoleFunction, Function.function_id == RoleFunction.function_id)
+        .join(UserRole, RoleFunction.role_id == UserRole.role_id)
+        .filter(UserRole.user_id == auth.user_id)
+        .distinct()
+        .all()
+    )
+    functions = [row.function_name for row in function_names]
+
+    data = UserMeData(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        functions=functions,
+    )
+    return UserMeResponse(data=data)
 
 
 def _has_user_permission(user_id: int, db: Session) -> bool:
