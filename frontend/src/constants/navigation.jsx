@@ -50,12 +50,6 @@ export const FOLDERS = [
         path: '/settings/roles',
         icon: <ManageAccountsIcon fontSize="small" />,
       },
-      {
-        fnKey: 'fn_setting',
-        label: '系統參數',
-        path: '/settings/setting',
-        icon: <SettingsOutlinedIcon fontSize="small" />,
-      },
     ],
   },
 ]
