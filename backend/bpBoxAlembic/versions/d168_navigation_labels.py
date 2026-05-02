@@ -38,6 +38,7 @@ def upgrade() -> None:
     op.execute("UPDATE tb_functions SET function_label = 'AI 夥伴管理' WHERE function_code = 'fn_ai_config'")
     op.execute("UPDATE tb_functions SET function_label = '使用者管理' WHERE function_code = 'fn_user'")
     op.execute("UPDATE tb_functions SET function_label = '角色管理' WHERE function_code = 'fn_role'")
+    op.execute("UPDATE tb_functions SET function_label = function_code WHERE function_label IS NULL")
     op.alter_column("tb_functions", "function_label", nullable=False)
 
 
