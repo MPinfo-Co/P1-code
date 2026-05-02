@@ -15,7 +15,6 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
-import SettingsApplicationsOutlinedIcon from '@mui/icons-material/SettingsApplicationsOutlined'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
@@ -129,11 +128,6 @@ export default function Sidebar() {
                     to: '/settings/ai-config',
                     label: 'AI夥伴管理',
                     icon: <TuneOutlinedIcon fontSize="small" />,
-                  },
-                  {
-                    to: '/settings/system-params',
-                    label: '系統參數',
-                    icon: <SettingsApplicationsOutlinedIcon fontSize="small" />,
                   },
                 ].map((item) => (
                   <NavLink key={item.to} to={item.to} style={{ textDecoration: 'none' }}>

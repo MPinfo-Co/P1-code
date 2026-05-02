@@ -12,7 +12,6 @@ import KnowledgeBase from './pages/KnowledgeBase/KnowledgeBase'
 import FnUserList from './pages/fn_user/FnUserList'
 import Role from './pages/Settings/Role'
 import AiConfig from './pages/Settings/AiConfig'
-import FnSettingList from './pages/fn_setting/FnSettingList'
 import NotFound from './pages/NotFound'
 
 function ProtectedRoute({ children }) {
@@ -43,7 +42,6 @@ function AppRoutes() {
         <Route path="settings/account" element={<FnUserList />} />
         <Route path="settings/role" element={<Role />} />
         <Route path="settings/ai-config" element={<AiConfig />} />
-        <Route path="settings/system-params" element={<FnSettingList />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
