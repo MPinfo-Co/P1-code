@@ -5,7 +5,22 @@ const BASE_URL = import.meta.env.VITE_API_URL
 
 const useAuthStore = create((set, get) => ({
   token: localStorage.getItem('mp-box-token') || null,
-  user: null, // 刷新後為 null，待 GET /api/users/me 實作後補齊
+  user: null, // { id, name, email, functions: string[] }
+
+  fetchMe: async () => {
+    const token = get().token
+    if (!token) return
+    try {
+      const res = await fetch(`${BASE_URL}/api/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      set({ user: data })
+    } catch (err) {
+      console.warn('[fetchMe] failed:', err)
+    }
+  },
 
   login: async (email, password) => {
     const res = await fetch(`${BASE_URL}/api/auth/login`, {
@@ -18,6 +33,8 @@ const useAuthStore = create((set, get) => ({
     const { access_token } = await res.json()
     localStorage.setItem('mp-box-token', access_token)
     set({ token: access_token, user: { email } })
+    // fetch full user profile (with functions) after login
+    await useAuthStore.getState().fetchMe()
   },
 
   logout: async () => {

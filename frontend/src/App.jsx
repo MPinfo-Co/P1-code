@@ -1,6 +1,8 @@
 // src/App.jsx
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './stores/authStore'
+import useAuthStore from './stores/authStore'
 import { IssuesProvider } from './contexts/IssuesContext'
 import Layout from './components/Layout/Layout'
 import Login from './pages/Login/Login'
@@ -13,6 +15,7 @@ import FnUserList from './pages/fn_user/FnUserList'
 import Role from './pages/Settings/Role'
 import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
+import PermissionGuard from './components/Layout/PermissionGuard'
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth()
@@ -21,6 +24,13 @@ function ProtectedRoute({ children }) {
 
 function AppRoutes() {
   const { token } = useAuth()
+
+  // On page refresh, restore user profile (including functions) if token exists
+  useEffect(() => {
+    if (token) {
+      useAuthStore.getState().fetchMe()
+    }
+  }, [token])
 
   return (
     <Routes>
@@ -34,14 +44,63 @@ function AppRoutes() {
         }
       >
         <Route index element={<Home />} />
-        <Route path="ai-partner" element={<AiPartner />} />
-        <Route path="ai-partner/:partnerId/issues" element={<IssueList />} />
-        <Route path="ai-partner/:partnerId/issues/:issueId" element={<IssueDetail />} />
-        <Route path="kb" element={<KnowledgeBase />} />
+        <Route
+          path="ai-partner"
+          element={
+            <PermissionGuard fnKey="fn_partner">
+              <AiPartner />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="ai-partner/:partnerId/issues"
+          element={
+            <PermissionGuard fnKey="fn_partner">
+              <IssueList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="ai-partner/:partnerId/issues/:issueId"
+          element={
+            <PermissionGuard fnKey="fn_partner">
+              <IssueDetail />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="kb"
+          element={
+            <PermissionGuard fnKey="fn_km">
+              <KnowledgeBase />
+            </PermissionGuard>
+          }
+        />
         <Route path="settings" element={<Navigate to="/settings/account" replace />} />
-        <Route path="settings/account" element={<FnUserList />} />
-        <Route path="settings/role" element={<Role />} />
-        <Route path="settings/ai-config" element={<AiConfig />} />
+        <Route
+          path="settings/account"
+          element={
+            <PermissionGuard fnKey="fn_user">
+              <FnUserList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="settings/role"
+          element={
+            <PermissionGuard fnKey="fn_role">
+              <Role />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="settings/ai-config"
+          element={
+            <PermissionGuard fnKey="fn_ai_config">
+              <AiConfig />
+            </PermissionGuard>
+          }
+        />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

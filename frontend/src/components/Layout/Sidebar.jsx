@@ -20,6 +20,62 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
 const DRAWER_WIDTH = 260
 
+// ── 目錄與功能定義（對應 tb_function_folder + tb_functions seed data）──
+const FOLDERS = [
+  {
+    key: 'ai_partner',
+    label: 'AI 夥伴',
+    defaultOpen: true,
+    icon: <SmartToyOutlinedIcon fontSize="small" />,
+    items: [
+      {
+        fnKey: 'fn_partner',
+        label: 'AI 夥伴',
+        path: '/ai-partner',
+        icon: <SmartToyOutlinedIcon fontSize="small" />,
+      },
+      {
+        fnKey: 'fn_km',
+        label: '知識庫',
+        path: '/kb',
+        icon: <MenuBookOutlinedIcon fontSize="small" />,
+      },
+      {
+        fnKey: 'fn_ai_config',
+        label: 'AI 夥伴管理',
+        path: '/settings/ai-config',
+        icon: <TuneOutlinedIcon fontSize="small" />,
+      },
+    ],
+  },
+  {
+    key: 'settings',
+    label: '設定',
+    defaultOpen: false,
+    icon: <SettingsOutlinedIcon fontSize="small" />,
+    items: [
+      {
+        fnKey: 'fn_user',
+        label: '使用者管理',
+        path: '/settings/account',
+        icon: <PeopleAltOutlinedIcon fontSize="small" />,
+      },
+      {
+        fnKey: 'fn_role',
+        label: '角色',
+        path: '/settings/role',
+        icon: <GroupsOutlinedIcon fontSize="small" />,
+      },
+      {
+        fnKey: 'fn_setting',
+        label: '系統參數',
+        path: '/settings/setting',
+        icon: <SettingsOutlinedIcon fontSize="small" />,
+      },
+    ],
+  },
+]
+
 const iconSx = { color: '#94a3b8', minWidth: 36 }
 const textSx = { '& .MuiListItemText-primary': { fontSize: 14, fontWeight: 500, color: '#94a3b8' } }
 const activeSx = {
@@ -30,11 +86,24 @@ const activeSx = {
 }
 
 export default function Sidebar() {
-  const [settingOpen, setSettingOpen] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
-  // TODO: 等後端 users API 回傳角色後改回 role 判斷
-  const canSeeSetting = !!user
+
+  // Initialise open state from defaultOpen per folder
+  const [openFolders, setOpenFolders] = useState(() => {
+    const initial = {}
+    FOLDERS.forEach((f) => {
+      initial[f.key] = f.defaultOpen
+    })
+    return initial
+  })
+
+  // Derive allowed functions from user.functions (from GET /api/users/me)
+  const allowedFunctions = user && Array.isArray(user.functions) ? new Set(user.functions) : null // null = not loaded yet; show nothing until resolved
+
+  function handleToggleFolder(key) {
+    setOpenFolders((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   return (
     <Drawer
@@ -54,109 +123,79 @@ export default function Sidebar() {
       {/* Brand */}
       <Box
         onClick={() => navigate('/ai-partner')}
-        sx={{ px: 3, height: 40, display: 'flex', alignItems: 'center', borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
+        sx={{
+          px: 3,
+          height: 40,
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid #1e293b',
+          cursor: 'pointer',
+        }}
       >
         <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'white' }}>MP-Box</Typography>
       </Box>
 
-      {/* Nav */}
+      {/* Nav — two-level: folder → items */}
       <List sx={{ flex: 1, py: 1.5 }} disablePadding>
-        <NavLink to="/ai-partner" style={{ textDecoration: 'none' }}>
-          {({ isActive }) => (
-            <ListItemButton
-              sx={{
-                px: 3,
-                py: 1.2,
-                ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
-              }}
-            >
-              <ListItemIcon sx={iconSx}>
-                <SmartToyOutlinedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="AI夥伴" sx={textSx} />
-            </ListItemButton>
-          )}
-        </NavLink>
+        {FOLDERS.map((folder) => {
+          // Filter visible items by user permissions
+          const visibleItems = allowedFunctions
+            ? folder.items.filter((item) => allowedFunctions.has(item.fnKey))
+            : []
 
-        <NavLink to="/kb" style={{ textDecoration: 'none' }}>
-          {({ isActive }) => (
-            <ListItemButton
-              sx={{
-                px: 3,
-                py: 1.2,
-                ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
-              }}
-            >
-              <ListItemIcon sx={iconSx}>
-                <MenuBookOutlinedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="知識庫" sx={textSx} />
-            </ListItemButton>
-          )}
-        </NavLink>
+          // Hide entire folder if no items are accessible
+          if (visibleItems.length === 0) return null
 
-        {canSeeSetting && (
-          <>
-            <ListItemButton
-              onClick={() => setSettingOpen((o) => !o)}
-              sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
-            >
-              <ListItemIcon sx={iconSx}>
-                <SettingsOutlinedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="設定" sx={textSx} />
-              {settingOpen ? (
-                <ExpandLessIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-              ) : (
-                <ExpandMoreIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-              )}
-            </ListItemButton>
-            <Collapse in={settingOpen} timeout="auto" unmountOnExit>
-              <List disablePadding sx={{ bgcolor: '#0b1120' }}>
-                {[
-                  {
-                    to: '/settings/account',
-                    label: '使用者管理',
-                    icon: <PeopleAltOutlinedIcon fontSize="small" />,
-                  },
-                  {
-                    to: '/settings/role',
-                    label: '角色',
-                    icon: <GroupsOutlinedIcon fontSize="small" />,
-                  },
-                  {
-                    to: '/settings/ai-config',
-                    label: 'AI夥伴管理',
-                    icon: <TuneOutlinedIcon fontSize="small" />,
-                  },
-                ].map((item) => (
-                  <NavLink key={item.to} to={item.to} style={{ textDecoration: 'none' }}>
-                    {({ isActive }) => (
-                      <ListItemButton
-                        sx={{
-                          pl: 7,
-                          py: 1,
-                          ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
-                        }}
-                      >
-                        <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>{item.icon}</ListItemIcon>
-                        <ListItemText
-                          primary={item.label}
+          const isOpen = openFolders[folder.key]
+
+          return (
+            <Box key={folder.key}>
+              {/* Folder header */}
+              <ListItemButton
+                onClick={() => handleToggleFolder(folder.key)}
+                sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
+              >
+                <ListItemIcon sx={iconSx}>{folder.icon}</ListItemIcon>
+                <ListItemText primary={folder.label} sx={textSx} />
+                {isOpen ? (
+                  <ExpandLessIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+                ) : (
+                  <ExpandMoreIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+                )}
+              </ListItemButton>
+
+              {/* Folder items */}
+              <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                <List disablePadding sx={{ bgcolor: '#0b1120' }}>
+                  {visibleItems.map((item) => (
+                    <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
+                      {({ isActive }) => (
+                        <ListItemButton
                           sx={{
-                            '& .MuiListItemText-primary': {
-                              fontSize: 13,
-                              color: isActive ? 'white' : '#94a3b8',
-                            },
+                            pl: 7,
+                            py: 1,
+                            ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
                           }}
-                        />
-                      </ListItemButton>
-                    )}
-                  </NavLink>
-                ))}
-              </List>
-            </Collapse>
-          </>
-        )}
+                        >
+                          <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>{item.icon}</ListItemIcon>
+                          <ListItemText
+                            primary={item.label}
+                            sx={{
+                              '& .MuiListItemText-primary': {
+                                fontSize: 13,
+                                color: isActive ? 'white' : '#94a3b8',
+                              },
+                            }}
+                          />
+                        </ListItemButton>
+                      )}
+                    </NavLink>
+                  ))}
+                </List>
+              </Collapse>
+            </Box>
+          )
+        })}
       </List>
 
       <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #1e293b' }}>
