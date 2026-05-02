@@ -66,12 +66,6 @@ const FOLDERS = [
         path: '/settings/role',
         icon: <GroupsOutlinedIcon fontSize="small" />,
       },
-      {
-        fnKey: 'fn_setting',
-        label: '系統參數',
-        path: '/settings/setting',
-        icon: <SettingsOutlinedIcon fontSize="small" />,
-      },
     ],
   },
 ]

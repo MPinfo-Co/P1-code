@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Create tb_function_folder, tb_functions, tb_role_function and seed data."""
+    """Create tb_function_folder, tb_functions, tb_role_function and seed data (5 functions, fn_setting removed)."""
     # 建立 tb_function_folder
     op.create_table(
         "tb_function_folder",
@@ -70,17 +70,16 @@ def upgrade() -> None:
         "(2, 'fn_km', 1, 2), "
         "(3, 'fn_ai_config', 1, 3), "
         "(4, 'fn_user', 2, 1), "
-        "(5, 'fn_role', 2, 2), "
-        "(6, 'fn_setting', 2, 3)"
+        "(5, 'fn_role', 2, 2)"
     )
     op.execute(
         "SELECT setval('tb_functions_function_id_seq', (SELECT MAX(function_id) FROM tb_functions))"
     )
 
-    # Seed tb_role_function: Admin role (role_id=1) binds all 6 functions
+    # Seed tb_role_function: Admin role (role_id=1) binds all 5 functions
     op.execute(
         "INSERT INTO tb_role_function (role_id, function_id) VALUES "
-        "(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6)"
+        "(1, 1), (1, 2), (1, 3), (1, 4), (1, 5)"
     )
 
 
