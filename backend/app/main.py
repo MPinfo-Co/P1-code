@@ -14,6 +14,7 @@ from .api.events import router as events_router
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
 from .api.notice import router as notice_router
+from .api.setting import router as setting_router
 from .api.user import router as user_router
 from .middlewares.request_response_handler import RequestResponseHandlerMiddleware
 
@@ -62,6 +63,7 @@ def create_app():
     server.include_router(health_router)
     server.include_router(ingest_router)
     server.include_router(notice_router)
+    server.include_router(setting_router)
     server.include_router(user_router)
 
     return server

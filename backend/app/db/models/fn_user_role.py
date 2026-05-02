@@ -40,6 +40,7 @@ class Role(Base):
     can_edit_ai: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     can_manage_kb: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     can_manage_notices: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    can_manage_settings: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()

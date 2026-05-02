@@ -13,6 +13,7 @@ from app.db.connector import get_db
 from app.main import app
 from app.db.models.fn_user_role import Role, TokenBlacklist, User, UserRole
 from app.db.models.fn_notice import Notice
+from app.db.models.fn_setting import SystemParam
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -22,6 +23,7 @@ _SEED_TABLES = [
     UserRole.__table__,
     TokenBlacklist.__table__,
     Notice.__table__,
+    SystemParam.__table__,
 ]
 
 
