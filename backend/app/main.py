@@ -14,7 +14,7 @@ from .api.auth import router as auth_router
 from .api.events import router as events_router
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
-from .api.user import router as user_router, roles_router
+from .api.user import router as user_router, users_router, roles_router
 from .middlewares.request_response_handler import RequestResponseHandlerMiddleware
 
 @asynccontextmanager
@@ -69,6 +69,7 @@ def create_app():
     server.include_router(health_router)
     server.include_router(ingest_router)
     server.include_router(user_router)
+    server.include_router(users_router)
     server.include_router(roles_router)
 
     return server

@@ -5,6 +5,25 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
+class MeResponse(BaseModel):
+    """Response for GET /api/users/me."""
+
+    message: str = "成功"
+    data: "MeData"
+
+
+class MeData(BaseModel):
+    """Current user basic info plus accessible functions."""
+
+    id: int
+    name: str
+    email: str
+    functions: list[str]
+
+
+MeResponse.model_rebuild()
+
+
 class UserItem(BaseModel):
     """Single user row returned in the list."""
 

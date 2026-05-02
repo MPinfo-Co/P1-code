@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.db.connector import get_db
 from app.main import app
 from app.db.models.fn_user_role import Role, TokenBlacklist, User, UserRole
+from app.db.models.fn_sidebar import Function, FunctionFolder, RoleFunction
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -20,6 +21,9 @@ _SEED_TABLES = [
     Role.__table__,
     UserRole.__table__,
     TokenBlacklist.__table__,
+    FunctionFolder.__table__,
+    Function.__table__,
+    RoleFunction.__table__,
 ]
 
 
