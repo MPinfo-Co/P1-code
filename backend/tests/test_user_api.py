@@ -1,18 +1,17 @@
 """
 Tests for fn_user APIs:
-  GET    /api/user
-  POST   /api/user
-  PATCH  /api/user/{email}
-  DELETE /api/user/{email}
-  GET    /api/user/options
+  GET    /api/users/options
+  GET    /api/users
+  POST   /api/users
+  PATCH  /api/users/{email}
+  DELETE /api/users/{email}
   GET    /api/roles/options
 """
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.utils.util_store import create_access_token, hash_password
-from app.db.models.fn_navbar import Function, FunctionFolder, RoleFunction
-from app.db.models.fn_user_role import Role, User, UserRole
+from app.core.security import create_access_token, hash_password
+from app.db.models.user import Function, Role, RoleFunction, User, UserRole
 
 
 # ---------------------------------------------------------------------------
@@ -20,17 +19,9 @@ from app.db.models.fn_user_role import Role, User, UserRole
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2) -> int:
-    """Create a function folder and return its id."""
-    folder = FunctionFolder(folder_code=name, folder_label=name, default_open=False, sort_order=sort_order)
-    db.add(folder)
-    db.flush()
-    return folder.id
-
-
-def _make_function(db: Session, name: str, folder_id: int, sort_order: int = 1) -> int:
-    """Create a function entry and return its function_id."""
-    fn = Function(function_code=name, function_label=name, folder_id=folder_id, sort_order=sort_order)
+def _make_function(db: Session, function_id: int, function_name: str) -> int:
+    """Create a function and return its id."""
+    fn = Function(function_id=function_id, function_name=function_name)
     db.add(fn)
     db.flush()
     return fn.function_id
@@ -52,6 +43,7 @@ def _make_user(
         name=name,
         email=email,
         password_hash=hash_password(password),
+        is_active=True,
     )
     db.add(user)
     db.flush()
@@ -63,26 +55,25 @@ def _assign_role(db: Session, user_id: int, role_id: int) -> None:
     db.flush()
 
 
-def _grant_function(db: Session, role_id: int, function_id: int) -> None:
+def _assign_function(db: Session, role_id: int, function_id: int) -> None:
     db.add(RoleFunction(role_id=role_id, function_id=function_id))
     db.flush()
 
 
 def _auth_headers(user_id: int) -> dict:
-    token = create_access_token(user_id)
+    token = create_access_token({"sub": str(user_id)})
     return {"Authorization": f"Bearer {token}"}
 
 
 def _setup_admin(engine) -> tuple[int, int, str]:
-    """Create admin role + admin user with fn_user permission. Return (user_id, role_id, email)."""
+    """Create fn_user-permitted role + admin user. Return (user_id, role_id, email)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    folder_id = _make_function_folder(db, "設定", 2)
-    fn_user_id = _make_function(db, "fn_user", folder_id, 1)
+    fn_id = _make_function(db, 1, "fn_user")
     role_id = _make_role(db, "admin")
+    _assign_function(db, role_id, fn_id)
     user_id = _make_user(db, "admin@test.com", name="Admin User")
     _assign_role(db, user_id, role_id)
-    _grant_function(db, role_id, fn_user_id)
     db.commit()
     db.close()
     return user_id, role_id, "admin@test.com"
@@ -95,14 +86,63 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> tuple[int, int]:
     role_id = _make_role(db, "plain_role")
     user_id = _make_user(db, email, name="Plain User")
     _assign_role(db, user_id, role_id)
-    # No fn_user function granted to plain_role
     db.commit()
     db.close()
     return user_id, role_id
 
 
 # ---------------------------------------------------------------------------
-# GET /api/user
+# GET /api/users/options
+# ---------------------------------------------------------------------------
+
+
+def test_get_user_options_returns_200(client, engine):
+    """對應 T16"""
+    admin_id, _, _ = _setup_admin(engine)
+
+    resp = client.get("/api/users/options", headers=_auth_headers(admin_id))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "查詢成功"
+    assert isinstance(body["data"], list)
+    # admin user is active, should appear
+    ids = [u["id"] for u in body["data"]]
+    assert admin_id in ids
+
+
+def test_get_user_options_unauthenticated_returns_401(client, engine):
+    """對應 T17"""
+    resp = client.get("/api/users/options")
+    assert resp.status_code == 401
+
+
+def test_get_user_options_only_active(client, engine):
+    """options endpoint only returns active users"""
+    admin_id, _, _ = _setup_admin(engine)
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    inactive = User(
+        name="Inactive",
+        email="inactive@test.com",
+        password_hash=hash_password("password123"),
+        is_active=False,
+    )
+    db.add(inactive)
+    db.flush()
+    inactive_id = inactive.id
+    db.commit()
+    db.close()
+
+    resp = client.get("/api/users/options", headers=_auth_headers(admin_id))
+    assert resp.status_code == 200
+    ids = [u["id"] for u in resp.json()["data"]]
+    # inactive user should NOT appear
+    assert inactive_id not in ids
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users
 # ---------------------------------------------------------------------------
 
 
@@ -110,7 +150,7 @@ def test_list_users_returns_200(client, engine):
     """對應 T1"""
     admin_id, _, _ = _setup_admin(engine)
 
-    resp = client.get("/api/user", headers=_auth_headers(admin_id))
+    resp = client.get("/api/users", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     body = resp.json()
     assert body["message"] == "查詢成功"
@@ -119,30 +159,18 @@ def test_list_users_returns_200(client, engine):
     assert "admin@test.com" in emails
 
 
-def test_list_users_no_is_active_in_response(client, engine):
-    """對應 T4：回傳結果不含 is_active 欄位"""
-    admin_id, _, _ = _setup_admin(engine)
-
-    resp = client.get("/api/user", headers=_auth_headers(admin_id))
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert len(data) > 0
-    for user in data:
-        assert "is_active" not in user
-
-
 def test_list_users_no_permission_returns_403(client, engine):
-    """對應 T2 / T5"""
+    """對應 T2"""
     user_id, _ = _setup_plain_user(engine)
 
-    resp = client.get("/api/user", headers=_auth_headers(user_id))
+    resp = client.get("/api/users", headers=_auth_headers(user_id))
     assert resp.status_code == 403
     assert resp.json()["detail"] == "您沒有執行此操作的權限"
 
 
 def test_list_users_unauthenticated_returns_401(client, engine):
     """未登入應回 401"""
-    resp = client.get("/api/user")
+    resp = client.get("/api/users")
     assert resp.status_code == 401
 
 
@@ -159,7 +187,7 @@ def test_list_users_filter_by_role(client, engine):
     db.close()
 
     resp = client.get(
-        f"/api/user?role_id={other_role_id}", headers=_auth_headers(admin_id)
+        f"/api/users?role_id={other_role_id}", headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
@@ -181,7 +209,7 @@ def test_list_users_filter_by_keyword(client, engine):
     db.close()
 
     resp = client.get(
-        "/api/user?keyword=UniqueKeyword", headers=_auth_headers(admin_id)
+        "/api/users?keyword=UniqueKeyword", headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 200
     data = resp.json()["data"]
@@ -191,7 +219,7 @@ def test_list_users_filter_by_keyword(client, engine):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/user
+# POST /api/users
 # ---------------------------------------------------------------------------
 
 
@@ -211,13 +239,13 @@ def test_create_user_returns_201(client, engine):
         "password": "password123",
         "role_ids": [new_role_id],
     }
-    resp = client.post("/api/user", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/api/users", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 201
     assert resp.json()["message"] == "新增成功"
 
 
 def test_create_user_duplicate_email_returns_400(client, engine):
-    """對應 T4（重複 Email）"""
+    """對應 T4"""
     admin_id, admin_role_id, _ = _setup_admin(engine)
 
     Session_ = sessionmaker(bind=engine)
@@ -233,7 +261,7 @@ def test_create_user_duplicate_email_returns_400(client, engine):
         "password": "password123",
         "role_ids": [admin_role_id],
     }
-    resp = client.post("/api/user", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/api/users", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "此 Email 已被使用"
 
@@ -254,7 +282,7 @@ def test_create_user_short_password_returns_400(client, engine):
         "password": "1234567",  # 7 chars
         "role_ids": [role_id],
     }
-    resp = client.post("/api/user", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/api/users", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "密碼最少 8 字元"
 
@@ -269,25 +297,25 @@ def test_create_user_empty_roles_returns_400(client, engine):
         "password": "password123",
         "role_ids": [],
     }
-    resp = client.post("/api/user", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/api/users", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "角色未設定"
 
 
 def test_create_user_unauthenticated_returns_401(client, engine):
-    """未登入 POST /api/user 應回 401"""
+    """未登入 POST /api/users 應回 401"""
     payload = {
         "name": "No Auth",
         "email": "noauth@test.com",
         "password": "password123",
         "role_ids": [1],
     }
-    resp = client.post("/api/user", json=payload)
+    resp = client.post("/api/users", json=payload)
     assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
-# PATCH /api/user/{email}
+# PATCH /api/users/{email}
 # ---------------------------------------------------------------------------
 
 
@@ -304,7 +332,7 @@ def test_update_user_returns_200(client, engine):
     db.close()
 
     resp = client.patch(
-        "/api/user/target@test.com",
+        "/api/users/target@test.com",
         json={"name": "New Name"},
         headers=_auth_headers(admin_id),
     )
@@ -317,7 +345,7 @@ def test_update_user_not_found_returns_404(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.patch(
-        "/api/user/notexist@example.com",
+        "/api/users/notexist@example.com",
         json={"name": "Anyone"},
         headers=_auth_headers(admin_id),
     )
@@ -338,7 +366,7 @@ def test_update_user_short_password_returns_400(client, engine):
     db.close()
 
     resp = client.patch(
-        "/api/user/target2@test.com",
+        "/api/users/target2@test.com",
         json={"password": "1234567"},  # 7 chars
         headers=_auth_headers(admin_id),
     )
@@ -348,12 +376,12 @@ def test_update_user_short_password_returns_400(client, engine):
 
 def test_update_user_unauthenticated_returns_401(client, engine):
     """未登入 PATCH 應回 401"""
-    resp = client.patch("/api/user/any@test.com", json={"name": "x"})
+    resp = client.patch("/api/users/any@test.com", json={"name": "x"})
     assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
-# DELETE /api/user/{email}
+# DELETE /api/users/{email}
 # ---------------------------------------------------------------------------
 
 
@@ -370,13 +398,13 @@ def test_delete_user_returns_200(client, engine):
     db.close()
 
     resp = client.delete(
-        "/api/user/todelete@test.com", headers=_auth_headers(admin_id)
+        "/api/users/todelete@test.com", headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "刪除成功"
 
     # Verify user is gone from list
-    resp2 = client.get("/api/user", headers=_auth_headers(admin_id))
+    resp2 = client.get("/api/users", headers=_auth_headers(admin_id))
     emails = [u["email"] for u in resp2.json()["data"]]
     assert "todelete@test.com" not in emails
 
@@ -385,7 +413,7 @@ def test_delete_self_returns_400(client, engine):
     """對應 T10"""
     admin_id, _, _ = _setup_admin(engine)
 
-    resp = client.delete("/api/user/admin@test.com", headers=_auth_headers(admin_id))
+    resp = client.delete("/api/users/admin@test.com", headers=_auth_headers(admin_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "無法刪除自己的帳號"
 
@@ -394,38 +422,14 @@ def test_delete_user_not_found_returns_404(client, engine):
     """未存在使用者 DELETE 應回 404"""
     admin_id, _, _ = _setup_admin(engine)
 
-    resp = client.delete("/api/user/ghost@test.com", headers=_auth_headers(admin_id))
+    resp = client.delete("/api/users/ghost@test.com", headers=_auth_headers(admin_id))
     assert resp.status_code == 404
     assert resp.json()["detail"] == "使用者不存在"
 
 
 def test_delete_user_unauthenticated_returns_401(client, engine):
     """未登入 DELETE 應回 401"""
-    resp = client.delete("/api/user/any@test.com")
-    assert resp.status_code == 401
-
-
-# ---------------------------------------------------------------------------
-# GET /api/user/options  (T14, T15)
-# ---------------------------------------------------------------------------
-
-
-def test_get_user_options_returns_200(client, engine):
-    """對應 T14：已登入 GET /api/user/options 應回 200 及使用者清單"""
-    admin_id, _, _ = _setup_admin(engine)
-
-    resp = client.get("/api/user/options", headers=_auth_headers(admin_id))
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["message"] == "查詢成功"
-    assert isinstance(body["data"], list)
-    names = [u["name"] for u in body["data"]]
-    assert "Admin User" in names
-
-
-def test_get_user_options_unauthenticated_returns_401(client, engine):
-    """對應 T15：未登入 GET /api/user/options 應回 401"""
-    resp = client.get("/api/user/options")
+    resp = client.delete("/api/users/any@test.com")
     assert resp.status_code == 401
 
 
@@ -451,19 +455,3 @@ def test_get_role_options_unauthenticated_returns_401(client, engine):
     """未登入 GET /api/roles/options 應回 401"""
     resp = client.get("/api/roles/options")
     assert resp.status_code == 401
-
-
-# ---------------------------------------------------------------------------
-# Toggle endpoint removed (T6 in TDD)
-# ---------------------------------------------------------------------------
-
-
-def test_toggle_endpoint_not_found(client, engine):
-    """對應 T6 (TDD)：PATCH /api/user/{email}/toggle 端點已移除，應回 404 或 405"""
-    admin_id, _, _ = _setup_admin(engine)
-
-    resp = client.patch(
-        "/api/user/admin@test.com/toggle", headers=_auth_headers(admin_id)
-    )
-    # Endpoint no longer exists; FastAPI returns 404 for unknown routes
-    assert resp.status_code in (404, 405)

@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
-import { ICON_MAP } from '../../constants/navigation'
-import { useNavigationQuery } from '../../queries/useNavigationQuery'
 import Drawer from '@mui/material/Drawer'
 import List from '@mui/material/List'
 import ListItemButton from '@mui/material/ListItemButton'
@@ -11,6 +9,12 @@ import ListItemText from '@mui/material/ListItemText'
 import Collapse from '@mui/material/Collapse'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
@@ -26,30 +30,11 @@ const activeSx = {
 }
 
 export default function Sidebar() {
+  const [settingOpen, setSettingOpen] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { data: navFolders = [] } = useNavigationQuery()
-
-  const [openFolders, setOpenFolders] = useState({})
-
-  useEffect(() => {
-    if (navFolders.length > 0) {
-      setOpenFolders((prev) => {
-        const next = {}
-        navFolders.forEach((f) => {
-          next[f.folder_code] = prev[f.folder_code] ?? f.default_open
-        })
-        return next
-      })
-    }
-  }, [navFolders])
-
-  const allowedFunctions =
-    user && Array.isArray(user.functions) ? new Set(user.functions) : null
-
-  function handleToggleFolder(code) {
-    setOpenFolders((prev) => ({ ...prev, [code]: !prev[code] }))
-  }
+  // TODO: 等後端 users API 回傳角色後改回 role 判斷
+  const canSeeSetting = !!user
 
   return (
     <Drawer
@@ -68,7 +53,7 @@ export default function Sidebar() {
     >
       {/* Brand */}
       <Box
-        onClick={() => navigate('/fn_partner')}
+        onClick={() => navigate('/ai-partner')}
         sx={{
           px: 3,
           height: 40,
@@ -83,63 +68,102 @@ export default function Sidebar() {
 
       {/* Nav */}
       <List sx={{ flex: 1, py: 1.5 }} disablePadding>
-        {navFolders.map((folder) => {
-          const visibleItems = allowedFunctions
-            ? folder.items.filter((item) => allowedFunctions.has(item.function_code))
-            : []
-          if (visibleItems.length === 0) return null
-          const isOpen = openFolders[folder.folder_code]
-          return (
-            <Box key={folder.folder_code}>
-              <ListItemButton
-                onClick={() => handleToggleFolder(folder.folder_code)}
-                sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
-              >
-                <ListItemIcon sx={iconSx}>{ICON_MAP[folder.folder_code]}</ListItemIcon>
-                <ListItemText primary={folder.folder_label} sx={textSx} />
-                {isOpen ? (
-                  <ExpandLessIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-                ) : (
-                  <ExpandMoreIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-                )}
-              </ListItemButton>
-              <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                <List disablePadding sx={{ bgcolor: '#0b1120' }}>
-                  {visibleItems.map((item) => (
-                    <NavLink
-                      key={item.function_code}
-                      to={`/${item.function_code}`}
-                      style={{ textDecoration: 'none' }}
-                    >
-                      {({ isActive }) => (
-                        <ListItemButton
+        <NavLink to="/ai-partner" style={{ textDecoration: 'none' }}>
+          {({ isActive }) => (
+            <ListItemButton
+              sx={{
+                px: 3,
+                py: 1.2,
+                ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+              }}
+            >
+              <ListItemIcon sx={iconSx}>
+                <SmartToyOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="AI夥伴" sx={textSx} />
+            </ListItemButton>
+          )}
+        </NavLink>
+
+        <NavLink to="/kb" style={{ textDecoration: 'none' }}>
+          {({ isActive }) => (
+            <ListItemButton
+              sx={{
+                px: 3,
+                py: 1.2,
+                ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+              }}
+            >
+              <ListItemIcon sx={iconSx}>
+                <MenuBookOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="知識庫" sx={textSx} />
+            </ListItemButton>
+          )}
+        </NavLink>
+
+        {canSeeSetting && (
+          <>
+            <ListItemButton
+              onClick={() => setSettingOpen((o) => !o)}
+              sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
+            >
+              <ListItemIcon sx={iconSx}>
+                <SettingsOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="設定" sx={textSx} />
+              {settingOpen ? (
+                <ExpandLessIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+              ) : (
+                <ExpandMoreIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+              )}
+            </ListItemButton>
+            <Collapse in={settingOpen} timeout="auto" unmountOnExit>
+              <List disablePadding sx={{ bgcolor: '#0b1120' }}>
+                {[
+                  {
+                    to: '/settings/account',
+                    label: '使用者管理',
+                    icon: <PeopleAltOutlinedIcon fontSize="small" />,
+                  },
+                  {
+                    to: '/settings/role',
+                    label: '角色管理',
+                    icon: <GroupsOutlinedIcon fontSize="small" />,
+                  },
+                  {
+                    to: '/settings/ai-config',
+                    label: 'AI夥伴管理',
+                    icon: <TuneOutlinedIcon fontSize="small" />,
+                  },
+                ].map((item) => (
+                  <NavLink key={item.to} to={item.to} style={{ textDecoration: 'none' }}>
+                    {({ isActive }) => (
+                      <ListItemButton
+                        sx={{
+                          pl: 7,
+                          py: 1,
+                          ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+                        }}
+                      >
+                        <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>{item.icon}</ListItemIcon>
+                        <ListItemText
+                          primary={item.label}
                           sx={{
-                            pl: 7,
-                            py: 1,
-                            ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
+                            '& .MuiListItemText-primary': {
+                              fontSize: 13,
+                              color: isActive ? 'white' : '#94a3b8',
+                            },
                           }}
-                        >
-                          <ListItemIcon sx={{ ...iconSx, minWidth: 28 }}>
-                            {ICON_MAP[item.function_code]}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={item.function_label}
-                            sx={{
-                              '& .MuiListItemText-primary': {
-                                fontSize: 13,
-                                color: isActive ? 'white' : '#94a3b8',
-                              },
-                            }}
-                          />
-                        </ListItemButton>
-                      )}
-                    </NavLink>
-                  ))}
-                </List>
-              </Collapse>
-            </Box>
-          )
-        })}
+                        />
+                      </ListItemButton>
+                    )}
+                  </NavLink>
+                ))}
+              </List>
+            </Collapse>
+          </>
+        )}
       </List>
 
       <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #1e293b' }}>

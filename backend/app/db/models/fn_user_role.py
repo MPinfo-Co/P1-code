@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
+from typing import Optional
 
 from .base import Base
 
@@ -67,3 +68,43 @@ class TokenBlacklist(Base):
     )
 
 
+class FunctionItem(Base):
+    function_id: int
+    function_name: str
+
+    model_config = {"from_attributes": True}
+
+
+class RoleUserItem(Base):
+    id: int
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+class RoleItem(Base):
+    id: int
+    name: str
+    users: list[RoleUserItem] = []
+    functions: list[FunctionItem] = []
+
+    model_config = {"from_attributes": True}
+
+
+class RoleCreate(Base):
+    name: str
+    user_ids: Optional[list[int]] = None
+    function_ids: Optional[list[int]] = None
+
+
+class RoleUpdate(Base):
+    name: Optional[str] = None
+    user_ids: Optional[list[int]] = None
+    function_ids: Optional[list[int]] = None
+
+
+class FunctionOptionItem(Base):
+    function_id: int
+    function_name: str
+
+    model_config = {"from_attributes": True}

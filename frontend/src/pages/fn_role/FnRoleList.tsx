@@ -73,8 +73,8 @@ export default function FnRoleList() {
       field: 'name',
       headerName: '角色名稱',
       flex: 1,
-      renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{params.value}</Typography>
       ),
     },
     {
@@ -82,10 +82,10 @@ export default function FnRoleList() {
       headerName: '使用者',
       flex: 1.5,
       sortable: false,
-      renderCell: (params: GridRenderCellParams<RoleRow, RoleRow['users']>) => {
-        const userList = params.value ?? []
-        const display = userList.length > 0 ? userList.map((u) => u.name).join(', ') : '無'
-        return <Typography sx={{ fontSize: 13, color: '#64748b' }}>{display}</Typography>
+      renderCell: (params: GridRenderCellParams) => {
+        const value = params.value as RoleRow['users']
+        const names = (value ?? []).map((u) => u.name).join('、')
+        return <Typography sx={{ fontSize: 13, color: '#64748b' }}>{names || '無'}</Typography>
       },
     },
     {
@@ -93,32 +93,38 @@ export default function FnRoleList() {
       headerName: '執行動作',
       width: 160,
       sortable: false,
-      renderCell: ({ row }: { row: RoleRow }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
-            onClick={() => handleEditClick(row)}
-          >
-            修改
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            sx={{ fontSize: 12 }}
-            onClick={() => handleDeleteClick(row)}
-          >
-            刪除
-          </Button>
-        </Box>
-      ),
+      renderCell: (params: GridRenderCellParams) => {
+        const row = params.row as RoleRow
+        return (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
+              onClick={() => handleEditClick(row)}
+            >
+              修改
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              sx={{ fontSize: 12 }}
+              onClick={() => handleDeleteClick(row)}
+            >
+              刪除
+            </Button>
+          </Box>
+        )
+      },
     },
   ]
 
   return (
     <Box>
+      <Typography sx={{ fontSize: 20, fontWeight: 800, color: '#1e293b', mb: 2 }}>
+        角色管理
+      </Typography>
       {/* Filter bar */}
       <Box
         sx={{
@@ -136,7 +142,7 @@ export default function FnRoleList() {
           <Typography
             sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}
           >
-            關鍵字搜尋:
+            關鍵字:
           </Typography>
           <TextField
             size="small"
@@ -171,7 +177,7 @@ export default function FnRoleList() {
           onClick={handleAddClick}
           sx={{ ml: 'auto', height: 24, fontSize: 12, borderRadius: '3px' }}
         >
-          ＋ 新增角色
+          新增角色
         </Button>
       </Box>
 
@@ -195,7 +201,7 @@ export default function FnRoleList() {
             <DataGrid
               rows={roles}
               columns={columns}
-              getRowId={(row) => row.name}
+              getRowId={(row) => row.id}
               pageSizeOptions={[10, 25]}
               initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
               disableRowSelectionOnClick
@@ -229,15 +235,19 @@ export default function FnRoleList() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>確認刪除角色</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, color: '#b91c1c' }}>確認刪除角色</DialogTitle>
         <DialogContent>
           {deleteError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {deleteError}
             </Alert>
           )}
-          <Typography sx={{ fontSize: 14 }}>
-            確定要刪除角色「<strong>{deletingRow?.name}</strong>」嗎？此動作無法復原。
+          <Typography sx={{ fontSize: 13, color: '#475569', lineHeight: 1.6 }}>
+            確定要刪除角色「
+            <Typography component="strong" sx={{ color: '#1e293b', fontWeight: 700 }}>
+              {deletingRow?.name}
+            </Typography>
+            」嗎？此動作無法復原。
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

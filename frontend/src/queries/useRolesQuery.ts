@@ -6,18 +6,13 @@ const BASE_URL = import.meta.env.VITE_API_URL
 
 export interface FunctionOption {
   function_id: number
-  function_code: string
-}
-
-export interface RoleUser {
-  id: number
-  name: string
-  email: string
+  function_name: string
 }
 
 export interface RoleRow {
+  id: number
   name: string
-  users: RoleUser[]
+  users: { id: number; name: string }[]
   functions: FunctionOption[]
 }
 
@@ -27,13 +22,13 @@ export interface QueryParams {
 
 export interface CreateRolePayload {
   name: string
-  member_ids?: number[]
+  user_ids?: number[]
   function_ids?: number[]
 }
 
 export interface UpdateRolePayload {
   name?: string
-  member_ids?: number[]
+  user_ids?: number[]
   function_ids?: number[]
 }
 
@@ -59,21 +54,6 @@ export function useRolesQuery(params: QueryParams = {}) {
   })
 }
 
-export function useFunctionOptionsQuery() {
-  return useQuery<FunctionOption[]>({
-    queryKey: ['functionOptions'],
-    queryFn: async () => {
-      const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/functions/options`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('功能選項載入失敗')
-      const json = await res.json()
-      return json.data ?? json
-    },
-  })
-}
-
 export function useCreateRole() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -87,7 +67,7 @@ export function useCreateRole() {
         },
         body: JSON.stringify({
           name: payload.name,
-          user_ids: payload.member_ids ?? [],
+          user_ids: payload.user_ids ?? [],
           function_ids: payload.function_ids ?? [],
         }),
       })
@@ -105,13 +85,13 @@ export function useCreateRole() {
 export function useUpdateRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ roleName, payload }: { roleName: string; payload: UpdateRolePayload }) => {
+    mutationFn: async ({ name, payload }: { name: string; payload: UpdateRolePayload }) => {
       const token = getToken()
       const body: Record<string, unknown> = {}
       if (payload.name !== undefined) body.name = payload.name
-      if (payload.member_ids !== undefined) body.user_ids = payload.member_ids
+      if (payload.user_ids !== undefined) body.user_ids = payload.user_ids
       if (payload.function_ids !== undefined) body.function_ids = payload.function_ids
-      const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(roleName)}`, {
+      const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(name)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -133,9 +113,9 @@ export function useUpdateRole() {
 export function useDeleteRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (roleName: string) => {
+    mutationFn: async (name: string) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(roleName)}`, {
+      const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(name)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })

@@ -9,15 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from .logger_utils import get_system_logger
-from .api.auth import router as auth_router
-from .api.events import router as events_router
-from .api.health import router as health_router
-from .api.ingest import router as ingest_router
-from .api.navigation import router as navigation_router
-from .api.roles import functions_router, router as roles_router
-from .api.user import router as user_router, users_router
-from .middlewares.request_response_handler import RequestResponseHandlerMiddleware
+from app.logger_utils import get_system_logger
+from app.api.auth import router as auth_router
+from app.api.events import router as events_router
+from app.api.health import router as health_router
+from app.api.ingest import router as ingest_router
+from app.api.navigation import router as navigation_router
+from app.api.roles import functions_router, router as roles_router
+from app.api.user import router as user_router, users_router
+from app.middlewares.request_response_handler import RequestResponseHandlerMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,6 +66,7 @@ def create_app():
     )
     server.add_middleware(RequestResponseHandlerMiddleware)
 
+
     server.include_router(auth_router)
     server.include_router(events_router)
     server.include_router(health_router)
@@ -75,6 +76,7 @@ def create_app():
     server.include_router(roles_router)
     server.include_router(functions_router)
     server.include_router(navigation_router)
+
 
     return server
 

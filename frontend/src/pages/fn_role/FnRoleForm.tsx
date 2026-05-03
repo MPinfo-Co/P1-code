@@ -10,9 +10,10 @@ import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
-import { useCreateRole, useUpdateRole, useFunctionOptionsQuery } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
+import { useCreateRole, useUpdateRole } from '@/queries/useRolesQuery'
 import { useUserOptionsQuery } from '@/queries/useUserOptionsQuery'
+import { useFunctionOptionsQuery } from '@/queries/useFunctionOptionsQuery'
 
 interface Props {
   open: boolean
@@ -22,64 +23,61 @@ interface Props {
 }
 
 export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
-  const isEdit = !!row
+  const isEdit = row !== null
 
-  const [roleName, setRoleName] = useState(() => row?.name ?? '')
-  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>(
-    () => row?.users.map((u) => u.id) ?? []
+  const [roleName, setRoleName] = useState<string>(() => row?.name ?? '')
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>(() =>
+    row ? row.users.map((u) => u.id) : []
   )
-  const [selectedFunctionIds, setSelectedFunctionIds] = useState<number[]>(
-    () => row?.functions.map((f) => f.function_id) ?? []
+  const [selectedFunctionIds, setSelectedFunctionIds] = useState<number[]>(() =>
+    row ? row.functions.map((f) => f.function_id) : []
   )
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
-  const { data: allFunctions = [] } = useFunctionOptionsQuery()
+  const { data: functionOptions = [] } = useFunctionOptionsQuery()
 
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
 
   const isPending = createRole.isPending || updateRole.isPending
 
-  function toggleMember(id: number) {
-    setSelectedMemberIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
+  function handleToggleUser(id: number) {
+    setSelectedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
-  function toggleAllMembers() {
+  function handleToggleAllUsers() {
     const allIds = userOptions.map((u) => u.id)
-    const isAllSelected = allIds.every((id) => selectedMemberIds.includes(id))
-    setSelectedMemberIds(isAllSelected ? [] : allIds)
+    const isAllSelected = allIds.every((id) => selectedUserIds.includes(id))
+    setSelectedUserIds(isAllSelected ? [] : allIds)
   }
 
-  function toggleFunction(functionId: number) {
+  function handleToggleFunction(id: number) {
     setSelectedFunctionIds((prev) =>
-      prev.includes(functionId) ? prev.filter((id) => id !== functionId) : [...prev, functionId]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
   }
 
   async function handleSave() {
     setFormError(null)
     if (!roleName.trim()) {
-      setFormError('請輸入角色名稱')
+      setFormError('角色名稱未填寫')
       return
     }
-
     try {
       if (isEdit && row) {
         await updateRole.mutateAsync({
-          roleName: row.name,
+          name: row.name,
           payload: {
             name: roleName.trim(),
-            member_ids: selectedMemberIds,
+            user_ids: selectedUserIds,
             function_ids: selectedFunctionIds,
           },
         })
       } else {
         await createRole.mutateAsync({
           name: roleName.trim(),
-          member_ids: selectedMemberIds,
+          user_ids: selectedUserIds,
           function_ids: selectedFunctionIds,
         })
       }
@@ -95,7 +93,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
       <DialogContent sx={{ pt: '16px !important' }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {formError && (
-            <Alert severity="error" onClose={() => setFormError(null)}>
+            <Alert severity="error" sx={{ mb: 0 }}>
               {formError}
             </Alert>
           )}
@@ -110,7 +108,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
               size="small"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
-              placeholder="請輸入角色名稱"
+              placeholder="輸入角色名稱"
               sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
             />
           </Box>
@@ -129,7 +127,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
               <Button
                 size="small"
                 variant="outlined"
-                onClick={toggleAllMembers}
+                onClick={handleToggleAllUsers}
                 sx={{
                   fontSize: 12,
                   borderColor: '#cbd5e1',
@@ -147,7 +145,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                 borderRadius: 2,
                 p: 0.5,
                 bgcolor: '#f8fafc',
-                maxHeight: 140,
+                maxHeight: 110,
                 overflowY: 'auto',
               }}
             >
@@ -169,64 +167,59 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                 >
                   <input
                     type="checkbox"
-                    checked={selectedMemberIds.includes(u.id)}
-                    onChange={() => toggleMember(u.id)}
+                    checked={selectedUserIds.includes(u.id)}
+                    onChange={() => handleToggleUser(u.id)}
                     style={{ width: 15, height: 15, accentColor: '#2e3f6e' }}
                   />
-                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
-                    {u.name}
-                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: '#1e293b' }}>{u.name}</Typography>
                 </Box>
               ))}
+              {userOptions.length === 0 && (
+                <Typography sx={{ fontSize: 13, color: '#94a3b8', p: '8px 10px' }}>
+                  無可用使用者
+                </Typography>
+              )}
             </Box>
           </Box>
 
           {/* 功能權限 */}
-          <Box>
-            <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 1 }}>
+          <Box sx={{ p: 1.75, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+            <Typography sx={{ fontWeight: 700, mb: 1.5, color: '#1e293b', fontSize: 14 }}>
               功能權限
             </Typography>
-            <Box
-              sx={{
-                border: '1px solid #e2e8f0',
-                borderRadius: 2,
-                p: 0.5,
-                bgcolor: '#f8fafc',
-              }}
-            >
-              {allFunctions.map((fn, i) => (
-                <Box
-                  key={fn.function_id}
-                  component="label"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.25,
-                    p: 1,
-                    borderRadius: 1.5,
-                    bgcolor: 'white',
-                    border: '1px solid #e2e8f0',
-                    mb: i < allFunctions.length - 1 ? 0.5 : 0,
-                    cursor: 'pointer',
-                  }}
+            {functionOptions.map((fn, i) => (
+              <Box
+                key={fn.function_id}
+                component="label"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  p: 1,
+                  borderRadius: 1.5,
+                  bgcolor: 'white',
+                  border: '1px solid #e2e8f0',
+                  mb: i < functionOptions.length - 1 ? 1 : 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedFunctionIds.includes(fn.function_id)}
+                  onChange={() => handleToggleFunction(fn.function_id)}
+                  style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
+                />
+                <Typography
+                  component="strong"
+                  sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedFunctionIds.includes(fn.function_id)}
-                    onChange={() => toggleFunction(fn.function_id)}
-                    style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
-                  />
-                  <Box>
-                    <Typography
-                      component="strong"
-                      sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
-                    >
-                      {fn.function_code}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
+                  {fn.function_name}
+                </Typography>
+              </Box>
+            ))}
+            {functionOptions.length === 0 && (
+              <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無可用功能選項</Typography>
+            )}
           </Box>
         </Box>
       </DialogContent>
@@ -237,8 +230,8 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={isPending}
           sx={{ bgcolor: '#2e3f6e', '&:hover': { bgcolor: '#1e2d52' } }}
+          disabled={isPending}
         >
           {isPending ? <CircularProgress size={18} color="inherit" /> : '儲存'}
         </Button>
