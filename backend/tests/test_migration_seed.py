@@ -7,9 +7,9 @@ from sqlalchemy import text
 
 _MIGRATION_PATH = (
     Path(__file__).parent.parent
-    / "alembic"
+    / "bpBoxAlembic"
     / "versions"
-    / "538d0579a48c_seed_initial_roles_and_admin.py"
+    / "31cf8ba73762_recreate_tables.py"
 )
 
 
@@ -61,13 +61,13 @@ def test_seed_idempotent(engine):
 
     with engine.connect() as conn:
         admin_role_count = conn.execute(
-            text("SELECT COUNT(*) FROM roles WHERE name = 'admin'")
+            text("SELECT COUNT(*) FROM tb_roles WHERE name = 'Admin'")
         ).scalar()
         user_role_count = conn.execute(
-            text("SELECT COUNT(*) FROM roles WHERE name = 'user'")
+            text("SELECT COUNT(*) FROM tb_roles WHERE name = 'User'")
         ).scalar()
         admin_user_count = conn.execute(
-            text("SELECT COUNT(*) FROM users WHERE email = 'admin@mpinfo.com.tw'")
+            text("SELECT COUNT(*) FROM tb_users WHERE email = 'admin@mpinfo.com.tw'")
         ).scalar()
 
     assert admin_role_count == 1

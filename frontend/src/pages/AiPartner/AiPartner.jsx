@@ -61,7 +61,7 @@ export default function AiPartner() {
               }}
             >
               <CardActionArea
-                onClick={() => !partner.disabled && navigate(`/ai-partner/${partner.id}/issues`)}
+                onClick={() => !partner.disabled && navigate(`/fn_partner/${partner.id}/issues`)}
                 sx={{ p: 4, textAlign: 'center' }}
               >
                 <SmartToyOutlinedIcon sx={{ fontSize: 48, color: '#2e3f6e', mb: 1.5 }} />

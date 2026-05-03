@@ -28,6 +28,7 @@ _CHANNEL_CONFIGS: dict = _CONFIG_DATA["channels"]
 
 _system_sink_id: int | None = None
 _service_sink_id: int | None = None
+_error_sink_id: int | None = None
 _user_sink_ids_by_user_id: dict[int, int] = {}
 _user_sink_registration_lock: Lock = Lock()
 
@@ -94,6 +95,39 @@ def get_service_logger():
             "service", log_file_path, _DEFAULT_LOG_FORMAT, channel_config["level"]
         )
     return logger.bind(log_type="service")
+
+
+def get_error_logger():
+    """Return a logger bound to the error channel (lazy sink install).
+
+    Captures exceptions raised during request handling. The caller should
+    use `logger.exception(...)` (or pass `exc_info=True`) to include the
+    traceback in the record. Rotates every day at 00:00 and retains for
+    one year.
+
+    Returns:
+        A `loguru.Logger` bound with `log_type="error"`.
+    """
+    global _error_sink_id
+    if _error_sink_id is None:
+        channel_config = _CHANNEL_CONFIGS["error"]
+        log_file_path = (
+            _LOG_ROOT_DIRECTORY / channel_config["subdir"] / channel_config["filename"]
+        )
+        _ensure_directory_exists(log_file_path.parent)
+        _error_sink_id = logger.add(
+            log_file_path,
+            level=channel_config["level"],
+            rotation="00:00",
+            retention="1 year",
+            format=_DEFAULT_LOG_FORMAT,
+            filter=lambda record: record["extra"].get("log_type") == "error",
+            enqueue=True,
+            encoding="utf-8",
+            backtrace=True,
+            diagnose=True,
+        )
+    return logger.bind(log_type="error")
 
 
 def _register_user_sink(user_id: int, log_level: str, log_file_path: Path) -> int:
