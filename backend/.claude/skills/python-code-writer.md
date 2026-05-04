@@ -19,4 +19,4 @@ Generate code fits logic of the project
    - Minium variable re-assign to another variable
    - Keep variable readable
    - Log out critical point of code execution by logger in @app/logger_utils/ 
-7. **Docstring**: In every generated functions, add docstring with google-style
+7. **Docstring**: In every generated functions, add docstring with google-style is a must

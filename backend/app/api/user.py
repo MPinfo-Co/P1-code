@@ -18,19 +18,18 @@ from app.api.schema.user import (
     UserUpdateRequest,
 )
 from app.db.connector import get_db
-from app.db.models import User, UserRole
-from app.db.models.fn_navbar import Function, RoleFunction
+from app.db.models.user_role import User, UserRole
+from app.db.models.function_access import FunctionItems, RoleFunction
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate, hash_password
 
-router = APIRouter(prefix="/api/user", tags=["user"])
-users_router = APIRouter(prefix="/api/users", tags=["users"])
+router = APIRouter(prefix="/user", tags=["user"])
 system_logger = get_system_logger()
 
 FN_USER_NAME = "fn_user"
 
 
-@users_router.get("/me", response_model=UserMeResponse)
+@router.get("/me", response_model=UserMeResponse)
 def get_me(
     auth: AuthContext = Depends(authenticate),
     db: Session = Depends(get_db),

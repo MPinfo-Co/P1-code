@@ -11,8 +11,8 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
-from app.db.models.fn_navbar import Function, FunctionFolder, RoleFunction
-from app.db.models.fn_user_role import Role, TokenBlacklist, User, UserRole
+from app.db.models.function_access import Function, FunctionFolder, RoleFunction
+from app.db.models.user_role import Role, TokenBlacklist, User, UserRole
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 

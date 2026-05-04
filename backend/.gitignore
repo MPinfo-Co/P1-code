@@ -3,6 +3,5 @@ venv/
 .venv/
 __pycache__/
 *.pyc
-app/.claude
 logs/
 

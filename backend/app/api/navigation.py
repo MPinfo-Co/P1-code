@@ -5,10 +5,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.connector import get_db
-from app.db.models.fn_navbar import Function, FunctionFolder
+from app.db.models.function_access import FunctionItems, FunctionFolder
 from app.utils.util_store import AuthContext, authenticate
 
-router = APIRouter(prefix="/api/navigation", tags=["navigation"])
+router = APIRouter(prefix="/navigation", tags=["navigation"])
 
 
 class NavFunctionItem(BaseModel):
@@ -40,9 +40,9 @@ def get_navigation(
     result = []
     for folder in folders:
         fns = (
-            db.query(Function)
-            .filter(Function.folder_id == folder.id)
-            .order_by(Function.sort_order.asc())
+            db.query(FunctionItems)
+            .filter(FunctionItems.folder_id == folder.id)
+            .order_by(FunctionItems.sort_order.asc())
             .all()
         )
         result.append(

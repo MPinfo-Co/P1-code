@@ -15,7 +15,7 @@ from app.api.schema.events import (
     EventUpdateRequest,
 )
 from app.db.connector import get_db
-from app.db.models import EventHistory, SecurityEvent
+from app.db.models.events import EventHistory, SecurityEvent
 from app.utils.util_store import AuthContext, authenticate, parse_iso_date
 
 router = APIRouter(prefix="/events", tags=["events"])

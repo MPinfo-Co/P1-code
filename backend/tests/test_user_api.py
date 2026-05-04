@@ -11,8 +11,8 @@ Tests for fn_user APIs:
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.utils.util_store import create_access_token, hash_password
-from app.db.models.fn_navbar import Function, FunctionFolder, RoleFunction
-from app.db.models.fn_user_role import Role, User, UserRole
+from app.db.models.function_access import Function, FunctionFolder, RoleFunction
+from app.db.models.user_role import Role, User, UserRole
 
 
 # ---------------------------------------------------------------------------

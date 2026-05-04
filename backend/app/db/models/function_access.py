@@ -20,10 +20,10 @@ class FunctionFolder(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
-class Function(Base):
+class FunctionItems(Base):
     """系統功能清單，每筆對應一個 Navbar 功能項目。"""
 
-    __tablename__ = "tb_functions"
+    __tablename__ = "tb_function_items"
 
     function_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     function_code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)

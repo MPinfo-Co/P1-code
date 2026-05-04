@@ -10,7 +10,7 @@ from app.logger_utils import get_system_logger
 from app.api.schema.auth import LoginRequest, LoginResponse, LogoutResponse
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models import TokenBlacklist, User
+from app.db.models.user_role import TokenBlacklist, User
 from app.utils.util_store import (
     AuthContext,
     authenticate,
@@ -18,7 +18,7 @@ from app.utils.util_store import (
     verify_password,
 )
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 system_logger = get_system_logger()
 
 @router.post("/login", response_model=LoginResponse)

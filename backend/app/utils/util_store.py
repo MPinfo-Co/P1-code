@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models import TokenBlacklist
+from app.db.models.user_role import TokenBlacklist
 
 oauth2_scheme = HTTPBearer()
 

@@ -14,13 +14,12 @@ from app.api.schema.roles import (
     RoleUpdateOut,
 )
 from app.db.connector import get_db
-from app.db.models.fn_navbar import Function, RoleFunction
-from app.db.models.fn_user_role import Role, User, UserRole
+from app.db.models.function_access import FunctionItems, RoleFunction
+from app.db.models.user_role import Role, User, UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
 
-router = APIRouter(prefix="/api/roles", tags=["roles"])
-functions_router = APIRouter(prefix="/api/functions", tags=["functions"])
+router = APIRouter(prefix="/roles", tags=["roles"])
 system_logger = get_system_logger()
 
 FN_ROLE_NAME = "fn_role"
@@ -218,15 +217,4 @@ def get_role_options(
     """Return all roles as lightweight [{ id, name }] for dropdowns."""
     rows = db.query(Role).order_by(Role.name.asc()).all()
     items = [{"id": r.id, "name": r.name} for r in rows]
-    return {"message": "查詢成功", "data": items}
-
-
-@functions_router.get("/options", response_model=None)
-def get_function_options(
-    db: Session = Depends(get_db),
-    auth: AuthContext = Depends(authenticate),
-):
-    """Return all functions as lightweight [{ function_id, function_name }] sorted by function_id."""
-    rows = db.query(Function).order_by(Function.function_id.asc()).all()
-    items = [{"function_id": f.function_id, "function_code": f.function_code} for f in rows]
     return {"message": "查詢成功", "data": items}

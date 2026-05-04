@@ -80,21 +80,21 @@ def get_system_logger():
 
 
 def get_service_logger():
-    """Return a logger bound to the service channel (lazy sink install).
+    """Return a logger bound to the tasks channel (lazy sink install).
 
     Returns:
-        A `loguru.Logger` bound with `log_type="service"`.
+        A `loguru.Logger` bound with `log_type="tasks"`.
     """
     global _service_sink_id
     if _service_sink_id is None:
-        channel_config = _CHANNEL_CONFIGS["service"]
+        channel_config = _CHANNEL_CONFIGS["tasks"]
         log_file_path = (
             _LOG_ROOT_DIRECTORY / channel_config["subdir"] / channel_config["filename"]
         )
         _service_sink_id = _register_channel_sink(
-            "service", log_file_path, _DEFAULT_LOG_FORMAT, channel_config["level"]
+            "task", log_file_path, _DEFAULT_LOG_FORMAT, channel_config["level"]
         )
-    return logger.bind(log_type="service")
+    return logger.bind(log_type="tasks")
 
 
 def get_error_logger():
