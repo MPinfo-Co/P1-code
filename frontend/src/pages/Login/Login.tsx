@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../stores/authStore'
+import { useAuth } from '@/stores/authStore'
 import { Box, Paper, Typography, TextField, Button, Alert } from '@mui/material'
+import './Login.css'
 
 export default function Login() {
   const { login } = useAuth()
@@ -11,7 +12,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -19,34 +20,19 @@ export default function Login() {
       await login(email, password)
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : '登入失敗')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1e2d52 0%, #2e3f6e 100%)',
-      }}
-    >
-      <Paper
-        elevation={24}
-        sx={{ p: 6, width: '100%', maxWidth: 430, textAlign: 'center', borderRadius: 3 }}
-      >
+    <Box className="login-root">
+      <Paper elevation={24} className="login-paper">
         <Typography variant="h3" fontWeight={900} color="text.primary" mb={4}>
           MP-Box
         </Typography>
-        <Box
-          component="form"
-          onSubmit={handleSubmit}
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}
-        >
+        <Box component="form" onSubmit={handleSubmit} className="login-form">
           <TextField
             label="Email"
             type="email"

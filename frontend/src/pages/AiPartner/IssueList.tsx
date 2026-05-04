@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -20,8 +20,9 @@ import Popover from '@mui/material/Popover'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined'
+import './IssueList.css'
 
-const STAR_COLOR = {
+const STAR_COLOR: Record<number, string> = {
   5: '#b91c1c',
   4: '#c2410c',
   3: '#b45309',
@@ -29,14 +30,14 @@ const STAR_COLOR = {
   1: '#475569',
 }
 
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<string, string> = {
   pending: '未處理',
   investigating: '處理中',
   resolved: '已處理',
   dismissed: '擱置',
 }
 
-const STATUS_ICON = {
+const STATUS_ICON: Record<string, React.ReactElement> = {
   pending: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
       <circle cx="12" cy="12" r="10" />
@@ -63,13 +64,33 @@ const STATUS_ICON = {
   ),
 }
 
-function formatDetectionCount(count) {
+interface EventRow {
+  id: number | string
+  title: string
+  star_rank: number
+  event_date: string
+  date_end?: string
+  detection_count?: number
+  affected_summary: string
+  affected_detail?: string
+  current_status: string
+  assignee_user_id?: number | null
+}
+
+interface AppliedFilters {
+  status: string
+  keyword: string
+  start: string
+  end: string
+}
+
+function formatDetectionCount(count: number) {
   if (!count) return ''
   if (count >= 10000) return `發生 ${(count / 10000).toFixed(1)} 萬次`
   return `發生 ${count.toLocaleString()} 次`
 }
 
-function formatDesc(text) {
+function formatDesc(text: string | null) {
   if (!text) return null
   const segments = text.split(/(?=【)/)
   return segments.map((seg, i) => {
@@ -112,7 +133,7 @@ export default function IssueList() {
   const [filterKeyword, setFilterKeyword] = useState('')
   const [filterStart, setFilterStart] = useState('')
   const [filterEnd, setFilterEnd] = useState('')
-  const [applied, setApplied] = useState({
+  const [applied, setApplied] = useState<AppliedFilters>({
     status: '_default',
     keyword: '',
     start: '',
@@ -121,20 +142,19 @@ export default function IssueList() {
   const [page, setPage] = useState(1)
   const pageSize = 10
 
-  const [rows, setRows] = useState([])
+  const [rows, setRows] = useState<EventRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
-  // Popover state
-  const [popoverAnchor, setPopoverAnchor] = useState(null)
+  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null)
   const [popoverContent, setPopoverContent] = useState('')
 
   const fetchEvents = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams({ page, page_size: pageSize })
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
       if (applied.status === '_default') params.set('status', 'pending,investigating')
       else if (applied.status !== 'all') params.set('status', applied.status)
       if (applied.keyword) params.set('keyword', applied.keyword)
@@ -150,13 +170,14 @@ export default function IssueList() {
       setRows(data.items)
       setTotal(data.total)
     } catch (e) {
-      setError(e.message)
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
   }, [applied, page])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents()
   }, [fetchEvents])
 
@@ -179,7 +200,7 @@ export default function IssueList() {
     setApplied({ status: '_default', keyword: '', start: '', end: '' })
   }
 
-  function handlePopoverOpen(e, row) {
+  function handlePopoverOpen(e: React.MouseEvent<HTMLElement>, row: EventRow) {
     e.stopPropagation()
     setPopoverAnchor(e.currentTarget)
     setPopoverContent(row.affected_detail || row.affected_summary)
@@ -188,24 +209,9 @@ export default function IssueList() {
   const totalPages = Math.ceil(total / pageSize)
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: 'calc(100vh - 110px)',
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 2,
-          flexShrink: 0,
-        }}
-      >
-        <Typography variant="h5" sx={{ fontWeight: 800, color: '#1e293b' }}>
+    <Box className="issue-list-root">
+      <Box className="issue-list-header">
+        <Typography variant="h5" className="issue-list-title">
           安全事件清單
         </Typography>
         <Button
@@ -213,28 +219,14 @@ export default function IssueList() {
           startIcon={<ArrowBackOutlinedIcon />}
           size="small"
           onClick={() => navigate('/fn_partner')}
-          sx={{ color: '#64748b', borderColor: '#cbd5e1' }}
+          className="issue-list-back-btn"
         >
           回上一頁
         </Button>
       </Box>
 
-      {/* Filter bar */}
-      <Box
-        sx={{
-          bgcolor: 'white',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          p: 2,
-          mb: 2,
-          flexShrink: 0,
-          display: 'flex',
-          gap: 2,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+      <Box className="issue-list-filter-bar">
+        <FormControl size="small" className="issue-list-filter-status">
           <InputLabel>處理狀態</InputLabel>
           <Select
             value={filterStatus}
@@ -249,85 +241,54 @@ export default function IssueList() {
             ))}
           </Select>
         </FormControl>
-        <Typography sx={{ fontSize: 14, color: '#475569', whiteSpace: 'nowrap' }}>
-          發生日期:
-        </Typography>
+        <Typography className="issue-list-filter-label">發生日期:</Typography>
         <TextField
           size="small"
           type="date"
           value={filterStart}
           onChange={(e) => setFilterStart(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          sx={{ width: 150 }}
+          className="issue-list-date"
         />
-        <Typography sx={{ fontSize: 14, color: '#94a3b8' }}>至</Typography>
+        <Typography className="issue-list-filter-sep">至</Typography>
         <TextField
           size="small"
           type="date"
           value={filterEnd}
           onChange={(e) => setFilterEnd(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          sx={{ width: 150 }}
+          className="issue-list-date"
         />
-        <Typography sx={{ fontSize: 14, color: '#475569', whiteSpace: 'nowrap' }}>
-          關鍵字:
-        </Typography>
+        <Typography className="issue-list-filter-label">關鍵字:</Typography>
         <TextField
           size="small"
           placeholder="搜尋事件說明..."
           value={filterKeyword}
           onChange={(e) => setFilterKeyword(e.target.value)}
-          sx={{ width: 200 }}
+          className="issue-list-keyword"
         />
-        <Button
-          variant="outlined"
-          onClick={applyFilters}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', fontWeight: 600 }}
-        >
+        <Button variant="outlined" onClick={applyFilters} className="issue-list-apply-btn">
           套用
         </Button>
-        <Button variant="text" onClick={resetFilters} sx={{ color: '#64748b' }}>
+        <Button variant="text" onClick={resetFilters} className="issue-list-reset-btn">
           重設
         </Button>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2, flexShrink: 0 }}>
+        <Alert severity="error" className="issue-list-error">
           載入失敗：{error}
         </Alert>
       )}
 
-      {/* Table */}
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          bgcolor: 'white',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'relative',
-        }}
-      >
+      <Box className="issue-list-table-wrap">
         {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1,
-              bgcolor: 'rgba(255,255,255,0.7)',
-            }}
-          >
+          <Box className="issue-list-loading">
             <CircularProgress size={32} />
           </Box>
         )}
 
-        <TableContainer sx={{ flex: 1, overflowY: 'auto' }}>
+        <TableContainer className="issue-list-table-container">
           <Table stickyHeader>
             <TableHead>
               <TableRow>
@@ -340,16 +301,7 @@ export default function IssueList() {
                   '負責人員',
                   '執行動作',
                 ].map((label) => (
-                  <TableCell
-                    key={label}
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: 15,
-                      color: '#1e293b',
-                      bgcolor: '#f1f5f9',
-                      borderBottom: '2px solid #cbd5e1',
-                    }}
-                  >
+                  <TableCell key={label} className="issue-list-th">
                     {label}
                   </TableCell>
                 ))}
@@ -358,15 +310,7 @@ export default function IssueList() {
             <TableBody>
               {rows.length === 0 && !loading ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    sx={{
-                      textAlign: 'center',
-                      py: 6,
-                      color: '#94a3b8',
-                      fontSize: 14,
-                    }}
-                  >
+                  <TableCell colSpan={7} className="issue-list-empty-cell">
                     尚無安全事件
                   </TableCell>
                 </TableRow>
@@ -378,55 +322,34 @@ export default function IssueList() {
                       key={row.id}
                       hover
                       onClick={() => navigate(`/fn_partner/${partnerId}/issues/${row.id}`)}
-                      sx={{
-                        cursor: 'pointer',
-                        '&:hover': { bgcolor: '#f8fafc' },
-                      }}
+                      className="issue-list-row"
                     >
-                      {/* 事件說明 */}
-                      <TableCell sx={{ fontWeight: 600, fontSize: 15, color: '#334155' }}>
-                        {row.title}
-                      </TableCell>
+                      <TableCell className="issue-list-cell-title">{row.title}</TableCell>
 
-                      {/* 處理優先級 */}
                       <TableCell>
-                        <Box sx={{ whiteSpace: 'nowrap' }}>
-                          <span
-                            style={{
-                              color: starColor,
-                              fontSize: 15,
-                              letterSpacing: 1,
-                            }}
-                          >
+                        <Box className="issue-list-stars">
+                          <span className="issue-list-stars-on" style={{ color: starColor }}>
                             {'★'.repeat(row.star_rank)}
                           </span>
-                          <span
-                            style={{
-                              color: '#e2e8f0',
-                              fontSize: 15,
-                              letterSpacing: 1,
-                            }}
-                          >
+                          <span className="issue-list-stars-off">
                             {'★'.repeat(5 - row.star_rank)}
                           </span>
                         </Box>
                       </TableCell>
 
-                      {/* 發生期間 + 偵測筆數 */}
                       <TableCell>
-                        <Typography sx={{ fontSize: 14, color: '#334155' }}>
+                        <Typography className="issue-list-period">
                           {row.date_end && row.date_end !== row.event_date
                             ? `${row.event_date} ~ ${row.date_end}`
                             : row.event_date}
                         </Typography>
-                        {row.detection_count > 0 && (
-                          <Typography sx={{ fontSize: 12, color: '#94a3b8', mt: 0.25 }}>
+                        {row.detection_count != null && row.detection_count > 0 && (
+                          <Typography className="issue-list-detection">
                             {formatDetectionCount(row.detection_count)}
                           </Typography>
                         )}
                       </TableCell>
 
-                      {/* 影響範圍（可點擊 popover） */}
                       <TableCell>
                         <Chip
                           icon={
@@ -445,15 +368,8 @@ export default function IssueList() {
                           label={row.affected_summary}
                           size="small"
                           onClick={(e) => handlePopoverOpen(e, row)}
+                          className="issue-list-affected-chip"
                           sx={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            bgcolor: '#f1f5f9',
-                            color: '#475569',
-                            border: '1px solid #e2e8f0',
-                            cursor: 'pointer',
-                            '&:hover': { bgcolor: '#e2e8f0' },
-                            maxWidth: 170,
                             '& .MuiChip-label': {
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -462,35 +378,23 @@ export default function IssueList() {
                         />
                       </TableCell>
 
-                      {/* 處理狀態 */}
                       <TableCell>
-                        <Box
-                          sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: '#334155',
-                          }}
-                        >
+                        <Box className="issue-list-status">
                           {STATUS_ICON[row.current_status] || STATUS_ICON.dismissed}
                           {STATUS_LABEL[row.current_status] || row.current_status}
                         </Box>
                       </TableCell>
 
-                      {/* 負責人員 */}
-                      <TableCell sx={{ fontSize: 14, color: '#334155' }}>
+                      <TableCell className="issue-list-cell-default">
                         {row.assignee_user_id ? (
                           `User #${row.assignee_user_id}`
                         ) : (
-                          <Typography component="span" sx={{ color: '#94a3b8', fontSize: 14 }}>
+                          <Typography component="span" className="issue-list-unassigned">
                             未指派
                           </Typography>
                         )}
                       </TableCell>
 
-                      {/* 執行動作 */}
                       <TableCell>
                         <Button
                           size="small"
@@ -499,12 +403,8 @@ export default function IssueList() {
                             e.stopPropagation()
                             navigate(`/fn_partner/${partnerId}/issues/${row.id}`)
                           }}
-                          sx={{
-                            fontSize: 13.5,
-                            py: 0.5,
-                            bgcolor: '#2e3f6e',
-                            '&:hover': { bgcolor: '#1e2d52' },
-                          }}
+                          className="issue-list-action-btn"
+                          sx={{ py: 0.5 }}
                         >
                           事件處理
                         </Button>
@@ -517,17 +417,8 @@ export default function IssueList() {
           </Table>
         </TableContainer>
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              py: 1.5,
-              borderTop: '1px solid #e2e8f0',
-              flexShrink: 0,
-            }}
-          >
+          <Box className="issue-list-pagination-wrap">
             <Pagination
               count={totalPages}
               page={page}
@@ -545,7 +436,6 @@ export default function IssueList() {
         )}
       </Box>
 
-      {/* Affected Popover */}
       <Popover
         open={Boolean(popoverAnchor)}
         anchorEl={popoverAnchor}
@@ -563,9 +453,7 @@ export default function IssueList() {
           },
         }}
       >
-        <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#64748b', mb: 1 }}>
-          完整影響範圍
-        </Typography>
+        <Typography className="issue-list-popover-title">完整影響範圍</Typography>
         {formatDesc(popoverContent)}
       </Popover>
     </Box>

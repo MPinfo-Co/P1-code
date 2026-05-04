@@ -15,6 +15,7 @@ import DialogActions from '@mui/material/DialogActions'
 import { useRolesQuery, useDeleteRole } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
 import FnRoleForm from './FnRoleForm'
+import './FnRoleList.css'
 
 interface AppliedFilter {
   keyword?: string
@@ -94,11 +95,11 @@ export default function FnRoleList() {
       width: 160,
       sortable: false,
       renderCell: ({ row }: { row: RoleRow }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box className="fn-role-actions-cell">
           <Button
             size="small"
             variant="outlined"
-            sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
+            className="fn-role-action-btn"
             onClick={() => handleEditClick(row)}
           >
             修改
@@ -107,7 +108,7 @@ export default function FnRoleList() {
             size="small"
             variant="outlined"
             color="error"
-            sx={{ fontSize: 12 }}
+            className="fn-role-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
             刪除
@@ -119,25 +120,9 @@ export default function FnRoleList() {
 
   return (
     <Box>
-      {/* Filter bar */}
-      <Box
-        sx={{
-          bgcolor: '#f1f5f9',
-          borderRadius: '4px',
-          padding: '3px 12px',
-          mb: '5px',
-          display: 'flex',
-          gap: 2,
-          flexWrap: 'nowrap',
-          alignItems: 'center',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography
-            sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}
-          >
-            關鍵字搜尋:
-          </Typography>
+      <Box className="fn-role-filter-bar">
+        <Box className="fn-role-filter-group">
+          <Typography className="fn-role-filter-label">關鍵字搜尋:</Typography>
           <TextField
             size="small"
             placeholder="搜尋角色名稱..."
@@ -151,44 +136,25 @@ export default function FnRoleList() {
             }}
           />
         </Box>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={handleApply}
-          sx={{
-            borderColor: '#2e3f6e',
-            color: '#2e3f6e',
-            borderRadius: '3px',
-            height: 24,
-            fontSize: 12,
-          }}
-        >
+        <Button variant="outlined" size="small" onClick={handleApply} className="fn-role-apply-btn">
           套用
         </Button>
         <Button
           variant="contained"
           size="small"
           onClick={handleAddClick}
-          sx={{ ml: 'auto', height: 24, fontSize: 12, borderRadius: '3px' }}
+          className="fn-role-add-btn"
         >
           ＋ 新增角色
         </Button>
       </Box>
 
-      {/* Data table */}
       {error ? (
         <Alert severity="error">載入失敗：{(error as Error).message}</Alert>
       ) : (
-        <Box
-          sx={{
-            bgcolor: 'white',
-            borderRadius: '4px',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-          }}
-        >
+        <Box className="fn-role-grid-wrap">
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <Box className="fn-role-loading">
               <CircularProgress />
             </Box>
           ) : (
@@ -213,7 +179,6 @@ export default function FnRoleList() {
         </Box>
       )}
 
-      {/* Form dialog (new / edit) */}
       <FnRoleForm
         key={editingRow?.name ?? 'new'}
         open={isFormOpen}
@@ -222,14 +187,13 @@ export default function FnRoleList() {
         onSuccess={() => setIsFormOpen(false)}
       />
 
-      {/* Delete confirmation dialog */}
       <Dialog
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>確認刪除角色</DialogTitle>
+        <DialogTitle className="fn-role-dialog-title">確認刪除角色</DialogTitle>
         <DialogContent>
           {deleteError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -243,7 +207,7 @@ export default function FnRoleList() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setIsDeleteDialogOpen(false)}
-            sx={{ color: '#64748b' }}
+            className="fn-role-cancel-btn"
             disabled={deleteRole.isPending}
           >
             取消

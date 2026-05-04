@@ -1,0 +1,114 @@
+.fn-role-form-title {
+  font-weight: 800;
+}
+
+.fn-role-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fn-role-form-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.fn-role-form-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fn-role-form-toggle-all {
+  font-size: 12px;
+  border-color: #cbd5e1;
+  color: #475569;
+  font-weight: 600;
+}
+
+.fn-role-form-toggle-all:hover {
+  background-color: #f1f5f9;
+}
+
+.fn-role-form-members-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px;
+  background-color: #f8fafc;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.fn-role-form-member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: white;
+  margin-bottom: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.fn-role-form-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #2e3f6e;
+}
+
+.fn-role-form-member-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.fn-role-form-functions-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px;
+  background-color: #f8fafc;
+}
+
+.fn-role-form-function-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+}
+
+.fn-role-form-function-row-mb {
+  margin-bottom: 4px;
+}
+
+.fn-role-form-function-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #2e3f6e;
+  cursor: pointer;
+}
+
+.fn-role-form-function-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fn-role-form-cancel-btn {
+  color: #64748b;
+}
+
+.fn-role-form-save-btn {
+  background-color: #2e3f6e;
+}
+
+.fn-role-form-save-btn:hover {
+  background-color: #1e2d52;
+}

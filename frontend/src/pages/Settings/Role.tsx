@@ -10,10 +10,30 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material'
-import { DataGrid } from '@mui/x-data-grid'
-import { users } from '../../data/users'
+import { DataGrid, type GridColDef } from '@mui/x-data-grid'
+import { users } from '@/data/users'
+import './Role.css'
 
-const initialRoles = [
+interface RoleRow {
+  id: number | null
+  name: string
+  partners: string[]
+  memberIds: number[]
+  canAccessAI: boolean
+  canManageAccounts: boolean
+  canManageRoles: boolean
+  canEditAI: boolean
+  canManageKB: boolean
+}
+
+type PermissionKey =
+  | 'canAccessAI'
+  | 'canManageAccounts'
+  | 'canManageRoles'
+  | 'canEditAI'
+  | 'canManageKB'
+
+const initialRoles: RoleRow[] = [
   {
     id: 1,
     name: '管理員',
@@ -43,7 +63,7 @@ const ALL_PARTNERS = [
   { id: 'order-secretary', name: '訂單智能秘書', builtin: false, disabled: true },
 ]
 
-const PERMISSIONS = [
+const PERMISSIONS: { key: PermissionKey; label: string; desc: string }[] = [
   { key: 'canAccessAI', label: 'AI 夥伴', desc: '可使用 AI 夥伴進行分析' },
   { key: 'canManageAccounts', label: '使用者管理', desc: '可新增、修改、刪除使用者' },
   { key: 'canManageRoles', label: '角色管理', desc: '可新增、修改、刪除角色與權限' },
@@ -51,7 +71,7 @@ const PERMISSIONS = [
   { key: 'canManageKB', label: '知識庫管理', desc: '可新增、編輯知識庫及上傳文件與資料表' },
 ]
 
-function emptyRole() {
+function emptyRole(): RoleRow {
   return {
     id: null,
     name: '',
@@ -66,9 +86,9 @@ function emptyRole() {
 }
 
 export default function Role() {
-  const [roleList, setRoleList] = useState(initialRoles)
+  const [roleList, setRoleList] = useState<RoleRow[]>(initialRoles)
   const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState(emptyRole())
+  const [editing, setEditing] = useState<RoleRow>(emptyRole())
   const [keyword, setKeyword] = useState('')
   const [applied, setApplied] = useState('')
 
@@ -76,7 +96,7 @@ export default function Role() {
     setEditing(emptyRole())
     setModalOpen(true)
   }
-  function openEdit(role) {
+  function openEdit(role: RoleRow) {
     setEditing({ ...role })
     setModalOpen(true)
   }
@@ -94,7 +114,8 @@ export default function Role() {
     setModalOpen(false)
   }
 
-  function deleteRole(id) {
+  function deleteRole(id: number | null) {
+    if (id == null) return
     if (!window.confirm('確定要刪除此角色？')) return
     setRoleList((prev) => prev.filter((r) => r.id !== id))
   }
@@ -115,7 +136,7 @@ export default function Role() {
     (r) => !applied || r.name.toLowerCase().includes(applied.toLowerCase())
   )
 
-  const columns = [
+  const columns: GridColDef<RoleRow>[] = [
     {
       field: 'name',
       headerName: '角色名稱',
@@ -129,7 +150,7 @@ export default function Role() {
       headerName: '資安專家存取權',
       flex: 1,
       renderCell: ({ value }) =>
-        value?.includes('資安專家') ? (
+        (value as string[])?.includes('資安專家') ? (
           <Chip
             label="✓ 資安專家"
             size="small"
@@ -145,11 +166,11 @@ export default function Role() {
       width: 160,
       sortable: false,
       renderCell: ({ row }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box className="role-actions-cell">
           <Button
             size="small"
             variant="outlined"
-            sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
+            className="role-action-btn"
             onClick={() => openEdit(row)}
           >
             編輯
@@ -158,7 +179,7 @@ export default function Role() {
             size="small"
             variant="outlined"
             color="error"
-            sx={{ fontSize: 12 }}
+            className="role-action-btn-error"
             onClick={() => deleteRole(row.id)}
           >
             刪除
@@ -170,72 +191,36 @@ export default function Role() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography sx={{ fontSize: 20, fontWeight: 800, color: '#1e293b' }}>角色設定</Typography>
-        <Button
-          variant="contained"
-          onClick={openAdd}
-          sx={{
-            bgcolor: '#2e3f6e',
-            fontWeight: 700,
-            fontSize: 14,
-            '&:hover': { bgcolor: '#1e2d52' },
-          }}
-        >
+      <Box className="role-header">
+        <Typography className="role-title">角色設定</Typography>
+        <Button variant="contained" onClick={openAdd} className="role-add-btn">
           新增角色
         </Button>
       </Box>
 
-      {/* Filter bar */}
-      <Box
-        sx={{
-          bgcolor: 'white',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          p: 1.5,
-          mb: 2,
-          display: 'flex',
-          gap: 1.5,
-          alignItems: 'center',
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>
-          關鍵字搜尋:
-        </Typography>
+      <Box className="role-filter-bar">
+        <Typography className="role-filter-label">關鍵字搜尋:</Typography>
         <TextField
           size="small"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="搜尋角色名稱..."
-          sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: 13 } }}
+          className="role-filter-input"
+          sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
         />
-        <Button
-          variant="outlined"
-          onClick={() => setApplied(keyword)}
-          sx={{
-            fontWeight: 600,
-            fontSize: 13,
-            borderColor: '#2e3f6e',
-            color: '#2e3f6e',
-            whiteSpace: 'nowrap',
-            '&:hover': { bgcolor: '#eef1f8' },
-          }}
-        >
+        <Button variant="outlined" onClick={() => setApplied(keyword)} className="role-apply-btn">
           套用
         </Button>
       </Box>
 
-      {/* DataGrid */}
-      <Box
-        sx={{ bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden' }}
-      >
+      <Box className="role-grid-wrap">
         <DataGrid
           rows={filtered}
           columns={columns}
           autoHeight
           disableRowSelectionOnClick
           hideFooter={filtered.length <= 100}
+          getRowId={(row) => row.id ?? -1}
           sx={{
             border: 'none',
             '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
@@ -246,16 +231,14 @@ export default function Role() {
         />
       </Box>
 
-      {/* Role Dialog */}
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>{editing.id ? '編輯角色' : '新增角色'}</DialogTitle>
+        <DialogTitle className="role-dialog-title">
+          {editing.id ? '編輯角色' : '新增角色'}
+        </DialogTitle>
         <DialogContent sx={{ pt: '16px !important' }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* 角色名稱 */}
+          <Box className="role-form-stack">
             <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 0.75 }}>
-                角色名稱
-              </Typography>
+              <Typography className="role-form-label">角色名稱</Typography>
               <TextField
                 fullWidth
                 size="small"
@@ -266,60 +249,23 @@ export default function Role() {
               />
             </Box>
 
-            {/* 成員 */}
             <Box>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mb: 1,
-                }}
-              >
-                <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
+              <Box className="role-section-header">
+                <Typography className="role-form-label" sx={{ mb: 0 }}>
                   成員
                 </Typography>
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={toggleAllMembers}
-                  sx={{
-                    fontSize: 12,
-                    borderColor: '#cbd5e1',
-                    color: '#475569',
-                    fontWeight: 600,
-                    '&:hover': { bgcolor: '#f1f5f9' },
-                  }}
+                  className="role-toggle-all-btn"
                 >
                   全選
                 </Button>
               </Box>
-              <Box
-                sx={{
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 2,
-                  p: 0.5,
-                  bgcolor: '#f8fafc',
-                  maxHeight: 110,
-                  overflowY: 'auto',
-                }}
-              >
+              <Box className="role-members-box">
                 {users.map((u) => (
-                  <Box
-                    key={u.id}
-                    component="label"
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.25,
-                      p: '7px 10px',
-                      borderRadius: 1.5,
-                      cursor: 'pointer',
-                      bgcolor: 'white',
-                      mb: 0.5,
-                      border: '1px solid #e2e8f0',
-                    }}
-                  >
+                  <Box key={u.id} component="label" className="role-member-row">
                     <input
                       type="checkbox"
                       checked={(editing.memberIds || []).includes(u.id)}
@@ -331,66 +277,36 @@ export default function Role() {
                             : [...(v.memberIds || []), u.id],
                         }))
                       }
-                      style={{ width: 15, height: 15, accentColor: '#2e3f6e' }}
+                      className="role-member-checkbox"
                     />
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
-                      {u.name}
-                    </Typography>
-                    <Typography sx={{ fontSize: 12, color: '#94a3b8', flex: 1 }}>
-                      {u.email}
-                    </Typography>
+                    <Typography className="role-member-name">{u.name}</Typography>
+                    <Typography className="role-member-email">{u.email}</Typography>
                   </Box>
                 ))}
               </Box>
             </Box>
 
-            {/* 可用 AI 夥伴 */}
             <Box>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mb: 1,
-                }}
-              >
-                <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
+              <Box className="role-section-header">
+                <Typography className="role-form-label" sx={{ mb: 0 }}>
                   可用 AI 夥伴
                 </Typography>
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={toggleAllPartners}
-                  sx={{
-                    fontSize: 12,
-                    borderColor: '#cbd5e1',
-                    color: '#475569',
-                    fontWeight: 600,
-                    '&:hover': { bgcolor: '#f1f5f9' },
-                  }}
+                  className="role-toggle-all-btn"
                 >
                   全選
                 </Button>
               </Box>
-              <Box
-                sx={{ border: '1px solid #e2e8f0', borderRadius: 2, p: 0.5, bgcolor: '#f8fafc' }}
-              >
+              <Box className="role-partners-box">
                 {ALL_PARTNERS.map((p) => (
                   <Box
                     key={p.id}
                     component="label"
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.25,
-                      p: '8px 10px',
-                      borderRadius: 1.5,
-                      cursor: p.disabled ? 'default' : 'pointer',
-                      bgcolor: 'white',
-                      mb: 0.5,
-                      border: '1px solid #e2e8f0',
-                      opacity: p.disabled ? 0.5 : 1,
-                    }}
+                    className={`role-partner-row ${p.disabled ? 'role-partner-row-disabled' : ''}`}
+                    sx={{ cursor: p.disabled ? 'default' : 'pointer' }}
                   >
                     <input
                       type="checkbox"
@@ -405,9 +321,9 @@ export default function Role() {
                             : [...(v.partners || []), p.name],
                         }))
                       }
-                      style={{ width: 15, height: 15, accentColor: '#2e3f6e' }}
+                      className="role-member-checkbox"
                     />
-                    <Typography sx={{ fontSize: 13 }}>{p.name}</Typography>
+                    <Typography className="role-partner-name">{p.name}</Typography>
                     <Chip
                       label={p.builtin ? '預設' : '自訂'}
                       size="small"
@@ -420,50 +336,34 @@ export default function Role() {
                       }}
                     />
                     {p.disabled && (
-                      <Typography sx={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>
-                        停用中
-                      </Typography>
+                      <Typography className="role-partner-disabled-text">停用中</Typography>
                     )}
                   </Box>
                 ))}
               </Box>
             </Box>
 
-            {/* 功能權限 */}
-            <Box sx={{ p: 1.75, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-              <Typography sx={{ fontWeight: 700, mb: 1.5, color: '#1e293b', fontSize: 14 }}>
-                🔐 功能權限
-              </Typography>
+            <Box className="role-permissions-box">
+              <Typography className="role-permissions-title">🔐 功能權限</Typography>
               {PERMISSIONS.map((perm, i) => (
                 <Box
                   key={perm.key}
                   component="label"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.25,
-                    p: 1,
-                    borderRadius: 1.5,
-                    bgcolor: 'white',
-                    border: '1px solid #e2e8f0',
-                    mb: i < PERMISSIONS.length - 1 ? 1 : 0,
-                    cursor: 'pointer',
-                  }}
+                  className={`role-permission-row ${
+                    i < PERMISSIONS.length - 1 ? 'role-permission-row-mb' : ''
+                  }`}
                 >
                   <input
                     type="checkbox"
                     checked={!!editing[perm.key]}
                     onChange={() => setEditing((v) => ({ ...v, [perm.key]: !v[perm.key] }))}
-                    style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
+                    className="role-permission-checkbox"
                   />
                   <Box>
-                    <Typography
-                      component="strong"
-                      sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
-                    >
+                    <Typography component="strong" className="role-permission-label">
                       {perm.label}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, color: '#64748b' }}>{perm.desc}</Typography>
+                    <Typography className="role-permission-desc">{perm.desc}</Typography>
                   </Box>
                 </Box>
               ))}
@@ -471,14 +371,10 @@ export default function Role() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setModalOpen(false)} sx={{ color: '#64748b' }}>
+          <Button onClick={() => setModalOpen(false)} className="role-cancel-btn">
             取消
           </Button>
-          <Button
-            onClick={saveRole}
-            variant="contained"
-            sx={{ bgcolor: '#2e3f6e', '&:hover': { bgcolor: '#1e2d52' } }}
-          >
+          <Button onClick={saveRole} variant="contained" className="role-save-btn">
             儲存
           </Button>
         </DialogActions>

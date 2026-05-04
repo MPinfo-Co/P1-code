@@ -28,10 +28,9 @@ import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
 import SmartToyOutlined from '@mui/icons-material/SmartToyOutlined'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import './IssueDetail.css'
 
-// ── constants ──
-
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<string, string> = {
   pending: '未處理',
   investigating: '處理中',
   resolved: '已處理',
@@ -39,9 +38,37 @@ const STATUS_LABEL = {
 }
 const STATUS_OPTIONS = Object.entries(STATUS_LABEL)
 
-// ── helpers ──
+interface LogObject {
+  id?: number | string
+  timestamp?: number
+  host?: string
+  program?: string
+  message: string
+}
 
-function authHeaders() {
+interface HistoryEntry {
+  id: number | string
+  created_at: string
+  action: string
+  old_status?: string
+  new_status?: string
+  note?: string
+}
+
+interface EventDetail {
+  id: number | string
+  title: string
+  description?: string
+  current_status: string
+  assignee_user_id?: number | null
+  affected_detail?: string
+  suggests?: string[]
+  mitre_tags?: string[]
+  logs?: (string | LogObject)[]
+  history?: HistoryEntry[]
+}
+
+function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('mp-box-token')
   return token
     ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -52,7 +79,7 @@ function nowDT() {
   return new Date().toISOString().slice(0, 16)
 }
 
-function StatusIcon({ status, size = 14 }) {
+function StatusIcon({ status, size = 14 }: { status: string; size?: number }) {
   if (status === 'pending')
     return (
       <svg
@@ -110,7 +137,7 @@ function StatusIcon({ status, size = 14 }) {
   )
 }
 
-function formatDesc(text) {
+function formatDesc(text?: string | null) {
   if (!text) return null
   return text.split(/(?=【)/).map((seg, i) => {
     if (!seg) return null
@@ -160,19 +187,16 @@ function formatDesc(text) {
   })
 }
 
-// ── Main ──
-
 export default function IssueDetail() {
   const { partnerId, issueId } = useParams()
   const navigate = useNavigate()
 
-  const [event, setEvent] = useState(null)
+  const [event, setEvent] = useState<EventDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
   const [tabIndex, setTabIndex] = useState(0)
   const [chatVisible, setChatVisible] = useState(true)
 
-  // history form
   const [histDate, setHistDate] = useState(nowDT)
   const [histNote, setHistNote] = useState('')
   const [histStatus, setHistStatus] = useState('')
@@ -185,11 +209,11 @@ export default function IssueDetail() {
         headers: authHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const data: EventDetail = await res.json()
       setEvent(data)
       setHistStatus(data.current_status)
     } catch (e) {
-      setError(e.message)
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
@@ -202,45 +226,28 @@ export default function IssueDetail() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabIndex(0)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChatVisible(true)
   }, [issueId])
 
   if (loading)
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '50vh',
-        }}
-      >
+      <Box className="issue-detail-loading">
         <CircularProgress size={32} />
       </Box>
     )
   if (error || !event)
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          py: 12,
-        }}
-      >
+      <Box className="issue-detail-error">
         <Alert severity="error" sx={{ mb: 2 }}>
           {error || '找不到此事件'}
         </Alert>
-        <Button onClick={() => navigate(-1)} sx={{ color: '#2e3f6e' }}>
+        <Button onClick={() => navigate(-1)} className="issue-detail-back-link">
           ← 返回
         </Button>
       </Box>
     )
 
-  // ── actions ──
-
-  async function updateStatus(newStatus) {
+  async function updateStatus(newStatus: string) {
     try {
       const res = await fetch(`/api/events/${issueId}`, {
         method: 'PATCH',
@@ -250,7 +257,7 @@ export default function IssueDetail() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       await fetchEvent()
     } catch (e) {
-      alert(`更新失敗: ${e.message}`)
+      alert(`更新失敗: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
@@ -259,7 +266,7 @@ export default function IssueDetail() {
       alert('請輸入備註內容')
       return
     }
-    if (histStatus !== event.current_status) await updateStatus(histStatus)
+    if (event && histStatus !== event.current_status) await updateStatus(histStatus)
     try {
       const res = await fetch(`/api/events/${issueId}/history`, {
         method: 'POST',
@@ -274,86 +281,27 @@ export default function IssueDetail() {
       setHistDate(nowDT())
       await fetchEvent()
     } catch (e) {
-      alert(`新增失敗: ${e.message}`)
+      alert(`新增失敗: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: 'calc(100vh - 110px)',
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 2,
-          flexShrink: 0,
-        }}
-      >
-        <Typography sx={{ color: '#1e293b', fontSize: 18, fontWeight: 800 }}>
-          {event.title}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography
-              sx={{
-                fontSize: 13,
-                color: '#475569',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              處理狀態:
-            </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                px: 1.5,
-                py: 0.75,
-                border: '1.5px solid #e2e8f0',
-                borderRadius: 1.5,
-                bgcolor: '#f8fafc',
-                minWidth: 100,
-              }}
-            >
+    <Box className="issue-detail-root">
+      <Box className="issue-detail-header">
+        <Typography className="issue-detail-title">{event.title}</Typography>
+        <Box className="issue-detail-meta-group">
+          <Box className="issue-detail-meta-item">
+            <Typography className="issue-detail-meta-label">處理狀態:</Typography>
+            <Box className="issue-detail-meta-pill">
               <StatusIcon status={event.current_status} />
-              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+              <Typography className="issue-detail-meta-pill-text">
                 {STATUS_LABEL[event.current_status]}
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography
-              sx={{
-                fontSize: 13,
-                color: '#475569',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              負責人員:
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#1e293b',
-                px: 1.5,
-                py: 0.75,
-                border: '1.5px solid #e2e8f0',
-                borderRadius: 1.5,
-                bgcolor: '#f8fafc',
-                minWidth: 80,
-              }}
-            >
+          <Box className="issue-detail-meta-item">
+            <Typography className="issue-detail-meta-label">負責人員:</Typography>
+            <Typography className="issue-detail-assignee-pill">
               {event.assignee_user_id ? `User #${event.assignee_user_id}` : '未指派'}
             </Typography>
           </Box>
@@ -361,52 +309,20 @@ export default function IssueDetail() {
             onClick={() => navigate(`/fn_partner/${partnerId}/issues`)}
             variant="outlined"
             startIcon={<ArrowBackIosNew sx={{ fontSize: '14px !important' }} />}
-            sx={{
-              border: '1px solid #cbd5e1',
-              bgcolor: 'white',
-              borderRadius: 1,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: '#334155',
-              textTransform: 'none',
-              '&:hover': { bgcolor: '#f8fafc' },
-            }}
+            className="issue-detail-back-btn"
           >
             回上一頁
           </Button>
         </Box>
       </Box>
 
-      {/* Two-column body */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2.5,
-          flex: 1,
-          overflow: 'hidden',
-          minHeight: 0,
-        }}
-      >
-        {/* Left: Tabs */}
-        <Box
-          sx={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
+      <Box className="issue-detail-body">
+        <Box className="issue-detail-main">
           <Tabs
             value={tabIndex}
             onChange={(_, v) => setTabIndex(v)}
+            className="issue-detail-tabs-bar"
             sx={{
-              flexShrink: 0,
-              bgcolor: 'white',
-              borderRadius: '8px 8px 0 0',
-              border: '1px solid #e2e8f0',
-              borderBottom: 'none',
-              minHeight: 42,
               '& .MuiTab-root': {
                 minHeight: 42,
                 fontSize: 13,
@@ -436,23 +352,10 @@ export default function IssueDetail() {
             />
           </Tabs>
 
-          {/* Tab panels */}
-          <Box
-            sx={{
-              flex: 1,
-              overflowY: 'auto',
-              p: 2,
-              bgcolor: 'white',
-              border: '1px solid #e2e8f0',
-              borderTop: 'none',
-              borderRadius: '0 0 8px 8px',
-              minHeight: 0,
-            }}
-          >
-            {/* Tab 0: 事件詳情 */}
+          <Box className="issue-detail-tabs-panel">
             {tabIndex === 0 && (
               <>
-                <Card variant="outlined" sx={{ mb: 2 }}>
+                <Card variant="outlined" className="issue-detail-card-mb">
                   <CardHeader
                     avatar={<InfoOutlined sx={{ color: '#2e3f6e' }} />}
                     title="事件摘要"
@@ -461,23 +364,11 @@ export default function IssueDetail() {
                       fontSize: 15,
                       color: '#1e293b',
                     }}
-                    sx={{
-                      bgcolor: '#f8fafc',
-                      borderBottom: '1px solid #e2e8f0',
-                      py: 1.5,
-                    }}
+                    className="issue-detail-card-header"
                   />
                   <CardContent>
                     {event.description && (
-                      <Typography
-                        sx={{
-                          fontSize: 14,
-                          color: '#334155',
-                          lineHeight: 1.75,
-                          mb: 1.5,
-                          whiteSpace: 'pre-wrap',
-                        }}
-                      >
+                      <Typography className="issue-detail-summary-text">
                         {event.description}
                       </Typography>
                     )}
@@ -486,7 +377,7 @@ export default function IssueDetail() {
                 </Card>
 
                 {event.suggests && event.suggests.length > 0 && (
-                  <Card variant="outlined" sx={{ mb: 2 }}>
+                  <Card variant="outlined" className="issue-detail-card-mb">
                     <CardHeader
                       avatar={<CheckCircleOutline sx={{ color: '#94a3b8' }} />}
                       title="建議處置方法"
@@ -495,17 +386,13 @@ export default function IssueDetail() {
                         fontSize: 15,
                         color: '#1e293b',
                       }}
-                      sx={{
-                        bgcolor: '#f8fafc',
-                        borderBottom: '1px solid #e2e8f0',
-                        py: 1.5,
-                      }}
+                      className="issue-detail-card-header"
                     />
                     <CardContent sx={{ py: 1 }}>
                       <List dense disablePadding>
                         {event.suggests.map((s, idx) => {
                           const urgency = idx < 2 ? '最推薦' : idx < 4 ? '次推薦' : '可選'
-                          const urgencyStyle = {
+                          const urgencyStyleMap: Record<string, Record<string, string>> = {
                             最推薦: {
                               bgcolor: '#eef1f8',
                               color: '#2e3f6e',
@@ -521,19 +408,12 @@ export default function IssueDetail() {
                               color: '#94a3b8',
                               border: '1px solid #e2e8f0',
                             },
-                          }[urgency]
-                          // 從事件的 mitre_tags 裡對應溯源（依序分配）
+                          }
+                          const urgencyStyle = urgencyStyleMap[urgency]
                           const mitreTag =
                             event.mitre_tags && event.mitre_tags[idx % event.mitre_tags.length]
                           return (
-                            <ListItem
-                              key={idx}
-                              sx={{
-                                py: 1,
-                                borderBottom: '1px solid #f1f5f9',
-                                alignItems: 'flex-start',
-                              }}
-                            >
+                            <ListItem key={idx} className="issue-detail-history-list-item">
                               <Chip
                                 label={urgency}
                                 size="small"
@@ -606,7 +486,7 @@ export default function IssueDetail() {
                 )}
 
                 {event.logs && event.logs.length > 0 && (
-                  <Card variant="outlined" sx={{ mb: 2 }}>
+                  <Card variant="outlined" className="issue-detail-card-mb">
                     <CardHeader
                       avatar={<ChatOutlined sx={{ color: '#475569' }} />}
                       title={`關聯日誌摘要（${event.logs.length} 筆）`}
@@ -615,31 +495,13 @@ export default function IssueDetail() {
                         fontSize: 15,
                         color: '#1e293b',
                       }}
-                      sx={{
-                        bgcolor: '#f8fafc',
-                        borderBottom: '1px solid #e2e8f0',
-                        py: 1.5,
-                      }}
+                      className="issue-detail-card-header"
                     />
                     <CardContent sx={{ bgcolor: '#f8fafc' }}>
                       {event.logs.map((log, i) => {
-                        // log 可能是 string（舊格式）或 object（新格式，含 id/timestamp/host/message）
                         if (typeof log === 'string') {
                           return (
-                            <Box
-                              key={i}
-                              sx={{
-                                bgcolor: '#0f172a',
-                                color: '#a5b4fc',
-                                p: 1.5,
-                                borderRadius: 1.5,
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                lineHeight: 1.5,
-                                whiteSpace: 'pre-wrap',
-                                mb: 0.625,
-                              }}
-                            >
+                            <Box key={i} className="issue-detail-log-string">
                               {log}
                             </Box>
                           )
@@ -648,57 +510,20 @@ export default function IssueDetail() {
                           ? new Date(log.timestamp * 1000).toLocaleString('zh-TW')
                           : ''
                         return (
-                          <Box
-                            key={i}
-                            sx={{
-                              bgcolor: '#0f172a',
-                              borderRadius: 1.5,
-                              mb: 0.75,
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                gap: 1.5,
-                                px: 1.5,
-                                py: 0.75,
-                                bgcolor: '#1e293b',
-                                fontSize: 11,
-                                color: '#94a3b8',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                              }}
-                            >
+                          <Box key={i} className="issue-detail-log-card">
+                            <Box className="issue-detail-log-meta">
                               {log.id && (
                                 <Chip
                                   label={`SSB ID: ${log.id}`}
                                   size="small"
-                                  sx={{
-                                    fontSize: 10,
-                                    height: 18,
-                                    bgcolor: '#334155',
-                                    color: '#94a3b8',
-                                    fontFamily: 'monospace',
-                                  }}
+                                  className="issue-detail-log-meta-chip"
                                 />
                               )}
                               {ts && <span>{ts}</span>}
                               {log.host && <span>Host: {log.host}</span>}
                               {log.program && <span>Program: {log.program}</span>}
                             </Box>
-                            <Box
-                              sx={{
-                                p: 1.5,
-                                color: '#a5b4fc',
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                lineHeight: 1.5,
-                                whiteSpace: 'pre-wrap',
-                              }}
-                            >
-                              {log.message}
-                            </Box>
+                            <Box className="issue-detail-log-body">{log.message}</Box>
                           </Box>
                         )
                       })}
@@ -708,93 +533,53 @@ export default function IssueDetail() {
               </>
             )}
 
-            {/* Tab 1: 歷史事件（Epic 2） */}
             {tabIndex === 1 && (
               <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 0.75,
-                  }}
-                >
+                <Box className="issue-detail-tab-section-header">
                   <SearchOutlined sx={{ color: '#94a3b8', fontSize: 18 }} />
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>
-                    歷史事件
-                  </Typography>
+                  <Typography className="issue-detail-tab-section-title">歷史事件</Typography>
                 </Box>
-                <Typography sx={{ fontSize: 11, color: '#94a3b8', mb: 1.75, pl: 3.25 }}>
+                <Typography className="issue-detail-tab-section-hint">
                   相似度由 PRO 模型依據事件描述語意、MITRE
                   技術重疊度、影響設備類型自動計算，於每日分析時寫入。
                 </Typography>
-                <Box sx={{ textAlign: 'center', py: 4, color: '#94a3b8' }}>
-                  <SearchOutlined sx={{ fontSize: 40, color: '#cbd5e1', mb: 1 }} />
-                  <Typography sx={{ fontSize: 13 }}>尚無相似歷史案例記錄</Typography>
+                <Box className="issue-detail-empty">
+                  <SearchOutlined className="issue-detail-empty-icon" />
+                  <Typography className="issue-detail-empty-text">尚無相似歷史案例記錄</Typography>
                 </Box>
               </Box>
             )}
 
-            {/* Tab 2: 處置紀錄 */}
             {tabIndex === 2 && (
               <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    mb: 1.75,
-                  }}
-                >
+                <Box className="issue-detail-tab-section-header issue-detail-tab-section-header-mb14">
                   <HistoryOutlined sx={{ color: '#94a3b8', fontSize: 18 }} />
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>
-                    處置紀錄
-                  </Typography>
+                  <Typography className="issue-detail-tab-section-title">處置紀錄</Typography>
                   <Typography sx={{ fontSize: 11, color: '#94a3b8' }}>
                     — 記錄每次處理動作與備註
                   </Typography>
                 </Box>
 
-                {/* History list */}
-                <Box sx={{ mb: 1.75 }}>
+                <Box className="issue-detail-history-mb">
                   {!event.history || event.history.length === 0 ? (
-                    <Typography sx={{ fontSize: 13, color: '#94a3b8', py: 0.5 }}>
-                      （尚無處置紀錄）
-                    </Typography>
+                    <Typography className="issue-detail-history-empty">（尚無處置紀錄）</Typography>
                   ) : (
                     <List dense disablePadding>
                       {event.history.map((h) => (
                         <ListItem
                           key={h.id}
-                          sx={{
-                            py: 1,
-                            borderBottom: '1px solid #f1f5f9',
-                            alignItems: 'flex-start',
-                            px: 0,
-                          }}
+                          className="issue-detail-history-list-item issue-detail-history-list-item-pad0"
                         >
                           <ListItemText
                             primary={
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  gap: 1.25,
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <Typography
-                                  sx={{
-                                    fontSize: 11,
-                                    color: '#94a3b8',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
+                              <Box className="issue-detail-history-meta">
+                                <Typography className="issue-detail-history-time">
                                   {new Date(h.created_at).toLocaleString('zh-TW')}
                                 </Typography>
                                 <Chip
                                   label={
                                     h.action === 'status_change'
-                                      ? `${STATUS_LABEL[h.old_status] || h.old_status} → ${STATUS_LABEL[h.new_status] || h.new_status}`
+                                      ? `${STATUS_LABEL[h.old_status || ''] || h.old_status} → ${STATUS_LABEL[h.new_status || ''] || h.new_status}`
                                       : h.action === 'assign'
                                         ? '指派變更'
                                         : h.action === 'resolve'
@@ -802,13 +587,7 @@ export default function IssueDetail() {
                                           : '留言'
                                   }
                                   size="small"
-                                  sx={{
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    bgcolor: '#eef1f8',
-                                    color: '#2e3f6e',
-                                    height: 22,
-                                  }}
+                                  className="issue-detail-history-chip"
                                 />
                               </Box>
                             }
@@ -825,8 +604,7 @@ export default function IssueDetail() {
                   )}
                 </Box>
 
-                {/* Add history form */}
-                <Card variant="outlined" sx={{ bgcolor: '#f8fafc' }}>
+                <Card variant="outlined" className="issue-detail-history-form">
                   <CardContent
                     sx={{
                       display: 'flex',
@@ -837,9 +615,7 @@ export default function IssueDetail() {
                     }}
                   >
                     <Box>
-                      <Typography sx={{ fontSize: 11, color: '#64748b', mb: 0.375 }}>
-                        日期
-                      </Typography>
+                      <Typography className="issue-detail-history-form-label">日期</Typography>
                       <TextField
                         type="datetime-local"
                         value={histDate}
@@ -856,9 +632,7 @@ export default function IssueDetail() {
                       />
                     </Box>
                     <Box sx={{ flex: 1 }}>
-                      <Typography sx={{ fontSize: 11, color: '#64748b', mb: 0.375 }}>
-                        備註
-                      </Typography>
+                      <Typography className="issue-detail-history-form-label">備註</Typography>
                       <TextField
                         value={histNote}
                         onChange={(e) => setHistNote(e.target.value)}
@@ -876,9 +650,7 @@ export default function IssueDetail() {
                       />
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: 11, color: '#64748b', mb: 0.375 }}>
-                        變更狀態
-                      </Typography>
+                      <Typography className="issue-detail-history-form-label">變更狀態</Typography>
                       <TextField
                         select
                         value={histStatus}
@@ -901,20 +673,7 @@ export default function IssueDetail() {
                         ))}
                       </TextField>
                     </Box>
-                    <Button
-                      onClick={addHistoryEntry}
-                      sx={{
-                        height: 36,
-                        px: 1.75,
-                        bgcolor: '#2e3f6e',
-                        color: 'white',
-                        borderRadius: 1,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        textTransform: 'none',
-                        '&:hover': { bgcolor: '#1e2d52' },
-                      }}
-                    >
+                    <Button onClick={addHistoryEntry} className="issue-detail-history-add-btn">
                       新增
                     </Button>
                   </CardContent>
@@ -924,38 +683,14 @@ export default function IssueDetail() {
           </Box>
         </Box>
 
-        {/* Right: Chat Panel */}
         <Box
-          sx={{
-            width: chatVisible ? 360 : 40,
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            overflow: 'hidden',
-            transition: 'width 0.2s',
-          }}
+          className={`issue-detail-chat-col ${
+            chatVisible ? 'issue-detail-chat-col-expanded' : 'issue-detail-chat-col-collapsed'
+          }`}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-              flexShrink: 0,
-            }}
-          >
+          <Box className="issue-detail-chat-header">
             {chatVisible && (
-              <Typography
-                sx={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: '#1e293b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                }}
-              >
+              <Typography className="issue-detail-chat-title">
                 <SmartToyOutlined sx={{ fontSize: 18, color: '#2e3f6e' }} />
                 諮詢資安專家
               </Typography>
@@ -963,16 +698,8 @@ export default function IssueDetail() {
             <IconButton
               onClick={() => setChatVisible((v) => !v)}
               title={chatVisible ? '收合' : '展開'}
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: 1,
-                border: '1.5px solid #cbd5e1',
-                bgcolor: 'white',
-                flexShrink: 0,
-                ml: chatVisible ? 0 : 'auto',
-                '&:hover': { bgcolor: '#eef1f8', borderColor: '#2e3f6e' },
-              }}
+              className="issue-detail-chat-toggle"
+              sx={{ ml: chatVisible ? 0 : 'auto' }}
             >
               {chatVisible ? (
                 <ChevronRightIcon sx={{ fontSize: 18, color: '#2e3f6e' }} />
@@ -983,38 +710,11 @@ export default function IssueDetail() {
           </Box>
 
           <Collapse in={chatVisible} orientation="horizontal" sx={{ flex: 1, minHeight: 0 }}>
-            <Card
-              variant="outlined"
-              sx={{
-                borderRadius: 3,
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 0,
-                height: '100%',
-              }}
-            >
-              <CardContent
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#94a3b8',
-                }}
-              >
+            <Card variant="outlined" className="issue-detail-chat-card">
+              <CardContent className="issue-detail-chat-empty">
                 <SmartToyOutlined sx={{ fontSize: 48, color: '#cbd5e1', mb: 1.5 }} />
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: '#64748b',
-                    mb: 0.5,
-                  }}
-                >
-                  AI 諮詢功能
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
+                <Typography className="issue-detail-chat-empty-title">AI 諮詢功能</Typography>
+                <Typography className="issue-detail-chat-empty-desc">
                   即將推出 — 可針對事件詢問詳細處理步驟、技術背景或風險評估
                 </Typography>
               </CardContent>

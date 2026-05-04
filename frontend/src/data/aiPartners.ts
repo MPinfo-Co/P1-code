@@ -1,4 +1,12 @@
-export const aiPartners = [
+export interface AiPartner {
+  id: string
+  name: string
+  description: string
+  builtin: boolean
+  disabled: boolean
+}
+
+export const aiPartners: AiPartner[] = [
   {
     id: 'security-expert',
     name: '資安專家',

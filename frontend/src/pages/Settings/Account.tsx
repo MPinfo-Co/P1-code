@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { users as initialUsers } from '../../data/users'
-import { DataGrid } from '@mui/x-data-grid'
+import { users as initialUsers, type MockUser } from '@/data/users'
+import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -16,18 +16,24 @@ import DialogActions from '@mui/material/DialogActions'
 import Chip from '@mui/material/Chip'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
+import './Account.css'
 
 const ROLE_OPTIONS = ['管理員', '一般使用者', '資安分析師']
 
+interface AppliedFilter {
+  role: string
+  keyword: string
+}
+
 export default function Account() {
-  const [userList, setUserList] = useState(initialUsers)
+  const [userList, setUserList] = useState<MockUser[]>(initialUsers)
   const [modalOpen, setModalOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
-  const [newRoles, setNewRoles] = useState([])
+  const [newRoles, setNewRoles] = useState<string[]>([])
   const [filterRole, setFilterRole] = useState('all')
   const [filterKeyword, setFilterKeyword] = useState('')
-  const [applied, setApplied] = useState({ role: 'all', keyword: '' })
+  const [applied, setApplied] = useState<AppliedFilter>({ role: 'all', keyword: '' })
 
   function handleSave() {
     setModalOpen(false)
@@ -36,7 +42,7 @@ export default function Account() {
     setNewRoles([])
   }
 
-  function toggleRole(r) {
+  function toggleRole(r: string) {
     setNewRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]))
   }
 
@@ -49,7 +55,7 @@ export default function Account() {
     return true
   })
 
-  const columns = [
+  const columns: GridColDef<MockUser>[] = [
     {
       field: 'name',
       headerName: '姓名',
@@ -71,7 +77,7 @@ export default function Account() {
       headerName: '角色',
       flex: 1,
       renderCell: ({ value }) =>
-        value.map((r) => (
+        (value as string[]).map((r) => (
           <Chip
             key={r}
             label={r}
@@ -86,19 +92,15 @@ export default function Account() {
       width: 160,
       sortable: false,
       renderCell: ({ row }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
-          >
+        <Box className="account-actions-cell">
+          <Button size="small" variant="outlined" className="account-action-btn">
             編輯
           </Button>
           <Button
             size="small"
             variant="outlined"
             color="error"
-            sx={{ fontSize: 12 }}
+            className="account-action-btn-error"
             onClick={() => setUserList((u) => u.filter((x) => x.id !== row.id))}
           >
             刪除
@@ -110,8 +112,8 @@ export default function Account() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
+      <Box className="account-header">
+        <Typography variant="h6" className="account-title">
           使用者管理
         </Typography>
         <Button
@@ -127,20 +129,8 @@ export default function Account() {
         </Button>
       </Box>
 
-      <Box
-        sx={{
-          bgcolor: 'white',
-          borderRadius: 2,
-          border: '1px solid #e2e8f0',
-          p: 2,
-          mb: 2,
-          display: 'flex',
-          gap: 2,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+      <Box className="account-filter-bar">
+        <FormControl size="small" className="account-role-select">
           <InputLabel>角色職位</InputLabel>
           <Select
             value={filterRole}
@@ -161,20 +151,18 @@ export default function Account() {
           placeholder="搜尋姓名或信箱..."
           value={filterKeyword}
           onChange={(e) => setFilterKeyword(e.target.value)}
-          sx={{ width: 220 }}
+          className="account-keyword-input"
         />
         <Button
           variant="outlined"
           onClick={() => setApplied({ role: filterRole, keyword: filterKeyword })}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e' }}
+          className="account-apply-btn"
         >
           套用
         </Button>
       </Box>
 
-      <Box
-        sx={{ bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden' }}
-      >
+      <Box className="account-grid-wrap">
         <DataGrid
           rows={filtered}
           columns={columns}
@@ -186,7 +174,7 @@ export default function Account() {
       </Box>
 
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>新增使用者</DialogTitle>
+        <DialogTitle className="account-dialog-title">新增使用者</DialogTitle>
         <DialogContent
           sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}
         >
@@ -206,21 +194,19 @@ export default function Account() {
             size="small"
           />
           <Box>
-            <Box
-              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
-            >
-              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>角色</Typography>
+            <Box className="account-roles-header">
+              <Typography className="account-roles-header-title">角色</Typography>
               <Button
                 size="small"
                 onClick={() =>
                   setNewRoles(newRoles.length === ROLE_OPTIONS.length ? [] : [...ROLE_OPTIONS])
                 }
-                sx={{ fontSize: 12 }}
+                className="account-toggle-all"
               >
                 全選
               </Button>
             </Box>
-            <Box sx={{ border: '1px solid #e2e8f0', borderRadius: 1, p: 1, bgcolor: '#f8fafc' }}>
+            <Box className="account-roles-list">
               {ROLE_OPTIONS.map((r) => (
                 <FormControlLabel
                   key={r}
@@ -248,7 +234,7 @@ export default function Account() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setModalOpen(false)} sx={{ color: '#64748b' }}>
+          <Button onClick={() => setModalOpen(false)} className="account-cancel-btn">
             取消
           </Button>
           <Button onClick={handleSave} variant="contained">

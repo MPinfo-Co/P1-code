@@ -1,0 +1,80 @@
+.doc-tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.doc-tab-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.doc-tab-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-left: 8px;
+}
+
+.doc-tab-action-btn {
+  font-size: 13px;
+}
+
+.doc-tab-search {
+  width: 256px;
+  margin-bottom: 12px;
+}
+
+.doc-tab-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.doc-tab-th {
+  text-align: left;
+  padding: 12px;
+  background-color: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+  font-size: 13px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.doc-tab-tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.doc-tab-tr:hover {
+  background-color: #f8fafc;
+}
+
+.doc-tab-td {
+  padding: 12px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.doc-tab-td-muted {
+  padding: 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.doc-tab-td-action {
+  padding: 12px;
+}
+
+.doc-tab-delete-btn {
+  font-size: 12px;
+  color: #ef4444;
+  font-weight: 600;
+  min-width: unset;
+  padding: 0;
+}
+
+.doc-tab-pagination-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}

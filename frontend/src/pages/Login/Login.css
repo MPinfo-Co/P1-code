@@ -1,0 +1,21 @@
+.login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e2d52 0%, #2e3f6e 100%);
+}
+
+.login-paper {
+  padding: 48px;
+  width: 100%;
+  max-width: 430px;
+  text-align: center;
+  border-radius: 24px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}

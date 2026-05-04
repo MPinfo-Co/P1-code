@@ -19,6 +19,7 @@ import { useUsersQuery, useDeleteUser } from '@/queries/useUsersQuery'
 import type { UserRow } from '@/queries/useUsersQuery'
 import { useRoleOptionsQuery } from '@/queries/useRoleOptionsQuery'
 import FnUserForm from './FnUserForm'
+import './FnUserList.css'
 
 interface AppliedFilter {
   role_id?: number
@@ -42,7 +43,9 @@ export default function FnUserList() {
 
   const users = rawUsers.map((u) => ({
     ...u,
-    roles: u.role_ids.map((rid) => roleOptions.find((r) => r.id === rid)).filter(Boolean) as import('@/queries/useUsersQuery').RoleOption[],
+    roles: u.role_ids
+      .map((rid) => roleOptions.find((r) => r.id === rid))
+      .filter(Boolean) as import('@/queries/useUsersQuery').RoleOption[],
   }))
   const deleteUser = useDeleteUser()
 
@@ -122,11 +125,11 @@ export default function FnUserList() {
       width: 160,
       sortable: false,
       renderCell: ({ row }: { row: UserRow }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box className="fn-user-actions-cell">
           <Button
             size="small"
             variant="outlined"
-            sx={{ fontSize: 12, borderColor: '#cbd5e1', color: '#64748b' }}
+            className="fn-user-action-btn"
             onClick={() => handleEditClick(row)}
           >
             修改
@@ -135,7 +138,7 @@ export default function FnUserList() {
             size="small"
             variant="outlined"
             color="error"
-            sx={{ fontSize: 12 }}
+            className="fn-user-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
             刪除
@@ -147,21 +150,9 @@ export default function FnUserList() {
 
   return (
     <Box>
-      {/* Filter bar */}
-      <Box
-        sx={{
-          bgcolor: '#f1f5f9',
-          borderRadius: '4px',
-          padding: '3px 12px',
-          mb: '5px',
-          display: 'flex',
-          gap: 2,
-          flexWrap: 'nowrap',
-          alignItems: 'center',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>角色職位:</Typography>
+      <Box className="fn-user-filter-bar">
+        <Box className="fn-user-filter-group">
+          <Typography className="fn-user-filter-label">角色職位:</Typography>
           <Select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
@@ -171,53 +162,46 @@ export default function FnUserList() {
           >
             <MenuItem value="all">全部</MenuItem>
             {roleOptions.map((r) => (
-              <MenuItem key={r.id} value={r.name}>{r.name}</MenuItem>
+              <MenuItem key={r.id} value={r.name}>
+                {r.name}
+              </MenuItem>
             ))}
           </Select>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontSize: 13, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>關鍵字:</Typography>
+        <Box className="fn-user-filter-group">
+          <Typography className="fn-user-filter-label">關鍵字:</Typography>
           <TextField
             size="small"
             placeholder="搜尋名稱或信箱..."
             value={filterKeyword}
             onChange={(e) => setFilterKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-            sx={{ width: 200, '& .MuiInputBase-root': { height: 24 }, '& .MuiInputBase-input': { py: '2px', fontSize: 13 } }}
+            sx={{
+              width: 200,
+              '& .MuiInputBase-root': { height: 24 },
+              '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
+            }}
           />
         </Box>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={handleApply}
-          sx={{ borderColor: '#2e3f6e', color: '#2e3f6e', borderRadius: '3px', height: 24, fontSize: 12 }}
-        >
+        <Button variant="outlined" size="small" onClick={handleApply} className="fn-user-apply-btn">
           套用
         </Button>
         <Button
           variant="contained"
           size="small"
           onClick={handleAddClick}
-          sx={{ ml: 'auto', height: 24, fontSize: 12, borderRadius: '3px' }}
+          className="fn-user-add-btn"
         >
           新增使用者
         </Button>
       </Box>
 
-      {/* Data table */}
       {error ? (
         <Alert severity="error">載入失敗：{(error as Error).message}</Alert>
       ) : (
-        <Box
-          sx={{
-            bgcolor: 'white',
-            borderRadius: '4px',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-          }}
-        >
+        <Box className="fn-user-grid-wrap">
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <Box className="fn-user-loading">
               <CircularProgress />
             </Box>
           ) : (
@@ -242,7 +226,6 @@ export default function FnUserList() {
         </Box>
       )}
 
-      {/* Form dialog (new / edit) */}
       <FnUserForm
         key={editingRow?.email ?? 'new'}
         open={isFormOpen}
@@ -251,14 +234,13 @@ export default function FnUserList() {
         onSuccess={() => setIsFormOpen(false)}
       />
 
-      {/* Delete confirmation dialog */}
       <Dialog
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>確認刪除</DialogTitle>
+        <DialogTitle className="fn-user-dialog-title">確認刪除</DialogTitle>
         <DialogContent>
           {deleteError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -272,7 +254,7 @@ export default function FnUserList() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setIsDeleteDialogOpen(false)}
-            sx={{ color: '#64748b' }}
+            className="fn-user-cancel-btn"
             disabled={deleteUser.isPending}
           >
             取消

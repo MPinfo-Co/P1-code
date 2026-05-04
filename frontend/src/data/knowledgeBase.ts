@@ -1,4 +1,29 @@
-export const knowledgeBases = [
+export interface KnowledgeDoc {
+  id: string
+  name: string
+  size: string
+  uploadDate: string
+}
+
+export interface KnowledgeTable {
+  id: string
+  name: string
+  createdDate: string
+  columns: string[]
+  rows: string[][]
+}
+
+export interface KnowledgeBase {
+  id: number
+  name: string
+  desc: string
+  boundPartners: string[]
+  accessRoles: string[]
+  docs: KnowledgeDoc[]
+  tables: KnowledgeTable[]
+}
+
+export const knowledgeBases: KnowledgeBase[] = [
   {
     id: 1,
     name: '資安相關',

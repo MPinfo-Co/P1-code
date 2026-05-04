@@ -15,6 +15,7 @@ import Alert from '@mui/material/Alert'
 import { useRoleOptionsQuery } from '@/queries/useRoleOptionsQuery'
 import { useCreateUser, useUpdateUser } from '@/queries/useUsersQuery'
 import type { UserRow } from '@/queries/useUsersQuery'
+import './FnUserForm.css'
 
 interface Props {
   open: boolean
@@ -101,10 +102,10 @@ export default function FnUserForm({ open, row, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>{isEdit ? '修改使用者' : '新增使用者'}</DialogTitle>
-      <DialogContent
-        sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}
-      >
+      <DialogTitle className="fn-user-form-title">
+        {isEdit ? '修改使用者' : '新增使用者'}
+      </DialogTitle>
+      <DialogContent className="fn-user-form-content" sx={{ pt: '16px !important' }}>
         {submitError && (
           <Alert severity="error" sx={{ mb: 0 }}>
             {submitError}
@@ -142,11 +143,9 @@ export default function FnUserForm({ open, row, onClose, onSuccess }: Props) {
           helperText={errors.password ?? (isEdit ? '不修改請留空' : undefined)}
         />
         <Box>
-          <Box
-            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
-          >
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>角色</Typography>
-            <Button size="small" onClick={handleToggleAll} sx={{ fontSize: 12 }}>
+          <Box className="fn-user-form-roles-header">
+            <Typography className="fn-user-form-roles-title">角色</Typography>
+            <Button size="small" onClick={handleToggleAll} className="fn-user-form-toggle-all">
               全選
             </Button>
           </Box>
@@ -156,15 +155,11 @@ export default function FnUserForm({ open, row, onClose, onSuccess }: Props) {
             </Typography>
           )}
           <Box
-            sx={{
-              border: `1px solid ${errors.roles ? '#d32f2f' : '#e2e8f0'}`,
-              borderRadius: 1,
-              p: 1,
-              bgcolor: '#f8fafc',
-            }}
+            className="fn-user-form-roles-list"
+            sx={{ border: `1px solid ${errors.roles ? '#d32f2f' : '#e2e8f0'}` }}
           >
             {isRolesLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+              <Box className="fn-user-form-roles-loading">
                 <CircularProgress size={20} />
               </Box>
             ) : (
@@ -196,7 +191,7 @@ export default function FnUserForm({ open, row, onClose, onSuccess }: Props) {
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} sx={{ color: '#64748b' }} disabled={isSubmitting}>
+        <Button onClick={onClose} className="fn-user-form-cancel-btn" disabled={isSubmitting}>
           取消
         </Button>
         <Button onClick={handleSave} variant="contained" disabled={isSubmitting}>

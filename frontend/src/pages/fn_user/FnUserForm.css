@@ -1,0 +1,43 @@
+.fn-user-form-title {
+  font-weight: 800;
+}
+
+.fn-user-form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fn-user-form-roles-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fn-user-form-roles-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.fn-user-form-toggle-all {
+  font-size: 12px;
+}
+
+.fn-user-form-roles-list {
+  border-radius: 4px;
+  padding: 8px;
+  background-color: #f8fafc;
+}
+
+.fn-user-form-roles-loading {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.fn-user-form-cancel-btn {
+  color: #64748b;
+}

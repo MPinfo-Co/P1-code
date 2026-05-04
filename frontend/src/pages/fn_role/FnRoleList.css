@@ -1,0 +1,75 @@
+.fn-role-filter-bar {
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.fn-role-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fn-role-filter-label {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fn-role-apply-btn {
+  border-color: #2e3f6e;
+  color: #2e3f6e;
+  border-radius: 3px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.fn-role-add-btn {
+  margin-left: auto;
+  height: 24px;
+  font-size: 12px;
+  border-radius: 3px;
+}
+
+.fn-role-grid-wrap {
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.fn-role-loading {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+  padding-bottom: 48px;
+}
+
+.fn-role-actions-cell {
+  display: flex;
+  gap: 8px;
+}
+
+.fn-role-action-btn {
+  font-size: 12px;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.fn-role-action-btn-error {
+  font-size: 12px;
+}
+
+.fn-role-dialog-title {
+  font-weight: 800;
+}
+
+.fn-role-cancel-btn {
+  color: #64748b;
+}

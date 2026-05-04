@@ -1,11 +1,31 @@
-// src/stores/authStore.js
+// src/stores/authStore.ts
 import { create } from 'zustand'
 
-const BASE_URL = import.meta.env.VITE_API_URL
+const BASE_URL = import.meta.env.VITE_API_URL as string
 
-const useAuthStore = create((set, get) => ({
+export interface AuthUser {
+  id?: number
+  name?: string
+  email: string
+  functions?: string[]
+}
+
+interface AuthState {
+  token: string | null
+  user: AuthUser | null
+}
+
+interface AuthActions {
+  fetchMe: () => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+}
+
+type AuthStore = AuthState & AuthActions
+
+const useAuthStore = create<AuthStore>((set, get) => ({
   token: localStorage.getItem('mp-box-token') || null,
-  user: null, // { id, name, email, functions: string[] }
+  user: null,
 
   fetchMe: async () => {
     const token = get().token
@@ -33,7 +53,6 @@ const useAuthStore = create((set, get) => ({
     const { access_token } = await res.json()
     localStorage.setItem('mp-box-token', access_token)
     set({ token: access_token, user: { email } })
-    // fetch full user profile (with functions) after login
     await useAuthStore.getState().fetchMe()
   },
 
@@ -45,7 +64,7 @@ const useAuthStore = create((set, get) => ({
       console.warn('[logout] backend call failed:', err)
     })
     localStorage.removeItem('mp-box-token')
-    localStorage.removeItem('mp-box-user') // 清除舊版 mock key
+    localStorage.removeItem('mp-box-user')
     set({ token: null, user: null })
   },
 }))
