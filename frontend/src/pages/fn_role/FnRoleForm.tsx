@@ -54,11 +54,11 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
     setSelectedMemberIds(isAllSelected ? [] : allIds)
   }
 
-  function toggleFunction(functionId: number) {
-    setSelectedFunctionIds((prev) =>
-      prev.includes(functionId) ? prev.filter((id) => id !== functionId) : [...prev, functionId]
-    )
-  }
+  // function toggleFunction(functionId: number) {
+  //   setSelectedFunctionIds((prev) =>
+  //     prev.includes(functionId) ? prev.filter((id) => id !== functionId) : [...prev, functionId]
+  //   )
+  // }
 
   async function handleSave() {
     setFormError(null)
@@ -144,8 +144,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
 
           <Box>
             <Typography className="fn-role-form-label">功能權限</Typography>
-            
-          </Box>
+                    </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
