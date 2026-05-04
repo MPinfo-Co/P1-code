@@ -49,7 +49,7 @@ export function useRolesQuery(params: QueryParams = {}) {
       const search = new URLSearchParams()
       if (params.keyword) search.set('keyword', params.keyword)
       const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/api/roles${qs ? `?${qs}` : ''}`, {
+      const res = await fetch(`${BASE_URL}/roles${qs ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
@@ -59,27 +59,27 @@ export function useRolesQuery(params: QueryParams = {}) {
   })
 }
 
-export function useFunctionOptionsQuery() {
-  return useQuery<FunctionOption[]>({
-    queryKey: ['functionOptions'],
-    queryFn: async () => {
-      const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/functions/options`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('功能選項載入失敗')
-      const json = await res.json()
-      return json.data ?? json
-    },
-  })
-}
+// export function useFunctionOptionsQuery() {
+//   return useQuery<FunctionOption[]>({
+//     queryKey: ['functionOptions'],
+//     queryFn: async () => {
+//       const token = getToken()
+//       const res = await fetch(`${BASE_URL}/api/functions/options`, {
+//         headers: { Authorization: `Bearer ${token}` },
+//       })
+//       if (!res.ok) throw new Error('功能選項載入失敗')
+//       const json = await res.json()
+//       return json.data ?? json
+//     },
+//   })
+// }
 
 export function useCreateRole() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (payload: CreateRolePayload) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/roles`, {
+      const res = await fetch(`${BASE_URL}/roles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ export function useUpdateRole() {
       if (payload.name !== undefined) body.name = payload.name
       if (payload.member_ids !== undefined) body.user_ids = payload.member_ids
       if (payload.function_ids !== undefined) body.function_ids = payload.function_ids
-      const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(roleName)}`, {
+      const res = await fetch(`${BASE_URL}/roles/${encodeURIComponent(roleName)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export function useDeleteRole() {
   return useMutation({
     mutationFn: async (roleName: string) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/roles/${encodeURIComponent(roleName)}`, {
+      const res = await fetch(`${BASE_URL}/roles/${encodeURIComponent(roleName)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })

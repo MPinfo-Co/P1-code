@@ -10,7 +10,7 @@ import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
-import { useCreateRole, useUpdateRole, useFunctionOptionsQuery } from '@/queries/useRolesQuery'
+import { useCreateRole, useUpdateRole } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
 import { useUserOptionsQuery } from '@/queries/useUserOptionsQuery'
 import './FnRoleForm.css'
@@ -35,7 +35,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
-  const { data: allFunctions = [] } = useFunctionOptionsQuery()
+  
 
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
@@ -144,29 +144,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
 
           <Box>
             <Typography className="fn-role-form-label">功能權限</Typography>
-            <Box className="fn-role-form-functions-box">
-              {allFunctions.map((fn, i) => (
-                <Box
-                  key={fn.function_id}
-                  component="label"
-                  className={`fn-role-form-function-row ${
-                    i < allFunctions.length - 1 ? 'fn-role-form-function-row-mb' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedFunctionIds.includes(fn.function_id)}
-                    onChange={() => toggleFunction(fn.function_id)}
-                    className="fn-role-form-function-checkbox"
-                  />
-                  <Box>
-                    <Typography component="strong" className="fn-role-form-function-label">
-                      {fn.function_code}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
+            
           </Box>
         </Box>
       </DialogContent>

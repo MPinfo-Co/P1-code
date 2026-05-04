@@ -43,5 +43,5 @@ class RoleFunction(Base):
         Integer, ForeignKey("tb_roles.id"), primary_key=True
     )
     function_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_functions.function_id"), primary_key=True
+        Integer, ForeignKey("tb_function_items.function_id"), primary_key=True
     )

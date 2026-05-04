@@ -8,7 +8,7 @@ export function useNavigationQuery() {
   return useQuery({
     queryKey: ['navigation'],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/api/navigation`, {
+      const res = await fetch(`${BASE_URL}/navigation`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('導覽資料載入失敗')

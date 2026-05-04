@@ -31,7 +31,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     const token = get().token
     if (!token) return
     try {
-      const res = await fetch(`${BASE_URL}/api/users/me`, {
+      const res = await fetch(`${BASE_URL}/user/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) return
@@ -43,7 +43,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   login: async (email, password) => {
-    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+    const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -57,7 +57,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
-    await fetch(`${BASE_URL}/api/auth/logout`, {
+    await fetch(`${BASE_URL}/auth/logout`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${get().token}` },
     }).catch((err) => {

@@ -18,7 +18,7 @@ export function useRoleOptionsQuery() {
     queryKey: ['roleOptions'],
     queryFn: async () => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/roles/options`, {
+      const res = await fetch(`${BASE_URL}/roles/options`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('角色選項載入失敗')

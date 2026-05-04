@@ -18,7 +18,7 @@ export function useUserOptionsQuery() {
     queryKey: ['userOptions'],
     queryFn: async () => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/user/options`, {
+      const res = await fetch(`${BASE_URL}/user/options`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('使用者選項載入失敗')

@@ -47,7 +47,7 @@ export function useUsersQuery(params: QueryParams = {}) {
       if (params.role_id !== undefined) search.set('role_id', String(params.role_id))
       if (params.keyword) search.set('keyword', params.keyword)
       const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/api/user${qs ? `?${qs}` : ''}`, {
+      const res = await fetch(`${BASE_URL}/user${qs ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
@@ -62,7 +62,7 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: async (payload: CreateUserPayload) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/user`, {
+      const res = await fetch(`${BASE_URL}/user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ export function useCreateUser() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['user'] })
     },
   })
 }
@@ -95,7 +95,7 @@ export function useUpdateUser() {
       if (payload.name !== undefined) body.name = payload.name
       if (payload.password !== undefined) body.password = payload.password
       if (payload.role_ids !== undefined) body.role_ids = payload.role_ids
-      const res = await fetch(`${BASE_URL}/api/user/${encodeURIComponent(email)}`, {
+      const res = await fetch(`${BASE_URL}/user/${encodeURIComponent(email)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: async (email: string) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/user/${encodeURIComponent(email)}`, {
+      const res = await fetch(`${BASE_URL}/user/${encodeURIComponent(email)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })

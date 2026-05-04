@@ -41,8 +41,8 @@ def get_me(
 
     # Collect function_codes via user_roles → role_function → functions (deduplicated)
     function_names = (
-        db.query(Function.function_code)
-        .join(RoleFunction, Function.function_id == RoleFunction.function_id)
+        db.query(FunctionItems.function_code)
+        .join(RoleFunction, FunctionItems.function_id == RoleFunction.function_id)
         .join(UserRole, RoleFunction.role_id == UserRole.role_id)
         .filter(UserRole.user_id == auth.user_id)
         .distinct()
@@ -61,7 +61,7 @@ def get_me(
 
 def _has_user_permission(user_id: int, db: Session) -> bool:
     """Return True if the user has fn_user function permission via tb_role_function."""
-    fn = db.query(Function).filter(Function.function_code == FN_USER_NAME).first()
+    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_USER_NAME).first()
     if fn is None:
         return False
     return (
