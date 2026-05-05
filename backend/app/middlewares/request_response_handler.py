@@ -19,7 +19,7 @@ from app.db.connector import SessionLocal
 from app.logger_utils.log_channels import get_error_logger, get_system_logger, get_user_logger
 from app.utils.util_store import authenticate
 
-_ALLOWED_4XX: frozenset[int] = frozenset({400, 401, 403, 404})
+_ALLOWED_4XX: frozenset[int] = frozenset({400, 401, 403, 404, 409})
 
 
 def _resolve_logger(request: Request):
