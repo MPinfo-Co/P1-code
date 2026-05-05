@@ -43,7 +43,9 @@ class CompanyDataCreate(BaseModel):
 
     name: str
     content: str
-    partners: list[int] = Field(default_factory=list, description="適用夥伴的 partner_id 清單")
+    partner_ids: list[int] = Field(
+        default_factory=list, description="適用夥伴的 partner_id 清單"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +58,9 @@ class CompanyDataUpdate(BaseModel):
 
     name: str
     content: str
-    partners: list[int] = Field(default_factory=list, description="適用夥伴的 partner_id 清單")
+    partner_ids: list[int] = Field(
+        default_factory=list, description="適用夥伴的 partner_id 清單"
+    )
 
 
 # ---------------------------------------------------------------------------

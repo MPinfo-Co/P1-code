@@ -102,14 +102,18 @@ def _assign_role(db: Session, user_id: int, role_id: int) -> None:
 
 
 def _make_folder(db: Session, code: str = "設定") -> int:
-    folder = FunctionFolder(folder_code=code, folder_label=code, default_open=False, sort_order=1)
+    folder = FunctionFolder(
+        folder_code=code, folder_label=code, default_open=False, sort_order=1
+    )
     db.add(folder)
     db.flush()
     return folder.id
 
 
 def _make_function(db: Session, code: str, folder_id: int) -> int:
-    fn = FunctionItems(function_code=code, function_label=code, folder_id=folder_id, sort_order=1)
+    fn = FunctionItems(
+        function_code=code, function_label=code, folder_id=folder_id, sort_order=1
+    )
     db.add(fn)
     db.flush()
     return fn.function_id
@@ -274,7 +278,7 @@ def test_create_company_data_returns_201(client, engine):
     payload = {
         "name": "公司網段",
         "content": "192.168.1.0/24",
-        "partners": [partner_id],
+        "partner_ids": [partner_id],
     }
     resp = client.post("/company-data", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 201
@@ -285,9 +289,11 @@ def test_create_company_data_returns_201(client, engine):
     db = Session_()
     record = db.query(CompanyData).filter(CompanyData.name == "公司網段").first()
     assert record is not None
-    links = db.query(PartnerCompanyData).filter(
-        PartnerCompanyData.company_data_id == record.id
-    ).all()
+    links = (
+        db.query(PartnerCompanyData)
+        .filter(PartnerCompanyData.company_data_id == record.id)
+        .all()
+    )
     assert len(links) == 1
     assert links[0].partner_id == partner_id
     db.close()
@@ -297,7 +303,7 @@ def test_create_company_data_empty_name_returns_400(client, engine):
     """對應 T5"""
     user_id, _ = _setup_user_with_permission(engine)
 
-    payload = {"name": "", "content": "some content", "partners": []}
+    payload = {"name": "", "content": "some content", "partner_ids": []}
     resp = client.post("/company-data", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "資料名稱不可為空"
@@ -307,7 +313,7 @@ def test_create_company_data_empty_content_returns_400(client, engine):
     """對應 T6"""
     user_id, _ = _setup_user_with_permission(engine)
 
-    payload = {"name": "公司網段", "content": "", "partners": []}
+    payload = {"name": "公司網段", "content": "", "partner_ids": []}
     resp = client.post("/company-data", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "內容不可為空"
@@ -323,7 +329,7 @@ def test_create_company_data_duplicate_name_returns_409(client, engine):
     db.commit()
     db.close()
 
-    payload = {"name": "公司網段", "content": "different content", "partners": []}
+    payload = {"name": "公司網段", "content": "different content", "partner_ids": []}
     resp = client.post("/company-data", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 409
     assert resp.json()["detail"] == "資料名稱已存在"
@@ -333,7 +339,7 @@ def test_create_company_data_no_permission_returns_403(client, engine):
     """無權限 POST /company-data 應回 403"""
     user_id = _setup_user_without_permission(engine)
 
-    payload = {"name": "test", "content": "test content", "partners": []}
+    payload = {"name": "test", "content": "test content", "partner_ids": []}
     resp = client.post("/company-data", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 403
 
@@ -356,8 +362,14 @@ def test_update_company_data_returns_200(client, engine):
     db.commit()
     db.close()
 
-    payload = {"name": "更新後名稱", "content": "更新後內容", "partners": [partner2_id]}
-    resp = client.patch(f"/company-data/{cd_id}", json=payload, headers=_auth_headers(user_id))
+    payload = {
+        "name": "更新後名稱",
+        "content": "更新後內容",
+        "partner_ids": [partner2_id],
+    }
+    resp = client.patch(
+        f"/company-data/{cd_id}", json=payload, headers=_auth_headers(user_id)
+    )
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
@@ -367,9 +379,11 @@ def test_update_company_data_returns_200(client, engine):
     record = db.get(CompanyData, cd_id)
     assert record.name == "更新後名稱"
     assert record.content == "更新後內容"
-    links = db.query(PartnerCompanyData).filter(
-        PartnerCompanyData.company_data_id == cd_id
-    ).all()
+    links = (
+        db.query(PartnerCompanyData)
+        .filter(PartnerCompanyData.company_data_id == cd_id)
+        .all()
+    )
     assert len(links) == 1
     assert links[0].partner_id == partner2_id
     db.close()
@@ -379,8 +393,10 @@ def test_update_company_data_not_found_returns_404(client, engine):
     """修改不存在的 id 應回 404"""
     user_id, _ = _setup_user_with_permission(engine)
 
-    payload = {"name": "新名稱", "content": "新內容", "partners": []}
-    resp = client.patch("/company-data/99999", json=payload, headers=_auth_headers(user_id))
+    payload = {"name": "新名稱", "content": "新內容", "partner_ids": []}
+    resp = client.patch(
+        "/company-data/99999", json=payload, headers=_auth_headers(user_id)
+    )
     assert resp.status_code == 404
     assert resp.json()["detail"] == "資料不存在"
 
@@ -396,8 +412,10 @@ def test_update_company_data_duplicate_name_returns_409(client, engine):
     db.commit()
     db.close()
 
-    payload = {"name": "名稱A", "content": "updated content", "partners": []}
-    resp = client.patch(f"/company-data/{cd_id}", json=payload, headers=_auth_headers(user_id))
+    payload = {"name": "名稱A", "content": "updated content", "partner_ids": []}
+    resp = client.patch(
+        f"/company-data/{cd_id}", json=payload, headers=_auth_headers(user_id)
+    )
     assert resp.status_code == 409
     assert resp.json()["detail"] == "資料名稱已存在"
 
@@ -412,8 +430,10 @@ def test_update_company_data_no_permission_returns_403(client, engine):
     db.commit()
     db.close()
 
-    payload = {"name": "new name", "content": "new content", "partners": []}
-    resp = client.patch(f"/company-data/{cd_id}", json=payload, headers=_auth_headers(user_id))
+    payload = {"name": "new name", "content": "new content", "partner_ids": []}
+    resp = client.patch(
+        f"/company-data/{cd_id}", json=payload, headers=_auth_headers(user_id)
+    )
     assert resp.status_code == 403
 
 
@@ -442,9 +462,11 @@ def test_delete_company_data_returns_200(client, engine):
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     assert db.get(CompanyData, cd_id) is None
-    links = db.query(PartnerCompanyData).filter(
-        PartnerCompanyData.company_data_id == cd_id
-    ).all()
+    links = (
+        db.query(PartnerCompanyData)
+        .filter(PartnerCompanyData.company_data_id == cd_id)
+        .all()
+    )
     assert len(links) == 0
     db.close()
 

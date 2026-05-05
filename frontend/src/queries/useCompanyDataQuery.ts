@@ -88,7 +88,7 @@ export function useCreateCompanyData() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '新增失敗')
+        throw new Error(err.detail ?? '新增失敗')
       }
     },
     onSuccess: () => {
@@ -116,7 +116,7 @@ export function useUpdateCompanyData() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '更新失敗')
+        throw new Error(err.detail ?? '更新失敗')
       }
     },
     onSuccess: () => {
@@ -136,7 +136,7 @@ export function useDeleteCompanyData() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '刪除失敗')
+        throw new Error(err.detail ?? '刪除失敗')
       }
     },
     onSuccess: () => {

@@ -25,7 +25,11 @@ FN_COMPANY_DATA = "fn_company_data"
 
 def _has_company_data_permission(user_id: int, db: Session) -> bool:
     """Return True if the user has fn_company_data function permission."""
-    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_COMPANY_DATA).first()
+    fn = (
+        db.query(FunctionItems)
+        .filter(FunctionItems.function_code == FN_COMPANY_DATA)
+        .first()
+    )
     if fn is None:
         return False
     return (
@@ -69,7 +73,9 @@ def list_partner_options(
 
 @router.get("")
 def list_company_data(
-    keyword: str | None = Query(None, description="關鍵字篩選（name / content / partner name）"),
+    keyword: str | None = Query(
+        None, description="關鍵字篩選（name / content / partner name）"
+    ),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ):
@@ -153,7 +159,10 @@ def create_company_data(
         )
 
     # Validate content
-    if not payload.content or not payload.content.replace("\n", "").replace(" ", "").strip():
+    if (
+        not payload.content
+        or not payload.content.replace("\n", "").replace(" ", "").strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="內容不可為空",
@@ -163,7 +172,7 @@ def create_company_data(
     db.add(record)
     db.flush()
 
-    for partner_id in payload.partners:
+    for partner_id in payload.partner_ids:
         db.add(PartnerCompanyData(company_data_id=record.id, partner_id=partner_id))
 
     db.commit()
@@ -221,7 +230,10 @@ def update_company_data(
         )
 
     # Validate content
-    if not payload.content or not payload.content.replace("\n", "").replace(" ", "").strip():
+    if (
+        not payload.content
+        or not payload.content.replace("\n", "").replace(" ", "").strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="內容不可為空",
@@ -236,7 +248,7 @@ def update_company_data(
         PartnerCompanyData.company_data_id == record_id
     ).delete()
 
-    for partner_id in payload.partners:
+    for partner_id in payload.partner_ids:
         db.add(PartnerCompanyData(company_data_id=record_id, partner_id=partner_id))
 
     db.commit()
