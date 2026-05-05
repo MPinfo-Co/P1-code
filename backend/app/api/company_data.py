@@ -1,8 +1,7 @@
 """/api/company-data router — CRUD for fn_company_data."""
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.schema.company_data import (
@@ -86,11 +85,25 @@ def list_company_data(
             detail="您沒有執行此操作的權限",
         )
 
-    rows = db.query(CompanyData).order_by(CompanyData.created_at.asc()).all()
+    query = db.query(CompanyData)
+    if keyword:
+        pattern = f"%{keyword}%"
+        partner_match_subq = (
+            db.query(PartnerCompanyData.company_data_id)
+            .join(AiPartner, AiPartner.id == PartnerCompanyData.partner_id)
+            .filter(AiPartner.name.ilike(pattern))
+        )
+        query = query.filter(
+            or_(
+                CompanyData.name.ilike(pattern),
+                CompanyData.content.ilike(pattern),
+                CompanyData.id.in_(partner_match_subq),
+            )
+        )
+    rows = query.order_by(CompanyData.created_at.asc()).all()
 
     result: list[CompanyDataItem] = []
     for row in rows:
-        # Fetch associated partners
         partners = (
             db.query(AiPartner)
             .join(PartnerCompanyData, AiPartner.id == PartnerCompanyData.partner_id)
@@ -98,25 +111,14 @@ def list_company_data(
             .all()
         )
         partner_items = [PartnerItem(id=p.id, name=p.name) for p in partners]
-
-        item = CompanyDataItem(
-            id=row.id,
-            name=row.name,
-            content=row.content,
-            partners=partner_items,
+        result.append(
+            CompanyDataItem(
+                id=row.id,
+                name=row.name,
+                content=row.content,
+                partners=partner_items,
+            )
         )
-
-        if keyword:
-            like = keyword.lower()
-            partner_names_lower = [p.name.lower() for p in partners]
-            if (
-                like in row.name.lower()
-                or like in row.content.lower()
-                or any(like in pname for pname in partner_names_lower)
-            ):
-                result.append(item)
-        else:
-            result.append(item)
 
     return {"message": "查詢成功", "data": [i.model_dump() for i in result]}
 
@@ -145,7 +147,7 @@ def create_company_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="資料名稱不可為空",
         )
-    if len(payload.name) > 200:
+    if len(payload.name.strip()) > 200:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="資料名稱不可超過 200 字",
@@ -159,10 +161,7 @@ def create_company_data(
         )
 
     # Validate content
-    if (
-        not payload.content
-        or not payload.content.replace("\n", "").replace(" ", "").strip()
-    ):
+    if not payload.content or not payload.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="內容不可為空",
@@ -211,7 +210,7 @@ def update_company_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="資料名稱不可為空",
         )
-    if len(payload.name) > 200:
+    if len(payload.name.strip()) > 200:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="資料名稱不可超過 200 字",
@@ -230,10 +229,7 @@ def update_company_data(
         )
 
     # Validate content
-    if (
-        not payload.content
-        or not payload.content.replace("\n", "").replace(" ", "").strip()
-    ):
+    if not payload.content or not payload.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="內容不可為空",
@@ -241,7 +237,7 @@ def update_company_data(
 
     record.name = payload.name
     record.content = payload.content
-    record.updated_at = datetime.now(timezone.utc)
+    # updated_at 由 SQLAlchemy onupdate=func.now() 自動處理，不手動賦值
 
     # Replace partner associations
     db.query(PartnerCompanyData).filter(
