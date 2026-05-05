@@ -13,10 +13,13 @@ Generate code fits logic of the project
    2. Modification in FastAPI server middleware
    3. Modification in logic behind API
    4. Modification in FastAPI startup/teardown(lifespan)
-   5. Modification in service(sending of cybersecurity logs to LLM)
-5. **Restrictions**: Only use libraries in project environment, ask for human for additional package if required
+   5. Modification in tasks(@app/tasks)
+5. **Restrictions**: 
+   1. Only use libraries in project environment, ask for human for additional package if required
+   2. Don't restructure server/database
 6. **Code generation**: 
    - Minium variable re-assign to another variable
    - Keep variable readable
    - Log out critical point of code execution by logger in @app/logger_utils/ 
+   - Use existed files for newly generate code, report to human if required to modify existed code
 7. **Docstring**: In every generated functions, add docstring with google-style is a must
