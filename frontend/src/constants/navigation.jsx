@@ -3,6 +3,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks'
 
 export const ICON_MAP = {
   ai_partner: <SmartToyOutlinedIcon fontSize="small" />,
@@ -11,4 +12,5 @@ export const ICON_MAP = {
   fn_ai_config: <TuneOutlinedIcon fontSize="small" />,
   fn_user: <PeopleAltOutlinedIcon fontSize="small" />,
   fn_role: <ManageAccountsIcon fontSize="small" />,
+  fn_company_data: <LibraryBooksIcon fontSize="small" />,
 }
