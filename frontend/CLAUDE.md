@@ -1,5 +1,5 @@
 # MP-box frontend
-[MP-box frontend] — This is frontend of MP-box, build by React 19.2.5, typescript 5, Vite
+[MP-box frontend] — This is frontend of MP-box, build by React 19.2, TypeScript 6, Vite 8
 
 ## File structure
 ```
@@ -7,6 +7,7 @@ frontend/
 ├── .env                              # API base URL & env vars
 ├── CLAUDE.md                         # Repo guidance for Claude Code
 ├── dockerfile                        # Container build for the frontend
+├── eslint.config.js                  # Flat ESLint config (TS + React hooks/refresh)
 ├── index.html                        # Vite HTML entry point
 ├── package-lock.json
 ├── package.json                      # Deps: React 19, MUI 7, Zustand, TanStack Query, Vite 8
@@ -88,4 +89,7 @@ frontend/
 - When applying create or update, re-render page for new data to display
 
 ## Commands
-- `npm dev` — start dev server
+- `npm run dev` — start dev server
+- `npm run build` — production build
+- `npm run lint` — run ESLint
+- `npm run preview` — preview built output
