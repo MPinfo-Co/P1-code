@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
     jwt_expire_minutes: int = Field(60, alias="JWT_EXPIRE_MINUTES")
     jwt_algorithm: str = "HS256"
+    aes_key: str = Field("default-aes-256-key-32bytes12345678", alias="AES_KEY")
 
 
 settings = Settings()
