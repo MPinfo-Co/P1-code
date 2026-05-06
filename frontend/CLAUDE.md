@@ -1,5 +1,5 @@
 # MP-box frontend
-[MP-box frontend] — This is frontend of MP-box, build by React 19.2, TypeScript 6, Vite 8
+[MP-box frontend] — This is frontend of MP-box, build by React 19.2, TypeScript 6, Vite 8, backend server runs on @.env -> VITE_API_URL
 
 ## File structure
 ```
