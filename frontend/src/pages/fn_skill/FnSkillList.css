@@ -1,0 +1,74 @@
+.fn-skill-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+}
+
+.fn-skill-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fn-skill-filter-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  white-space: nowrap;
+}
+
+.fn-skill-apply-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+}
+
+.fn-skill-add-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  margin-left: auto !important;
+}
+
+.fn-skill-grid-wrap {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.fn-skill-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.fn-skill-actions-cell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fn-skill-action-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  padding: 0 8px !important;
+}
+
+.fn-skill-action-btn-error {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  padding: 0 8px !important;
+}
+
+.fn-skill-dialog-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.fn-skill-cancel-btn {
+  font-size: 13px !important;
+}
