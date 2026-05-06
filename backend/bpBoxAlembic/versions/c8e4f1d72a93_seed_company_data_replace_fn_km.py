@@ -21,13 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # 1. Remove fn_km from sidebar (replaced by fn_company_data)
     op.execute("DELETE FROM tb_role_function WHERE function_id = 2")
     op.execute("DELETE FROM tb_function_items WHERE function_code = 'fn_km'")
 
-    # 2. Add fn_company_data, taking the slot fn_km used to occupy (folder=1, sort=2)
-    # add_roles seeded function_items with hard-coded ids and never bumped this sequence,
-    # so nextval() would return 1 and collide. Sync to MAX(function_id) first.
+    # add_roles seeded function_items with hard-coded ids and never bumped the sequence,
+    # so nextval() would return 1 and collide with fn_partner. Sync first.
     op.execute(
         "SELECT setval('tb_function_items_function_id_seq', "
         "COALESCE((SELECT MAX(function_id) FROM tb_function_items), 1))"
@@ -41,7 +39,6 @@ def upgrade() -> None:
         "SELECT 1, function_id FROM tb_function_items WHERE function_code = 'fn_company_data'"
     )
 
-    # 3. Seed tb_ai_partners (per prototype _data.js)
     ai_partners = table(
         "tb_ai_partners",
         column("id", sa.Integer),
@@ -63,7 +60,6 @@ def upgrade() -> None:
         ],
     )
 
-    # 4. Seed tb_company_data (per prototype _data.js)
     company_data = table(
         "tb_company_data",
         column("id", sa.Integer),
@@ -116,24 +112,22 @@ def upgrade() -> None:
         ],
     )
 
-    # 5. Link every company_data row to partner 資安專家 (id=1)
     op.execute(
         "INSERT INTO tb_partners_company_data (company_data_id, partner_id) VALUES "
         "(1, 1), (2, 1), (3, 1), (4, 1)"
     )
 
-    # 6. Sync sequences so future autoincrement inserts don't collide with hard-coded ids
-    op.execute(
-        "SELECT setval('tb_ai_partners_id_seq', (SELECT MAX(id) FROM tb_ai_partners))"
-    )
-    op.execute(
-        "SELECT setval('tb_company_data_id_seq', (SELECT MAX(id) FROM tb_company_data))"
-    )
+    # Same nextval-collision risk as tb_function_items above — sync these too
+    # so future autoincrement inserts (e.g. user creates a new partner from UI) don't collide.
+    for seq, tbl in (
+        ("tb_ai_partners_id_seq", "tb_ai_partners"),
+        ("tb_company_data_id_seq", "tb_company_data"),
+    ):
+        op.execute(f"SELECT setval('{seq}', (SELECT MAX(id) FROM {tbl}))")
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # Reverse order of upgrade
     op.execute(
         "DELETE FROM tb_partners_company_data WHERE company_data_id IN (1, 2, 3, 4)"
     )
@@ -146,7 +140,6 @@ def downgrade() -> None:
     )
     op.execute("DELETE FROM tb_function_items WHERE function_code = 'fn_company_data'")
 
-    # Restore fn_km
     op.execute(
         "INSERT INTO tb_function_items (function_id, function_code, function_label, folder_id, sort_order) "
         "VALUES (2, 'fn_km', '知識庫', 1, 2)"
