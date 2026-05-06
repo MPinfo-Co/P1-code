@@ -87,14 +87,13 @@ export default function FnCompanyDataList() {
         const lines = (params.value as string)
           .split('\n')
           .filter((line: string) => line.trim() !== '')
+        const firstLine = lines[0] ?? ''
+        const hasMore = lines.length > 1
         return (
-          <Box sx={{ py: 0.5 }}>
-            {lines.map((line: string, idx: number) => (
-              <Typography key={idx} sx={{ fontSize: 13 }}>
-                {line}
-              </Typography>
-            ))}
-          </Box>
+          <Typography sx={{ fontSize: 13, py: 0.5 }}>
+            {firstLine}
+            {hasMore ? '...' : ''}
+          </Typography>
         )
       },
     },
@@ -109,9 +108,7 @@ export default function FnCompanyDataList() {
           return <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>—</Typography>
         }
         return (
-          <Typography sx={{ fontSize: 13 }}>
-            {partners.map((p) => p.name).join('、')}
-          </Typography>
+          <Typography sx={{ fontSize: 13 }}>{partners.map((p) => p.name).join('、')}</Typography>
         )
       },
     },
@@ -257,9 +254,7 @@ export default function FnCompanyDataList() {
               {deleteError}
             </Alert>
           )}
-          <Typography sx={{ fontSize: 14 }}>
-            確定要刪除「{deletingRow?.name}」？
-          </Typography>
+          <Typography sx={{ fontSize: 14 }}>確定要刪除「{deletingRow?.name}」？</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
