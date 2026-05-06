@@ -2,7 +2,16 @@
 This is a project under development to handle AI workers to help company's workflow
 
 ## Feature
-This project act as cybersecurity helper that read logs from a server(SSB), tries to detect issues within logs by LLM
+A server that holds AI helpers to improve human work, currently building an AI helper that schedule checks cybersecurity logs from SSB server
+
+## Framework
+- Server: Build by FastAPI framework with basic server functions
+  - Authenticate(auth)
+  - User management(user)
+  - User permission control(Role)
+  - Cybersecurity report management(events)
+  - Frontend display controller(navigation)
+- Scheduled AI helper: Scheduled task that runs on setting period
 
 ## Project structure
 ```
@@ -15,12 +24,13 @@ backend/
 │   │   │   ├── events.py
 │   │   │   ├── ingest.py
 │   │   │   ├── roles.py
+│   │   │   ├── navigation.py
 │   │   │   └── user.py
 │   │   ├── auth.py                   # Login / token endpoints
 │   │   ├── company_data.py           # Company background data CRUD (fn_company_data)
 │   │   ├── events.py                 # Security event endpoints
 │   │   ├── health.py                 # Liveness / readiness probe
-│   │   ├── ingest.py                 # Log ingestion endpoint
+│   │   ├── ingest.py                 # A signle execution point of schedule tasks
 │   │   ├── navigation.py             # Dynamic sidebar / nav endpoints
 │   │   ├── roles.py                  # Role management (fn_role)
 │   │   └── user.py                   # User endpoints
@@ -85,7 +95,7 @@ backend/
    ║                           ▼                               ║
    ║  ┌─────────────────────────────────────────────────────┐  ║
    ║  │ Middleware                                          │  ║
-   ║  │   • CORSMiddleware  (allow http://localhost:5173)   │  ║
+   ║  │   • CORSMiddleware  (allow all origin for dev)      │  ║
    ║  │   • RequestResponseHandlerMiddleware  (logging)     │  ║
    ║  └────────────────────────┬────────────────────────────┘  ║
    ║                           ▼                               ║

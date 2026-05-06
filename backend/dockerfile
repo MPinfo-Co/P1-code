@@ -14,5 +14,5 @@ RUN pip install -r requirements.txt
 # 5. Setup expose port for server
 EXPOSE 8000
 
-# 7. Define the command to run the application
-CMD ["./bash.sh"]
+# 7. Keep container alive
+ENTRYPOINT ["tail", "-f", "/dev/null"]
