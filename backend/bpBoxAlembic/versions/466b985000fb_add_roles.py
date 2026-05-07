@@ -5,6 +5,7 @@ Revises: b7ace231ff76
 Create Date: 2026-05-05 13:45:38.055883
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,9 +13,10 @@ import sqlalchemy as sa
 from sqlalchemy.sql import table, column
 
 from datetime import datetime
+
 # revision identifiers, used by Alembic.
-revision: str = '466b985000fb'
-down_revision: Union[str, Sequence[str], None] = 'b7ace231ff76'
+revision: str = "466b985000fb"
+down_revision: Union[str, Sequence[str], None] = "a1c4e82fd901"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -22,22 +24,26 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     # Create role with admin and user
-    role_table = table('tb_roles',
-                       column('id', sa.Integer),
-                       column('name', sa.String),
-                       column('created_at', sa.DateTime),
-                       column('updated_at', sa.DateTime))
-    op.bulk_insert(role_table, [
-        {'id': 1, 'name': 'admin', 'created_at': datetime.now()},
-        {'id': 2, 'name': 'user', 'created_at': datetime.now()}])
+    role_table = table(
+        "tb_roles",
+        column("id", sa.Integer),
+        column("name", sa.String),
+        column("created_at", sa.DateTime),
+        column("updated_at", sa.DateTime),
+    )
+    op.bulk_insert(
+        role_table,
+        [
+            {"id": 1, "name": "admin", "created_at": datetime.now()},
+            {"id": 2, "name": "user", "created_at": datetime.now()},
+        ],
+    )
 
     # Assign admin to admin role
-    user_role_table = table('tb_user_roles',
-                            column('user_id', sa.Integer),
-                            column('role_id', sa.Integer))
-    op.bulk_insert(user_role_table, [
-        {'user_id': 1, 'role_id': 1}
-    ])
+    user_role_table = table(
+        "tb_user_roles", column("user_id", sa.Integer), column("role_id", sa.Integer)
+    )
+    op.bulk_insert(user_role_table, [{"user_id": 1, "role_id": 1}])
 
     # Sidebar function folder setup
     op.execute(
@@ -60,6 +66,7 @@ def upgrade() -> None:
         "INSERT INTO tb_role_function (role_id, function_id) VALUES "
         "(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6)"
     )
+
 
 def downgrade() -> None:
     """Downgrade schema."""

@@ -29,8 +29,12 @@ class UserCreateRequest(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr = Field(..., description="User email; must be unique.")
-    password: str = Field(..., description="Plain-text password; hashed before storage.")
-    role_ids: list[int] = Field(default_factory=list, description="Role ids to grant to the user.")
+    password: str = Field(
+        ..., description="Plain-text password; hashed before storage."
+    )
+    role_ids: list[int] = Field(
+        default_factory=list, description="Role ids to grant to the user."
+    )
 
 
 class UserCreateOut(BaseModel):
@@ -43,7 +47,9 @@ class UserUpdateRequest(BaseModel):
     """Body for `PATCH /api/user/{email}` — all fields optional."""
 
     name: str | None = Field(None, min_length=1, max_length=100)
-    password: str | None = Field(None, description="New password; hashed before storage.")
+    password: str | None = Field(
+        None, description="New password; hashed before storage."
+    )
     role_ids: list[int] | None = None
 
 

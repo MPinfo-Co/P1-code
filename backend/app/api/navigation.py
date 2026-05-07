@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.connector import get_db
 from app.db.models.function_access import FunctionItems, FunctionFolder
 from app.utils.util_store import AuthContext, authenticate
-from app.api.schema.navigation import *
+from app.api.schema.navigation import NavigationOut, NavFolderItem, NavFunctionItem
 
 router = APIRouter(prefix="/navigation", tags=["navigation"])
 

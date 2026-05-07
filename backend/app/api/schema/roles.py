@@ -37,8 +37,12 @@ class RoleAddRequest(BaseModel):
     """Body for POST /api/roles."""
 
     name: str = Field(..., description="Role name; must be unique.")
-    user_ids: list[int] = Field(default_factory=list, description="User ids to assign to the role.")
-    function_ids: list[int] = Field(default_factory=list, description="Function ids to grant to the role.")
+    user_ids: list[int] = Field(
+        default_factory=list, description="User ids to assign to the role."
+    )
+    function_ids: list[int] = Field(
+        default_factory=list, description="Function ids to grant to the role."
+    )
 
 
 class RoleAddOut(BaseModel):

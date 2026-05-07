@@ -16,11 +16,10 @@ export default function Header() {
     navItems
       .filter(
         (item) =>
-          pathname === `/${item.function_code}` ||
-          pathname.startsWith(`/${item.function_code}/`)
+          pathname === `/${item.function_code}` || pathname.startsWith(`/${item.function_code}/`)
       )
-      .sort((a, b) => b.function_code.length - a.function_code.length)[0]
-      ?.function_label ?? 'MP-Box'
+      .sort((a, b) => b.function_code.length - a.function_code.length)[0]?.function_label ??
+    'MP-Box'
 
   return (
     <AppBar

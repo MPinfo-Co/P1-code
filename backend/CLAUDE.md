@@ -20,13 +20,15 @@ backend/
 │   ├── api/                          # HTTP route handlers 
 │   │   ├── schema/                   # Pydantic request/response models
 │   │   │   ├── auth.py
+│   │   │   ├── company_data.py
 │   │   │   ├── events.py
 │   │   │   ├── ingest.py
 │   │   │   ├── roles.py
-│   │   │   ├── naviation.py
+│   │   │   ├── navigation.py
 │   │   │   └── user.py
 │   │   ├── auth.py                   # Login / token endpoints
-│   │   ├── events.py                 # CRUD API of analyzed cybersecurity report
+│   │   ├── company_data.py           # Company background data CRUD (fn_company_data)
+│   │   ├── events.py                 # Security event endpoints
 │   │   ├── health.py                 # Liveness / readiness probe
 │   │   ├── ingest.py                 # A signle execution point of schedule tasks
 │   │   ├── navigation.py             # Dynamic sidebar / nav endpoints
@@ -40,6 +42,7 @@ backend/
 │   │       ├── analysis.py           # Pipeline / analysis tables
 │   │       ├── base.py               # Declarative Base + mixins
 │   │       ├── events.py             # Security event tables
+│   │       ├── fn_company_data.py    # tb_company_data · tb_ai_partners · tb_partners_company_data
 │   │       ├── function_access.py    # Function/folder + role-function ACL
 │   │       └── user_role.py          # Users, roles, user-role link
 │   ├── logger_utils/                 # Centralized logging setup
@@ -101,11 +104,12 @@ backend/
    ║  │   /auth                                             │  ║
    ║  │   /user                                             │  ║
    ║  │   /roles                                            │  ║
-   ║  │   /functions   function-permission catalog          │  ║
-   ║  │   /navigation  dynamic sidebar                      │  ║
-   ║  │   /events      CRUD on analyzed security events     │  ║
-   ║  │   /ingest      one-shot analysis run (test / demo)  │  ║
-   ║  │   /health      liveness probe                       │  ║
+   ║  │   /functions     function-permission catalog        │  ║
+   ║  │   /navigation    dynamic sidebar                    │  ║
+   ║  │   /company-data  company background data CRUD       │  ║
+   ║  │   /events        CRUD on analyzed security events   │  ║
+   ║  │   /ingest        one-shot analysis run (test / demo)│  ║
+   ║  │   /health        liveness probe                     │  ║
    ║  └──────┬───────────────────────────────────┬──────────┘  ║
    ║         │                                   │             ║
    ║         ▼                                   ▼             ║
@@ -127,10 +131,11 @@ backend/
    ║  │ Data layer  (app/db)                                │  ║
    ║  │   connector.get_db   →  SQLAlchemy Session          │  ║
    ║  │   models/                                           │  ║
-   ║  │     analysis.py       SSB pipeline runs             │  ║
-   ║  │     events.py         tb_security_events · history  │  ║
-   ║  │     user_role.py      tb_users · tb_roles · link    │  ║
+   ║  │     analysis.py        SSB pipeline runs            │  ║
+   ║  │     events.py          tb_security_events · history │  ║
+   ║  │     user_role.py       tb_users · tb_roles · link   │  ║
    ║  │     function_access.py tb_functions · role-fn ACL   │  ║
+   ║  │     fn_company_data.py tb_company_data · ai_partners│  ║
    ║  └────────────────────────┬────────────────────────────┘  ║
    ║                           ▼                               ║
    ║                 ┌──────────────────┐                      ║

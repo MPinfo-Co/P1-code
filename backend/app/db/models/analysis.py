@@ -27,13 +27,25 @@ class LogBatch(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     time_from: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     time_to: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
-    records_fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    chunks_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    chunks_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    records_fetched: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    chunks_total: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    chunks_done: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    retry_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
@@ -55,11 +67,17 @@ class ChunkResult(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    events: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    events: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         Index("idx_tb_chunk_results_batch_id", "batch_id"),
@@ -74,11 +92,21 @@ class DailyAnalysis(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     analysis_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
-    chunk_results_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    events_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    events_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    chunk_results_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    events_created: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    events_updated: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )

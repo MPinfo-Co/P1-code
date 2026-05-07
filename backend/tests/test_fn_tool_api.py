@@ -13,7 +13,11 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.fn_tool import Tool, ToolBodyParam
-from app.db.models.function_access import FunctionItems as Function, FunctionFolder, RoleFunction
+from app.db.models.function_access import (
+    FunctionItems as Function,
+    FunctionFolder,
+    RoleFunction,
+)
 from app.db.models.user_role import Role, User, UserRole
 from app.utils.util_store import create_access_token, hash_password
 
@@ -25,15 +29,24 @@ os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "AI夥伴", sort_order: int = 1) -> int:
-    folder = FunctionFolder(folder_code=name, folder_label=name, default_open=False, sort_order=sort_order)
+def _make_function_folder(
+    db: Session, name: str = "AI夥伴", sort_order: int = 1
+) -> int:
+    folder = FunctionFolder(
+        folder_code=name, folder_label=name, default_open=False, sort_order=sort_order
+    )
     db.add(folder)
     db.flush()
     return folder.id
 
 
 def _make_function(db: Session, name: str, folder_id: int, sort_order: int = 1) -> int:
-    fn = Function(function_code=name, function_label=name, folder_id=folder_id, sort_order=sort_order)
+    fn = Function(
+        function_code=name,
+        function_label=name,
+        folder_id=folder_id,
+        sort_order=sort_order,
+    )
     db.add(fn)
     db.flush()
     return fn.function_id
@@ -46,7 +59,9 @@ def _make_role(db: Session, name: str) -> int:
     return role.id
 
 
-def _make_user(db: Session, email: str, name: str = "Test User", password: str = "password123") -> int:
+def _make_user(
+    db: Session, email: str, name: str = "Test User", password: str = "password123"
+) -> int:
     user = User(name=name, email=email, password_hash=hash_password(password))
     db.add(user)
     db.flush()
@@ -197,7 +212,12 @@ def test_add_tool_with_bearer_and_body_params(client, engine):
         "auth_type": "bearer",
         "credential": "my-secret-token",
         "body_params": [
-            {"param_name": "message", "param_type": "string", "is_required": True, "description": "The message"},
+            {
+                "param_name": "message",
+                "param_type": "string",
+                "is_required": True,
+                "description": "The message",
+            },
         ],
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
@@ -307,7 +327,9 @@ def test_update_tool_returns_200(client, engine):
         "http_method": "POST",
         "auth_type": "none",
     }
-    resp = client.patch(f"/tool/{tool_id}", json=payload, headers=_auth_headers(admin_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=payload, headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
@@ -341,7 +363,9 @@ def test_update_tool_empty_credential_keeps_existing(client, engine):
         "auth_type": "bearer",
         "credential": "",  # empty — should not change
     }
-    resp = client.patch(f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
 
     db = Session_()
@@ -377,7 +401,9 @@ def test_update_tool_no_permission_returns_403(client, engine):
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.patch(f"/tool/{tool_id}", json=payload, headers=_auth_headers(user_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=payload, headers=_auth_headers(user_id)
+    )
     assert resp.status_code == 403
 
 
@@ -394,7 +420,11 @@ def test_delete_tool_returns_200(client, engine):
     # Add a body param
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    db.add(ToolBodyParam(tool_id=tool_id, param_name="x", param_type="string", is_required=False))
+    db.add(
+        ToolBodyParam(
+            tool_id=tool_id, param_name="x", param_type="string", is_required=False
+        )
+    )
     db.commit()
     db.close()
 
