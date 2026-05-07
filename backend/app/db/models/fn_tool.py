@@ -1,4 +1,4 @@
-"""ORM models for fn_skill: tb_skills, tb_skill_body_params."""
+"""ORM models for fn_tool: tb_tools, tb_tool_body_params."""
 
 from datetime import datetime
 
@@ -9,10 +9,10 @@ from sqlalchemy.sql import func
 from .base import Base
 
 
-class Skill(Base):
-    """技能主表 — 外部 API 技能定義。"""
+class Tool(Base):
+    """AI工具主表 — 外部 API 工具定義。"""
 
-    __tablename__ = "tb_skills"
+    __tablename__ = "tb_tools"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
@@ -32,14 +32,14 @@ class Skill(Base):
     )
 
 
-class SkillBodyParam(Base):
-    """技能 Body 參數定義明細表。"""
+class ToolBodyParam(Base):
+    """AI工具 Body 參數定義明細表。"""
 
-    __tablename__ = "tb_skill_body_params"
+    __tablename__ = "tb_tool_body_params"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    skill_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_skills.id"), nullable=False, index=True
+    tool_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tools.id"), nullable=False, index=True
     )
     param_name: Mapped[str] = mapped_column(String(200), nullable=False)
     param_type: Mapped[str] = mapped_column(String(20), nullable=False)

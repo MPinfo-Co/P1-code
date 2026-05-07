@@ -1,10 +1,10 @@
 """
-Tests for fn_skill APIs:
-  GET    /api/skill
-  POST   /api/skill
-  PATCH  /api/skill/{id}
-  DELETE /api/skill/{id}
-  POST   /api/skill/test
+Tests for fn_tool APIs:
+  GET    /tool
+  POST   /tool
+  PATCH  /tool/{id}
+  DELETE /tool/{id}
+  POST   /tool/test
 """
 
 import os
@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models.fn_skill import Skill, SkillBodyParam
+from app.db.models.fn_tool import Tool, ToolBodyParam
 from app.db.models.function_access import FunctionItems as Function, FunctionFolder, RoleFunction
 from app.db.models.user_role import Role, User, UserRole
 from app.utils.util_store import create_access_token, hash_password
@@ -25,7 +25,7 @@ os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2) -> int:
+def _make_function_folder(db: Session, name: str = "AI夥伴", sort_order: int = 1) -> int:
     folder = FunctionFolder(folder_code=name, folder_label=name, default_open=False, sort_order=sort_order)
     db.add(folder)
     db.flush()
@@ -68,23 +68,23 @@ def _auth_headers(user_id: int) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _setup_admin_with_fn_skill(engine):
-    """Create admin user with fn_skill permission. Return (user_id, role_id, fn_skill_id)."""
+def _setup_admin_with_fn_tool(engine):
+    """Create admin user with fn_tool permission. Return (user_id, role_id, fn_tool_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    folder_id = _make_function_folder(db, "設定", 2)
-    fn_skill_id = _make_function(db, "fn_skill", folder_id, 5)
+    folder_id = _make_function_folder(db, "AI夥伴", 1)
+    fn_tool_id = _make_function(db, "fn_tool", folder_id, 5)
     role_id = _make_role(db, "admin")
     user_id = _make_user(db, "admin@test.com", name="Admin User")
     _assign_role(db, user_id, role_id)
-    _grant_function(db, role_id, fn_skill_id)
+    _grant_function(db, role_id, fn_tool_id)
     db.commit()
     db.close()
-    return user_id, role_id, fn_skill_id
+    return user_id, role_id, fn_tool_id
 
 
 def _setup_plain_user(engine, email: str = "plain@test.com"):
-    """Create a user without fn_skill permission. Return (user_id, role_id)."""
+    """Create a user without fn_tool permission. Return (user_id, role_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     role_id = _make_role(db, "plain_role")
@@ -95,35 +95,35 @@ def _setup_plain_user(engine, email: str = "plain@test.com"):
     return user_id, role_id
 
 
-def _add_skill(engine, name: str, http_method: str = "GET") -> int:
-    """Insert a skill directly. Return skill id."""
+def _add_tool(engine, name: str, http_method: str = "GET") -> int:
+    """Insert a tool directly. Return tool id."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    skill = Skill(
+    tool = Tool(
         name=name,
         endpoint_url="https://example.com/api",
         http_method=http_method,
         auth_type="none",
     )
-    db.add(skill)
+    db.add(tool)
     db.commit()
-    sid = skill.id
+    tid = tool.id
     db.close()
-    return sid
+    return tid
 
 
 # ---------------------------------------------------------------------------
-# GET /api/skill — T1, T2, T3
+# GET /tool — T1, T2, T3
 # ---------------------------------------------------------------------------
 
 
-def test_list_skills_returns_200(client, engine):
+def test_list_tools_returns_200(client, engine):
     """對應 T1"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    _add_skill(engine, "Slack Notify")
-    _add_skill(engine, "Jira Create")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    _add_tool(engine, "Slack Notify")
+    _add_tool(engine, "Jira Create")
 
-    resp = client.get("/api/skill", headers=_auth_headers(admin_id))
+    resp = client.get("/tool", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     body = resp.json()
     assert body["message"] == "查詢成功"
@@ -137,13 +137,13 @@ def test_list_skills_returns_200(client, engine):
         assert "has_credential" in item
 
 
-def test_list_skills_keyword_filter(client, engine):
+def test_list_tools_keyword_filter(client, engine):
     """對應 T2"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    _add_skill(engine, "Slack Notify")
-    _add_skill(engine, "Jira Create")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    _add_tool(engine, "Slack Notify")
+    _add_tool(engine, "Jira Create")
 
-    resp = client.get("/api/skill?keyword=Slack", headers=_auth_headers(admin_id))
+    resp = client.get("/tool?keyword=Slack", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     data = resp.json()["data"]
     names = [item["name"] for item in data]
@@ -151,47 +151,47 @@ def test_list_skills_keyword_filter(client, engine):
     assert "Jira Create" not in names
 
 
-def test_list_skills_no_permission_returns_403(client, engine):
+def test_list_tools_no_permission_returns_403(client, engine):
     """對應 T3"""
     user_id, _ = _setup_plain_user(engine)
 
-    resp = client.get("/api/skill", headers=_auth_headers(user_id))
+    resp = client.get("/tool", headers=_auth_headers(user_id))
     assert resp.status_code == 403
     assert resp.json()["detail"] == "您沒有執行此操作的權限"
 
 
-def test_list_skills_unauthenticated_returns_401(client, engine):
-    """未登入 GET /api/skill 應回 401"""
-    resp = client.get("/api/skill")
+def test_list_tools_unauthenticated_returns_401(client, engine):
+    """未登入 GET /tool 應回 401"""
+    resp = client.get("/tool")
     assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
-# POST /api/skill — T4, T5, T6, T7, T8, T9
+# POST /tool — T4, T5, T6, T7, T8, T9
 # ---------------------------------------------------------------------------
 
 
-def test_add_skill_returns_201(client, engine):
+def test_add_tool_returns_201(client, engine):
     """對應 T4"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "My Skill",
+        "name": "My Tool",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 201
     assert resp.json()["message"] == "新增成功"
 
 
-def test_add_skill_with_bearer_and_body_params(client, engine):
+def test_add_tool_with_bearer_and_body_params(client, engine):
     """對應 T5"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "Bearer Skill",
+        "name": "Bearer Tool",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "POST",
         "auth_type": "bearer",
@@ -200,24 +200,24 @@ def test_add_skill_with_bearer_and_body_params(client, engine):
             {"param_name": "message", "param_type": "string", "is_required": True, "description": "The message"},
         ],
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 201
     assert resp.json()["message"] == "新增成功"
 
     # Verify body param was written
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    skill = db.query(Skill).filter(Skill.name == "Bearer Skill").first()
-    assert skill is not None
-    params = db.query(SkillBodyParam).filter(SkillBodyParam.skill_id == skill.id).all()
+    tool = db.query(Tool).filter(Tool.name == "Bearer Tool").first()
+    assert tool is not None
+    params = db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool.id).all()
     assert len(params) == 1
     assert params[0].param_name == "message"
     db.close()
 
 
-def test_add_skill_empty_name_returns_400(client, engine):
+def test_add_tool_empty_name_returns_400(client, engine):
     """對應 T6"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
         "name": "",
@@ -225,81 +225,81 @@ def test_add_skill_empty_name_returns_400(client, engine):
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "技能名稱為必填"
+    assert resp.json()["detail"] == "工具名稱為必填"
 
 
-def test_add_skill_empty_url_returns_400(client, engine):
+def test_add_tool_empty_url_returns_400(client, engine):
     """對應 T7"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "Some Skill",
+        "name": "Some Tool",
         "endpoint_url": "",
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "API Endpoint URL 為必填"
 
 
-def test_add_skill_duplicate_name_returns_400(client, engine):
+def test_add_tool_duplicate_name_returns_400(client, engine):
     """對應 T8"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    _add_skill(engine, "Duplicate Skill")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    _add_tool(engine, "Duplicate Tool")
 
     payload = {
-        "name": "Duplicate Skill",
+        "name": "Duplicate Tool",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "技能名稱已存在"
+    assert resp.json()["detail"] == "工具名稱已存在"
 
 
-def test_add_skill_api_key_missing_header_name_returns_400(client, engine):
+def test_add_tool_api_key_missing_header_name_returns_400(client, engine):
     """對應 T9"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "API Key Skill",
+        "name": "API Key Tool",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "api_key",
         "credential": "my-api-key",
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(admin_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
     assert resp.json()["detail"] == "API Key 模式下 Header 名稱為必填"
 
 
-def test_add_skill_no_permission_returns_403(client, engine):
-    """未授權 POST /api/skill 應回 403"""
+def test_add_tool_no_permission_returns_403(client, engine):
+    """未授權 POST /tool 應回 403"""
     user_id, _ = _setup_plain_user(engine)
 
     payload = {
-        "name": "Some Skill",
+        "name": "Some Tool",
         "endpoint_url": "https://api.example.com",
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill", json=payload, headers=_auth_headers(user_id))
+    resp = client.post("/tool", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# PATCH /api/skill/{id} — T10, T11, T12
+# PATCH /tool/{id} — T10, T11, T12
 # ---------------------------------------------------------------------------
 
 
-def test_update_skill_returns_200(client, engine):
+def test_update_tool_returns_200(client, engine):
     """對應 T10"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    skill_id = _add_skill(engine, "Old Name")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    tool_id = _add_tool(engine, "Old Name")
 
     payload = {
         "name": "New Name",
@@ -307,52 +307,52 @@ def test_update_skill_returns_200(client, engine):
         "http_method": "POST",
         "auth_type": "none",
     }
-    resp = client.patch(f"/api/skill/{skill_id}", json=payload, headers=_auth_headers(admin_id))
+    resp = client.patch(f"/tool/{tool_id}", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
 
-def test_update_skill_empty_credential_keeps_existing(client, engine):
+def test_update_tool_empty_credential_keeps_existing(client, engine):
     """對應 T11"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
-    # Create skill with credential via POST
+    # Create tool with credential via POST
     post_payload = {
-        "name": "Credential Skill",
+        "name": "Credential Tool",
         "endpoint_url": "https://api.example.com",
         "http_method": "GET",
         "auth_type": "bearer",
         "credential": "original-token",
     }
-    client.post("/api/skill", json=post_payload, headers=_auth_headers(admin_id))
+    client.post("/tool", json=post_payload, headers=_auth_headers(admin_id))
 
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    skill = db.query(Skill).filter(Skill.name == "Credential Skill").first()
-    original_enc = skill.credential_enc
-    skill_id = skill.id
+    tool = db.query(Tool).filter(Tool.name == "Credential Tool").first()
+    original_enc = tool.credential_enc
+    tool_id = tool.id
     db.close()
 
     # Update without credential
     patch_payload = {
-        "name": "Credential Skill",
+        "name": "Credential Tool",
         "endpoint_url": "https://api.example.com",
         "http_method": "GET",
         "auth_type": "bearer",
         "credential": "",  # empty — should not change
     }
-    resp = client.patch(f"/api/skill/{skill_id}", json=patch_payload, headers=_auth_headers(admin_id))
+    resp = client.patch(f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 200
 
     db = Session_()
-    skill = db.query(Skill).filter(Skill.id == skill_id).first()
-    assert skill.credential_enc == original_enc  # credential preserved
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    assert tool.credential_enc == original_enc  # credential preserved
     db.close()
 
 
-def test_update_skill_not_found_returns_404(client, engine):
+def test_update_tool_not_found_returns_404(client, engine):
     """對應 T12"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
         "name": "Whatever",
@@ -360,16 +360,16 @@ def test_update_skill_not_found_returns_404(client, engine):
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.patch("/api/skill/99999", json=payload, headers=_auth_headers(admin_id))
+    resp = client.patch("/tool/99999", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 404
-    assert resp.json()["detail"] == "技能不存在"
+    assert resp.json()["detail"] == "工具不存在"
 
 
-def test_update_skill_no_permission_returns_403(client, engine):
-    """未授權 PATCH /api/skill/{id} 應回 403"""
+def test_update_tool_no_permission_returns_403(client, engine):
+    """未授權 PATCH /tool/{id} 應回 403"""
     user_id, _ = _setup_plain_user(engine, "plain2@test.com")
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    skill_id = _add_skill(engine, "Protected Skill")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    tool_id = _add_tool(engine, "Protected Tool")
 
     payload = {
         "name": "Hacked",
@@ -377,71 +377,71 @@ def test_update_skill_no_permission_returns_403(client, engine):
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.patch(f"/api/skill/{skill_id}", json=payload, headers=_auth_headers(user_id))
+    resp = client.patch(f"/tool/{tool_id}", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# DELETE /api/skill/{id} — T13, T14
+# DELETE /tool/{id} — T13, T14
 # ---------------------------------------------------------------------------
 
 
-def test_delete_skill_returns_200(client, engine):
+def test_delete_tool_returns_200(client, engine):
     """對應 T13"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    skill_id = _add_skill(engine, "To Delete")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    tool_id = _add_tool(engine, "To Delete")
 
     # Add a body param
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    db.add(SkillBodyParam(skill_id=skill_id, param_name="x", param_type="string", is_required=False))
+    db.add(ToolBodyParam(tool_id=tool_id, param_name="x", param_type="string", is_required=False))
     db.commit()
     db.close()
 
-    resp = client.delete(f"/api/skill/{skill_id}", headers=_auth_headers(admin_id))
+    resp = client.delete(f"/tool/{tool_id}", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     assert resp.json()["message"] == "刪除成功"
 
     # Verify records are gone
     db = Session_()
-    assert db.query(Skill).filter(Skill.id == skill_id).first() is None
-    assert db.query(SkillBodyParam).filter(SkillBodyParam.skill_id == skill_id).count() == 0
+    assert db.query(Tool).filter(Tool.id == tool_id).first() is None
+    assert db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).count() == 0
     db.close()
 
 
-def test_delete_skill_not_found_returns_404(client, engine):
+def test_delete_tool_not_found_returns_404(client, engine):
     """對應 T14"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
-    resp = client.delete("/api/skill/99999", headers=_auth_headers(admin_id))
+    resp = client.delete("/tool/99999", headers=_auth_headers(admin_id))
     assert resp.status_code == 404
-    assert resp.json()["detail"] == "技能不存在"
+    assert resp.json()["detail"] == "工具不存在"
 
 
-def test_delete_skill_no_permission_returns_403(client, engine):
-    """未授權 DELETE /api/skill/{id} 應回 403"""
+def test_delete_tool_no_permission_returns_403(client, engine):
+    """未授權 DELETE /tool/{id} 應回 403"""
     user_id, _ = _setup_plain_user(engine, "plain3@test.com")
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
-    skill_id = _add_skill(engine, "No Delete Skill")
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    tool_id = _add_tool(engine, "No Delete Tool")
 
-    resp = client.delete(f"/api/skill/{skill_id}", headers=_auth_headers(user_id))
+    resp = client.delete(f"/tool/{tool_id}", headers=_auth_headers(user_id))
     assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# POST /api/skill/test — T15, T16, T17
+# POST /tool/test — T15, T16, T17
 # ---------------------------------------------------------------------------
 
 
-def test_skill_test_success(client, engine):
+def test_tool_test_success(client, engine):
     """對應 T15"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {"result": "ok"}
 
-    with patch("app.api.fn_skill.httpx.Client") as mock_client_cls:
+    with patch("app.api.fn_tool.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
@@ -453,7 +453,7 @@ def test_skill_test_success(client, engine):
             "http_method": "GET",
             "auth_type": "none",
         }
-        resp = client.post("/api/skill/test", json=payload, headers=_auth_headers(admin_id))
+        resp = client.post("/tool/test", json=payload, headers=_auth_headers(admin_id))
 
     assert resp.status_code == 200
     body = resp.json()
@@ -462,15 +462,15 @@ def test_skill_test_success(client, engine):
     assert body["data"]["response_body"] == {"result": "ok"}
 
 
-def test_skill_test_external_returns_401(client, engine):
+def test_tool_test_external_returns_401(client, engine):
     """對應 T16"""
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     mock_response = MagicMock()
     mock_response.status_code = 401
     mock_response.json.return_value = {"error": "Unauthorized"}
 
-    with patch("app.api.fn_skill.httpx.Client") as mock_client_cls:
+    with patch("app.api.fn_tool.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
@@ -482,7 +482,7 @@ def test_skill_test_external_returns_401(client, engine):
             "http_method": "GET",
             "auth_type": "none",
         }
-        resp = client.post("/api/skill/test", json=payload, headers=_auth_headers(admin_id))
+        resp = client.post("/tool/test", json=payload, headers=_auth_headers(admin_id))
 
     assert resp.status_code == 200
     body = resp.json()
@@ -490,13 +490,13 @@ def test_skill_test_external_returns_401(client, engine):
     assert body["data"]["response_body"] == {"error": "Unauthorized"}
 
 
-def test_skill_test_connection_failure_returns_502(client, engine):
+def test_tool_test_connection_failure_returns_502(client, engine):
     """對應 T17"""
     import httpx as _httpx
 
-    admin_id, _, _ = _setup_admin_with_fn_skill(engine)
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
-    with patch("app.api.fn_skill.httpx.Client") as mock_client_cls:
+    with patch("app.api.fn_tool.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
@@ -510,25 +510,25 @@ def test_skill_test_connection_failure_returns_502(client, engine):
             "http_method": "GET",
             "auth_type": "none",
         }
-        resp = client.post("/api/skill/test", json=payload, headers=_auth_headers(admin_id))
+        resp = client.post("/tool/test", json=payload, headers=_auth_headers(admin_id))
 
     assert resp.status_code == 502
     assert "外部 API 連線失敗" in resp.json()["detail"]
 
 
-def test_skill_test_unauthenticated_returns_401(client, engine):
-    """未登入 POST /api/skill/test 應回 401"""
+def test_tool_test_unauthenticated_returns_401(client, engine):
+    """未登入 POST /tool/test 應回 401"""
     payload = {
         "endpoint_url": "https://example.com",
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill/test", json=payload)
+    resp = client.post("/tool/test", json=payload)
     assert resp.status_code == 401
 
 
-def test_skill_test_no_permission_returns_403(client, engine):
-    """無 fn_skill 權限 POST /api/skill/test 應回 403"""
+def test_tool_test_no_permission_returns_403(client, engine):
+    """無 fn_tool 權限 POST /tool/test 應回 403"""
     user_id, _ = _setup_plain_user(engine, "plain4@test.com")
 
     payload = {
@@ -536,5 +536,5 @@ def test_skill_test_no_permission_returns_403(client, engine):
         "http_method": "GET",
         "auth_type": "none",
     }
-    resp = client.post("/api/skill/test", json=payload, headers=_auth_headers(user_id))
+    resp = client.post("/tool/test", json=payload, headers=_auth_headers(user_id))
     assert resp.status_code == 403

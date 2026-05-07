@@ -1,9 +1,9 @@
-"""Pydantic schemas for fn_skill API."""
+"""Pydantic schemas for fn_tool API."""
 
 from pydantic import BaseModel, Field
 
 
-class SkillBodyParamCreate(BaseModel):
+class ToolBodyParamCreate(BaseModel):
     """單筆 Body 參數輸入。"""
 
     param_name: str = Field(..., description="參數名稱")
@@ -12,33 +12,33 @@ class SkillBodyParamCreate(BaseModel):
     description: str | None = Field(None, description="參數說明與範例值")
 
 
-class SkillCreate(BaseModel):
-    """新增技能輸入。"""
+class ToolCreate(BaseModel):
+    """新增工具輸入。"""
 
-    name: str = Field(..., description="技能名稱")
-    description: str | None = Field(None, description="技能說明")
+    name: str = Field(..., description="工具名稱")
+    description: str | None = Field(None, description="工具說明")
     endpoint_url: str = Field(..., description="API Endpoint URL")
     http_method: str = Field(..., description="HTTP Method")
     auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
     auth_header_name: str | None = Field(None, description="API Key 模式下的 Header 名稱")
     credential: str | None = Field(None, description="憑證（明文，後端加密儲存）")
-    body_params: list[SkillBodyParamCreate] = Field(default_factory=list, description="Body 參數定義")
+    body_params: list[ToolBodyParamCreate] = Field(default_factory=list, description="Body 參數定義")
 
 
-class SkillUpdate(BaseModel):
-    """修改技能輸入。"""
+class ToolUpdate(BaseModel):
+    """修改工具輸入。"""
 
-    name: str = Field(..., description="技能名稱")
-    description: str | None = Field(None, description="技能說明")
+    name: str = Field(..., description="工具名稱")
+    description: str | None = Field(None, description="工具說明")
     endpoint_url: str = Field(..., description="API Endpoint URL")
     http_method: str = Field(..., description="HTTP Method")
     auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
     auth_header_name: str | None = Field(None, description="API Key 模式下的 Header 名稱")
     credential: str | None = Field(None, description="憑證（空白表示不變更）")
-    body_params: list[SkillBodyParamCreate] = Field(default_factory=list, description="Body 參數定義")
+    body_params: list[ToolBodyParamCreate] = Field(default_factory=list, description="Body 參數定義")
 
 
-class SkillBodyParamItem(BaseModel):
+class ToolBodyParamItem(BaseModel):
     """單筆 Body 參數輸出。"""
 
     model_config = {"from_attributes": True}
@@ -51,8 +51,8 @@ class SkillBodyParamItem(BaseModel):
     sort_order: int
 
 
-class SkillItem(BaseModel):
-    """技能清單單項輸出。"""
+class ToolItem(BaseModel):
+    """工具清單單項輸出。"""
 
     model_config = {"from_attributes": True}
 
@@ -64,10 +64,11 @@ class SkillItem(BaseModel):
     auth_type: str
     auth_header_name: str | None
     has_credential: bool
+    body_params: list[ToolBodyParamItem] = []
 
 
-class SkillTestRequest(BaseModel):
-    """測試技能連線輸入。"""
+class ToolTestRequest(BaseModel):
+    """測試工具連線輸入。"""
 
     endpoint_url: str = Field(..., description="API Endpoint URL")
     http_method: str = Field(..., description="HTTP Method")
@@ -75,11 +76,11 @@ class SkillTestRequest(BaseModel):
     auth_header_name: str | None = Field(None, description="API Key 模式下的 Header 名稱")
     credential: str | None = Field(None, description="憑證")
     body_params_values: dict | None = Field(None, description="Body 參數值（key-value）")
-    skill_id: int | None = Field(None, description="指定技能 id 時使用 DB 儲存的憑證")
+    tool_id: int | None = Field(None, description="指定工具 id 時使用 DB 儲存的憑證")
 
 
-class SkillTestResult(BaseModel):
-    """測試技能連線結果。"""
+class ToolTestResult(BaseModel):
+    """測試工具連線結果。"""
 
     http_status: int
     response_body: object

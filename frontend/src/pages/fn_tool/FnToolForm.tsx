@@ -1,4 +1,4 @@
-// src/pages/fn_skill/FnSkillForm.tsx
+// src/pages/fn_tool/FnToolForm.tsx
 import { useState } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -18,13 +18,13 @@ import MenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
-import { useCreateSkill, useUpdateSkill, useTestSkill } from '@/queries/useSkillsQuery'
-import type { SkillRow, BodyParam, TestSkillResult } from '@/queries/useSkillsQuery'
-import './FnSkillForm.css'
+import { useCreateTool, useUpdateTool, useTestTool } from '@/queries/useToolsQuery'
+import type { ToolRow, BodyParam, TestToolResult } from '@/queries/useToolsQuery'
+import './FnToolForm.css'
 
 interface Props {
   open: boolean
-  row: SkillRow | null
+  row: ToolRow | null
   onClose: () => void
   onSuccess: () => void
 }
@@ -33,7 +33,7 @@ type AuthType = 'none' | 'api_key' | 'bearer'
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 type ParamType = 'string' | 'number' | 'boolean' | 'object'
 
-export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
+export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const isEdit = !!row
 
   const [name, setName] = useState(() => row?.name ?? '')
@@ -45,14 +45,19 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
   const [httpMethod, setHttpMethod] = useState<HttpMethod>(() => row?.http_method ?? 'GET')
   const [bodyParams, setBodyParams] = useState<BodyParam[]>(() => row?.body_params ?? [])
   const [formError, setFormError] = useState<string | null>(null)
-  const [testResult, setTestResult] = useState<TestSkillResult | null>(null)
+  const [testResult, setTestResult] = useState<TestToolResult | null>(null)
   const [testError, setTestError] = useState<string | null>(null)
+  const [testParamValues, setTestParamValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    for (const p of row?.body_params ?? []) init[p.param_name] = ''
+    return init
+  })
 
-  const createSkill = useCreateSkill()
-  const updateSkill = useUpdateSkill()
-  const testSkill = useTestSkill()
+  const createTool = useCreateTool()
+  const updateTool = useUpdateTool()
+  const testTool = useTestTool()
 
-  const isPending = createSkill.isPending || updateSkill.isPending
+  const isPending = createTool.isPending || updateTool.isPending
   const showBodyParams = httpMethod === 'POST' || httpMethod === 'PUT'
   const showHeaderName = authType === 'api_key'
   const showCredential = authType === 'api_key' || authType === 'bearer'
@@ -82,13 +87,18 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
       return
     }
     try {
-      const result = await testSkill.mutateAsync({
+      const bodyParamsValues =
+        showBodyParams && bodyParams.length > 0
+          ? Object.fromEntries(bodyParams.map((p) => [p.param_name, testParamValues[p.param_name] ?? '']))
+          : undefined
+      const result = await testTool.mutateAsync({
         endpoint_url: endpointUrl.trim(),
         auth_type: authType,
         auth_header_name: authType === 'api_key' ? authHeaderName.trim() || null : null,
         credential: credential.trim() || undefined,
         http_method: httpMethod,
-        skill_id: isEdit && row ? row.id : undefined,
+        tool_id: isEdit && row ? row.id : undefined,
+        body_params_values: bodyParamsValues,
       })
       setTestResult(result)
     } catch (err) {
@@ -99,7 +109,7 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
   async function handleSave() {
     setFormError(null)
     if (!name.trim()) {
-      setFormError('請填寫技能名稱')
+      setFormError('請填寫工具名稱')
       return
     }
     if (!endpointUrl.trim()) {
@@ -120,9 +130,9 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
       }
 
       if (isEdit && row) {
-        await updateSkill.mutateAsync({ id: row.id, payload })
+        await updateTool.mutateAsync({ id: row.id, payload })
       } else {
-        await createSkill.mutateAsync(payload)
+        await createTool.mutateAsync(payload)
       }
       onSuccess()
     } catch (err) {
@@ -132,11 +142,11 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="fn-skill-form-title">
-        {isEdit ? '編輯技能' : '新增技能'}
+      <DialogTitle className="fn-tool-form-title">
+        {isEdit ? '編輯工具' : '新增工具'}
       </DialogTitle>
       <DialogContent sx={{ pt: '16px !important' }}>
-        <Box className="fn-skill-form-stack">
+        <Box className="fn-tool-form-stack">
           {formError && (
             <Alert severity="error" onClose={() => setFormError(null)}>
               {formError}
@@ -144,25 +154,25 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
           )}
 
           {/* 描述資訊 */}
-          <Typography className="fn-skill-form-section-title">描述資訊</Typography>
+          <Typography className="fn-tool-form-section-title">描述資訊</Typography>
 
           <Box>
-            <Typography className="fn-skill-form-label">
-              技能名稱 <span style={{ color: '#ef4444' }}>*</span>
+            <Typography className="fn-tool-form-label">
+              工具名稱 <span style={{ color: '#ef4444' }}>*</span>
             </Typography>
             <TextField
               fullWidth
               size="small"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="請輸入技能名稱"
+              placeholder="請輸入工具名稱"
               inputProps={{ maxLength: 100 }}
               sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
             />
           </Box>
 
           <Box>
-            <Typography className="fn-skill-form-label">技能說明</Typography>
+            <Typography className="fn-tool-form-label">工具說明</Typography>
             <TextField
               fullWidth
               size="small"
@@ -170,7 +180,7 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="描述此技能能做什麼、適合在什麼情境使用（供 AI 夥伴識別用）"
+              placeholder="描述此工具能做什麼、適合在什麼情境使用（供 AI 夥伴識別用）"
               sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
             />
           </Box>
@@ -178,10 +188,10 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
           <Divider />
 
           {/* 連線資訊 */}
-          <Typography className="fn-skill-form-section-title">連線資訊</Typography>
+          <Typography className="fn-tool-form-section-title">連線資訊</Typography>
 
           <Box>
-            <Typography className="fn-skill-form-label">
+            <Typography className="fn-tool-form-label">
               API Endpoint URL <span style={{ color: '#ef4444' }}>*</span>
             </Typography>
             <TextField
@@ -198,7 +208,7 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
           </Box>
 
           <Box>
-            <Typography className="fn-skill-form-label">認證方式</Typography>
+            <Typography className="fn-tool-form-label">認證方式</Typography>
             <RadioGroup
               row
               value={authType}
@@ -216,7 +226,7 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
 
           {showHeaderName && (
             <Box>
-              <Typography className="fn-skill-form-label">
+              <Typography className="fn-tool-form-label">
                 Header 名稱 <span style={{ color: '#ef4444' }}>*</span>
               </Typography>
               <TextField
@@ -232,7 +242,7 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
 
           {showCredential && (
             <Box>
-              <Typography className="fn-skill-form-label">
+              <Typography className="fn-tool-form-label">
                 {authType === 'api_key' ? 'API Key 憑證' : 'Bearer Token 憑證'}
                 {!isEdit && <span style={{ color: '#ef4444' }}> *</span>}
               </Typography>
@@ -254,7 +264,7 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
           )}
 
           <Box>
-            <Typography className="fn-skill-form-label">HTTP Method</Typography>
+            <Typography className="fn-tool-form-label">HTTP Method</Typography>
             <RadioGroup
               row
               value={httpMethod}
@@ -269,9 +279,9 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
           {/* Body 參數定義（僅 POST / PUT 時顯示） */}
           {showBodyParams && (
             <Box>
-              <Typography className="fn-skill-form-section-title">Body 參數定義</Typography>
+              <Typography className="fn-tool-form-section-title">Body 參數定義</Typography>
               {bodyParams.map((param, index) => (
-                <Box key={index} className="fn-skill-param-row">
+                <Box key={index} className="fn-tool-param-row">
                   <TextField
                     size="small"
                     placeholder="參數名稱"
@@ -336,16 +346,41 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
           <Divider />
 
           {/* 測試區塊 */}
-          <Typography className="fn-skill-form-section-title">測試</Typography>
+          <Typography className="fn-tool-form-section-title">測試</Typography>
+
+          {showBodyParams && bodyParams.filter((p) => p.param_name.trim()).length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography sx={{ fontSize: 13, color: '#475569' }}>測試參數值</Typography>
+              {bodyParams.filter((p) => p.param_name.trim()).map((param) => (
+                <Box key={param.param_name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography sx={{ fontSize: 13, minWidth: 120, color: '#334155' }}>
+                    {param.param_name}
+                    {param.is_required && <span style={{ color: '#ef4444' }}> *</span>}
+                  </Typography>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder={`${param.param_type}${param.description ? `（${param.description}）` : ''}`}
+                    value={testParamValues[param.param_name] ?? ''}
+                    onChange={(e) =>
+                      setTestParamValues((prev) => ({ ...prev, [param.param_name]: e.target.value }))
+                    }
+                    sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
+
           <Box>
             <Button
               variant="outlined"
               size="small"
               onClick={handleTest}
-              disabled={testSkill.isPending}
+              disabled={testTool.isPending}
               sx={{ fontSize: 13 }}
             >
-              {testSkill.isPending ? <CircularProgress size={16} /> : '測試'}
+              {testTool.isPending ? <CircularProgress size={16} /> : '測試'}
             </Button>
           </Box>
 
@@ -392,14 +427,14 @@ export default function FnSkillForm({ open, row, onClose, onSuccess }: Props) {
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} className="fn-skill-form-cancel-btn" disabled={isPending}>
+        <Button onClick={onClose} className="fn-tool-form-cancel-btn" disabled={isPending}>
           取消
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={isPending}
-          className="fn-skill-form-save-btn"
+          className="fn-tool-form-save-btn"
         >
           {isPending ? <CircularProgress size={18} color="inherit" /> : '儲存'}
         </Button>

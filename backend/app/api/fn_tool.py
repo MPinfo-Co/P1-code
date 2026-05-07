@@ -1,4 +1,4 @@
-"""/api/skill router — skill management (fn_skill)."""
+"""/tool router — AI工具管理 (fn_tool)."""
 
 import base64
 import os
@@ -8,25 +8,25 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.schema.fn_skill import (
-    SkillCreate,
-    SkillItem,
-    SkillTestRequest,
-    SkillTestResult,
-    SkillUpdate,
+from app.api.schema.fn_tool import (
+    ToolCreate,
+    ToolItem,
+    ToolTestRequest,
+    ToolTestResult,
+    ToolUpdate,
 )
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models.fn_skill import Skill, SkillBodyParam
+from app.db.models.fn_tool import Tool, ToolBodyParam
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
 
-router = APIRouter(prefix="/api/skill", tags=["fn_skill"])
+router = APIRouter(prefix="/tool", tags=["fn_tool"])
 system_logger = get_system_logger()
 
-FN_SKILL_NAME = "fn_skill"
+FN_TOOL_NAME = "fn_tool"
 
 VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
 VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
@@ -37,9 +37,9 @@ VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 # ---------------------------------------------------------------------------
 
 
-def _has_fn_skill_permission(user_id: int, db: Session) -> bool:
-    """Return True if the user has fn_skill function permission."""
-    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_SKILL_NAME).first()
+def _has_fn_tool_permission(user_id: int, db: Session) -> bool:
+    """Return True if the user has fn_tool function permission."""
+    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_TOOL_NAME).first()
     if fn is None:
         return False
     return (
@@ -87,57 +87,69 @@ def _decrypt(enc: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# GET /api/skill
+# GET /tool
 # ---------------------------------------------------------------------------
 
 
 @router.get("", status_code=status.HTTP_200_OK)
-def list_skills(
-    keyword: str | None = Query(None, description="技能名稱關鍵字篩選（ILIKE）"),
+def list_tools(
+    keyword: str | None = Query(None, description="工具名稱關鍵字篩選（ILIKE）"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """List skills, optionally filtered by keyword. Requires fn_skill permission."""
-    if not _has_fn_skill_permission(auth.user_id, db):
+    """List tools, optionally filtered by keyword. Requires fn_tool permission."""
+    if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
         )
 
-    query = db.query(Skill)
+    query = db.query(Tool)
     if keyword:
-        query = query.filter(Skill.name.ilike(f"%{keyword}%"))
-    skills = query.order_by(Skill.created_at.asc()).all()
+        query = query.filter(Tool.name.ilike(f"%{keyword}%"))
+    tools = query.order_by(Tool.created_at.asc()).all()
+
+    tool_ids = [t.id for t in tools]
+    all_params = (
+        db.query(ToolBodyParam)
+        .filter(ToolBodyParam.tool_id.in_(tool_ids))
+        .order_by(ToolBodyParam.tool_id, ToolBodyParam.sort_order)
+        .all()
+    ) if tool_ids else []
+    params_by_tool: dict[int, list] = {}
+    for p in all_params:
+        params_by_tool.setdefault(p.tool_id, []).append(p)
 
     items = [
-        SkillItem(
-            id=s.id,
-            name=s.name,
-            description=s.description,
-            endpoint_url=s.endpoint_url,
-            http_method=s.http_method,
-            auth_type=s.auth_type,
-            auth_header_name=s.auth_header_name,
-            has_credential=s.credential_enc is not None,
+        ToolItem(
+            id=t.id,
+            name=t.name,
+            description=t.description,
+            endpoint_url=t.endpoint_url,
+            http_method=t.http_method,
+            auth_type=t.auth_type,
+            auth_header_name=t.auth_header_name,
+            has_credential=t.credential_enc is not None,
+            body_params=params_by_tool.get(t.id, []),
         )
-        for s in skills
+        for t in tools
     ]
     return {"message": "查詢成功", "data": [i.model_dump() for i in items]}
 
 
 # ---------------------------------------------------------------------------
-# POST /api/skill
+# POST /tool
 # ---------------------------------------------------------------------------
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def add_skill(
-    payload: SkillCreate,
+def add_tool(
+    payload: ToolCreate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """Create a new skill. Requires fn_skill permission."""
-    if not _has_fn_skill_permission(auth.user_id, db):
+    """Create a new tool. Requires fn_tool permission."""
+    if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
@@ -145,11 +157,11 @@ def add_skill(
 
     # Validation
     if not payload.name or not payload.name.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名稱為必填")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填")
     if len(payload.name) > 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名稱不可超過 100 字")
-    if db.query(Skill).filter(Skill.name == payload.name).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名稱已存在")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱不可超過 100 字")
+    if db.query(Tool).filter(Tool.name == payload.name).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在")
     if not payload.endpoint_url or not payload.endpoint_url.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填")
     if payload.auth_type not in VALID_AUTH_TYPES:
@@ -161,9 +173,9 @@ def add_skill(
     if payload.http_method not in VALID_HTTP_METHODS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法")
 
-    # Create skill
+    # Create tool
     credential_enc = _encrypt(payload.credential) if payload.credential else None
-    skill = Skill(
+    tool = Tool(
         name=payload.name,
         description=payload.description,
         endpoint_url=payload.endpoint_url,
@@ -172,13 +184,13 @@ def add_skill(
         auth_header_name=payload.auth_header_name,
         credential_enc=credential_enc,
     )
-    db.add(skill)
+    db.add(tool)
     db.flush()
 
     for idx, param in enumerate(payload.body_params or []):
         db.add(
-            SkillBodyParam(
-                skill_id=skill.id,
+            ToolBodyParam(
+                tool_id=tool.id,
                 param_name=param.param_name,
                 param_type=param.param_type,
                 is_required=param.is_required,
@@ -188,41 +200,41 @@ def add_skill(
         )
 
     db.commit()
-    system_logger.info(f"User {auth.user_id} created skill {skill.id} ({skill.name})")
+    system_logger.info(f"User {auth.user_id} created tool {tool.id} ({tool.name})")
     return {"message": "新增成功"}
 
 
 # ---------------------------------------------------------------------------
-# PATCH /api/skill/{id}
+# PATCH /tool/{id}
 # ---------------------------------------------------------------------------
 
 
-@router.patch("/{skill_id}", status_code=status.HTTP_200_OK)
-def update_skill(
-    skill_id: int,
-    payload: SkillUpdate,
+@router.patch("/{tool_id}", status_code=status.HTTP_200_OK)
+def update_tool(
+    tool_id: int,
+    payload: ToolUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """Update a skill. Requires fn_skill permission."""
-    if not _has_fn_skill_permission(auth.user_id, db):
+    """Update a tool. Requires fn_tool permission."""
+    if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
         )
 
-    skill = db.query(Skill).filter(Skill.id == skill_id).first()
-    if skill is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    if tool is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
     # Validation
     if not payload.name or not payload.name.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名稱為必填")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填")
     if len(payload.name) > 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名稱不可超過 100 字")
-    conflict = db.query(Skill).filter(Skill.name == payload.name, Skill.id != skill_id).first()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱不可超過 100 字")
+    conflict = db.query(Tool).filter(Tool.name == payload.name, Tool.id != tool_id).first()
     if conflict:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="技能名稱已存在")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在")
     if not payload.endpoint_url or not payload.endpoint_url.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填")
     if payload.auth_type not in VALID_AUTH_TYPES:
@@ -233,23 +245,23 @@ def update_skill(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法")
 
     # Update fields
-    skill.name = payload.name
-    skill.description = payload.description
-    skill.endpoint_url = payload.endpoint_url
-    skill.http_method = payload.http_method
-    skill.auth_type = payload.auth_type
-    skill.auth_header_name = payload.auth_header_name
+    tool.name = payload.name
+    tool.description = payload.description
+    tool.endpoint_url = payload.endpoint_url
+    tool.http_method = payload.http_method
+    tool.auth_type = payload.auth_type
+    tool.auth_header_name = payload.auth_header_name
 
     if payload.credential and payload.credential.strip():
-        skill.credential_enc = _encrypt(payload.credential)
+        tool.credential_enc = _encrypt(payload.credential)
     # else: keep existing credential_enc
 
     # Replace body params
-    db.query(SkillBodyParam).filter(SkillBodyParam.skill_id == skill_id).delete()
+    db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
     for idx, param in enumerate(payload.body_params or []):
         db.add(
-            SkillBodyParam(
-                skill_id=skill.id,
+            ToolBodyParam(
+                tool_id=tool.id,
                 param_name=param.param_name,
                 param_type=param.param_type,
                 is_required=param.is_required,
@@ -259,52 +271,52 @@ def update_skill(
         )
 
     db.commit()
-    system_logger.info(f"User {auth.user_id} updated skill {skill.id} ({skill.name})")
+    system_logger.info(f"User {auth.user_id} updated tool {tool.id} ({tool.name})")
     return {"message": "更新成功"}
 
 
 # ---------------------------------------------------------------------------
-# DELETE /api/skill/{id}
+# DELETE /tool/{id}
 # ---------------------------------------------------------------------------
 
 
-@router.delete("/{skill_id}", status_code=status.HTTP_200_OK)
-def delete_skill(
-    skill_id: int,
+@router.delete("/{tool_id}", status_code=status.HTTP_200_OK)
+def delete_tool(
+    tool_id: int,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """Delete a skill and all related body params. Requires fn_skill permission."""
-    if not _has_fn_skill_permission(auth.user_id, db):
+    """Delete a tool and all related body params. Requires fn_tool permission."""
+    if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
         )
 
-    skill = db.query(Skill).filter(Skill.id == skill_id).first()
-    if skill is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="技能不存在")
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    if tool is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
-    db.query(SkillBodyParam).filter(SkillBodyParam.skill_id == skill_id).delete()
-    db.delete(skill)
+    db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
+    db.delete(tool)
     db.commit()
-    system_logger.info(f"User {auth.user_id} deleted skill {skill_id}")
+    system_logger.info(f"User {auth.user_id} deleted tool {tool_id}")
     return {"message": "刪除成功"}
 
 
 # ---------------------------------------------------------------------------
-# POST /api/skill/test
+# POST /tool/test
 # ---------------------------------------------------------------------------
 
 
 @router.post("/test", status_code=status.HTTP_200_OK)
-def test_skill(
-    payload: SkillTestRequest,
+def test_tool(
+    payload: ToolTestRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """Test external API connectivity. Requires fn_skill permission."""
-    if not _has_fn_skill_permission(auth.user_id, db):
+    """Test external API connectivity. Requires fn_tool permission."""
+    if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
@@ -317,10 +329,10 @@ def test_skill(
 
     # Resolve credential
     credential: str | None = None
-    if payload.skill_id is not None:
-        skill = db.query(Skill).filter(Skill.id == payload.skill_id).first()
-        if skill and skill.credential_enc:
-            credential = _decrypt(skill.credential_enc)
+    if payload.tool_id is not None:
+        tool = db.query(Tool).filter(Tool.id == payload.tool_id).first()
+        if tool and tool.credential_enc:
+            credential = _decrypt(tool.credential_enc)
     else:
         credential = payload.credential
 
@@ -349,7 +361,7 @@ def test_skill(
         except Exception:
             response_body = response.text
 
-        result = SkillTestResult(http_status=response.status_code, response_body=response_body)
+        result = ToolTestResult(http_status=response.status_code, response_body=response_body)
         return {"message": "測試完成", "data": result.model_dump()}
 
     except httpx.TimeoutException as exc:

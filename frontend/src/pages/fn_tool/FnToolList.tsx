@@ -1,4 +1,4 @@
-// src/pages/fn_skill/FnSkillList.tsx
+// src/pages/fn_tool/FnToolList.tsx
 import { useState } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -12,28 +12,28 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
-import { useSkillsQuery, useDeleteSkill } from '@/queries/useSkillsQuery'
-import type { SkillRow } from '@/queries/useSkillsQuery'
-import FnSkillForm from './FnSkillForm'
-import './FnSkillList.css'
+import { useToolsQuery, useDeleteTool } from '@/queries/useToolsQuery'
+import type { ToolRow } from '@/queries/useToolsQuery'
+import FnToolForm from './FnToolForm'
+import './FnToolList.css'
 
 interface AppliedFilter {
   keyword?: string
 }
 
-export default function FnSkillList() {
+export default function FnToolList() {
   const [filterKeyword, setFilterKeyword] = useState('')
   const [appliedFilter, setAppliedFilter] = useState<AppliedFilter>({})
 
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingRow, setEditingRow] = useState<SkillRow | null>(null)
+  const [editingRow, setEditingRow] = useState<ToolRow | null>(null)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [deletingRow, setDeletingRow] = useState<SkillRow | null>(null)
+  const [deletingRow, setDeletingRow] = useState<ToolRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: skills = [], isLoading, error } = useSkillsQuery(appliedFilter)
-  const deleteSkill = useDeleteSkill()
+  const { data: tools = [], isLoading, error } = useToolsQuery(appliedFilter)
+  const deleteTool = useDeleteTool()
 
   function handleApply() {
     const filter: AppliedFilter = {}
@@ -46,12 +46,12 @@ export default function FnSkillList() {
     setIsFormOpen(true)
   }
 
-  function handleEditClick(row: SkillRow) {
+  function handleEditClick(row: ToolRow) {
     setEditingRow(row)
     setIsFormOpen(true)
   }
 
-  function handleDeleteClick(row: SkillRow) {
+  function handleDeleteClick(row: ToolRow) {
     setDeletingRow(row)
     setDeleteError(null)
     setIsDeleteDialogOpen(true)
@@ -61,7 +61,7 @@ export default function FnSkillList() {
     if (!deletingRow) return
     setDeleteError(null)
     try {
-      await deleteSkill.mutateAsync(deletingRow.id)
+      await deleteTool.mutateAsync(deletingRow.id)
       setIsDeleteDialogOpen(false)
       setDeletingRow(null)
     } catch (err) {
@@ -72,7 +72,7 @@ export default function FnSkillList() {
   const columns: GridColDef[] = [
     {
       field: 'name',
-      headerName: '技能名稱',
+      headerName: '工具名稱',
       flex: 1,
       renderCell: ({ value }) => (
         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
@@ -80,7 +80,7 @@ export default function FnSkillList() {
     },
     {
       field: 'description',
-      headerName: '技能說明',
+      headerName: '工具說明',
       flex: 2,
       renderCell: ({ value }) => (
         <Typography sx={{ fontSize: 13, color: '#64748b' }}>{value}</Typography>
@@ -91,12 +91,12 @@ export default function FnSkillList() {
       headerName: '執行動作',
       width: 160,
       sortable: false,
-      renderCell: ({ row }: { row: SkillRow }) => (
-        <Box className="fn-skill-actions-cell">
+      renderCell: ({ row }: { row: ToolRow }) => (
+        <Box className="fn-tool-actions-cell">
           <Button
             size="small"
             variant="outlined"
-            className="fn-skill-action-btn"
+            className="fn-tool-action-btn"
             onClick={() => handleEditClick(row)}
           >
             修改
@@ -105,7 +105,7 @@ export default function FnSkillList() {
             size="small"
             variant="outlined"
             color="error"
-            className="fn-skill-action-btn-error"
+            className="fn-tool-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
             刪除
@@ -117,12 +117,12 @@ export default function FnSkillList() {
 
   return (
     <Box>
-      <Box className="fn-skill-filter-bar">
-        <Box className="fn-skill-filter-group">
-          <Typography className="fn-skill-filter-label">關鍵字:</Typography>
+      <Box className="fn-tool-filter-bar">
+        <Box className="fn-tool-filter-group">
+          <Typography className="fn-tool-filter-label">關鍵字:</Typography>
           <TextField
             size="small"
-            placeholder="搜尋技能名稱..."
+            placeholder="搜尋工具名稱..."
             value={filterKeyword}
             onChange={(e) => setFilterKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleApply()}
@@ -137,7 +137,7 @@ export default function FnSkillList() {
           variant="outlined"
           size="small"
           onClick={handleApply}
-          className="fn-skill-apply-btn"
+          className="fn-tool-apply-btn"
         >
           套用
         </Button>
@@ -145,23 +145,23 @@ export default function FnSkillList() {
           variant="contained"
           size="small"
           onClick={handleAddClick}
-          className="fn-skill-add-btn"
+          className="fn-tool-add-btn"
         >
-          ＋ 新增技能
+          ＋ 新增工具
         </Button>
       </Box>
 
       {error ? (
         <Alert severity="error">載入失敗：{(error as Error).message}</Alert>
       ) : (
-        <Box className="fn-skill-grid-wrap">
+        <Box className="fn-tool-grid-wrap">
           {isLoading ? (
-            <Box className="fn-skill-loading">
+            <Box className="fn-tool-loading">
               <CircularProgress />
             </Box>
           ) : (
             <DataGrid
-              rows={skills}
+              rows={tools}
               columns={columns}
               getRowId={(row) => row.id}
               pageSizeOptions={[10, 25]}
@@ -181,7 +181,7 @@ export default function FnSkillList() {
         </Box>
       )}
 
-      <FnSkillForm
+      <FnToolForm
         key={editingRow?.id ?? 'new'}
         open={isFormOpen}
         row={editingRow}
@@ -195,7 +195,7 @@ export default function FnSkillList() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle className="fn-skill-dialog-title">確認刪除技能</DialogTitle>
+        <DialogTitle className="fn-tool-dialog-title">確認刪除工具</DialogTitle>
         <DialogContent>
           {deleteError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -209,8 +209,8 @@ export default function FnSkillList() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setIsDeleteDialogOpen(false)}
-            className="fn-skill-cancel-btn"
-            disabled={deleteSkill.isPending}
+            className="fn-tool-cancel-btn"
+            disabled={deleteTool.isPending}
           >
             取消
           </Button>
@@ -218,9 +218,9 @@ export default function FnSkillList() {
             onClick={handleDeleteConfirm}
             variant="contained"
             color="error"
-            disabled={deleteSkill.isPending}
+            disabled={deleteTool.isPending}
           >
-            {deleteSkill.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}
+            {deleteTool.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}
           </Button>
         </DialogActions>
       </Dialog>

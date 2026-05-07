@@ -1,4 +1,4 @@
-.fn-skill-filter-bar {
+.fn-tool-filter-bar {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -7,68 +7,68 @@
   margin-bottom: 5px;
 }
 
-.fn-skill-filter-group {
+.fn-tool-filter-group {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.fn-skill-filter-label {
+.fn-tool-filter-label {
   font-size: 13px !important;
   font-weight: 700 !important;
   color: #1e293b !important;
   white-space: nowrap;
 }
 
-.fn-skill-apply-btn {
+.fn-tool-apply-btn {
   height: 24px !important;
   font-size: 12px !important;
   border-radius: 3px !important;
 }
 
-.fn-skill-add-btn {
+.fn-tool-add-btn {
   height: 24px !important;
   font-size: 12px !important;
   border-radius: 3px !important;
   margin-left: auto !important;
 }
 
-.fn-skill-grid-wrap {
+.fn-tool-grid-wrap {
   border: 1px solid #e2e8f0;
   background: #fff;
 }
 
-.fn-skill-loading {
+.fn-tool-loading {
   display: flex;
   justify-content: center;
   padding: 40px 0;
 }
 
-.fn-skill-actions-cell {
+.fn-tool-actions-cell {
   display: flex;
   gap: 6px;
   align-items: center;
 }
 
-.fn-skill-action-btn {
+.fn-tool-action-btn {
   height: 24px !important;
   font-size: 12px !important;
   border-radius: 3px !important;
   padding: 0 8px !important;
 }
 
-.fn-skill-action-btn-error {
+.fn-tool-action-btn-error {
   height: 24px !important;
   font-size: 12px !important;
   border-radius: 3px !important;
   padding: 0 8px !important;
 }
 
-.fn-skill-dialog-title {
+.fn-tool-dialog-title {
   font-size: 16px !important;
   font-weight: 600 !important;
 }
 
-.fn-skill-cancel-btn {
+.fn-tool-cancel-btn {
   font-size: 13px !important;
 }

@@ -1,4 +1,4 @@
-// src/queries/useSkillsQuery.ts
+// src/queries/useToolsQuery.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import useAuthStore from '@/stores/authStore'
 
@@ -11,7 +11,7 @@ export interface BodyParam {
   description: string
 }
 
-export interface SkillRow {
+export interface ToolRow {
   id: number
   name: string
   description: string
@@ -23,11 +23,11 @@ export interface SkillRow {
   body_params?: BodyParam[]
 }
 
-export interface SkillQueryParams {
+export interface ToolQueryParams {
   keyword?: string
 }
 
-export interface CreateSkillPayload {
+export interface CreateToolPayload {
   name: string
   description: string
   endpoint_url: string
@@ -38,7 +38,7 @@ export interface CreateSkillPayload {
   body_params: BodyParam[]
 }
 
-export interface UpdateSkillPayload {
+export interface UpdateToolPayload {
   name: string
   description: string
   endpoint_url: string
@@ -49,17 +49,17 @@ export interface UpdateSkillPayload {
   body_params: BodyParam[]
 }
 
-export interface TestSkillPayload {
+export interface TestToolPayload {
   endpoint_url: string
   auth_type: 'none' | 'api_key' | 'bearer'
   auth_header_name?: string | null
   credential?: string
   http_method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params_values?: Record<string, unknown>
-  skill_id?: number
+  tool_id?: number
 }
 
-export interface TestSkillResult {
+export interface TestToolResult {
   http_status: number
   response_body: unknown
 }
@@ -68,15 +68,15 @@ function getToken() {
   return useAuthStore.getState().token
 }
 
-export function useSkillsQuery(params: SkillQueryParams = {}) {
-  return useQuery<SkillRow[]>({
-    queryKey: ['skills', params],
+export function useToolsQuery(params: ToolQueryParams = {}) {
+  return useQuery<ToolRow[]>({
+    queryKey: ['tools', params],
     queryFn: async () => {
       const token = getToken()
       const search = new URLSearchParams()
       if (params.keyword) search.set('keyword', params.keyword)
       const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/skill${qs ? `?${qs}` : ''}`, {
+      const res = await fetch(`${BASE_URL}/tool${qs ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
@@ -86,12 +86,12 @@ export function useSkillsQuery(params: SkillQueryParams = {}) {
   })
 }
 
-export function useCreateSkill() {
+export function useCreateTool() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (payload: CreateSkillPayload) => {
+    mutationFn: async (payload: CreateToolPayload) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/skill`, {
+      const res = await fetch(`${BASE_URL}/tool`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,21 +101,21 @@ export function useCreateSkill() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '新增失敗')
+        throw new Error(err.detail ?? err.message ?? '新增失敗')
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['skills'] })
+      queryClient.invalidateQueries({ queryKey: ['tools'] })
     },
   })
 }
 
-export function useUpdateSkill() {
+export function useUpdateTool() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, payload }: { id: number; payload: UpdateSkillPayload }) => {
+    mutationFn: async ({ id, payload }: { id: number; payload: UpdateToolPayload }) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/skill/${id}`, {
+      const res = await fetch(`${BASE_URL}/tool/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -125,40 +125,40 @@ export function useUpdateSkill() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '更新失敗')
+        throw new Error(err.detail ?? err.message ?? '更新失敗')
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['skills'] })
+      queryClient.invalidateQueries({ queryKey: ['tools'] })
     },
   })
 }
 
-export function useDeleteSkill() {
+export function useDeleteTool() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: number) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/skill/${id}`, {
+      const res = await fetch(`${BASE_URL}/tool/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '刪除失敗')
+        throw new Error(err.detail ?? err.message ?? '刪除失敗')
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['skills'] })
+      queryClient.invalidateQueries({ queryKey: ['tools'] })
     },
   })
 }
 
-export function useTestSkill() {
+export function useTestTool() {
   return useMutation({
-    mutationFn: async (payload: TestSkillPayload): Promise<TestSkillResult> => {
+    mutationFn: async (payload: TestToolPayload): Promise<TestToolResult> => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/skill/test`, {
+      const res = await fetch(`${BASE_URL}/tool/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,7 +168,7 @@ export function useTestSkill() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '測試失敗')
+        throw new Error(err.detail ?? err.message ?? '測試失敗')
       }
       const json = await res.json()
       return json.data ?? json

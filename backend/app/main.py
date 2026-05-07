@@ -12,7 +12,7 @@ from datetime import datetime
 from app.logger_utils import get_system_logger
 from app.api.auth import router as auth_router
 from app.api.events import router as events_router
-from app.api.fn_skill import router as fn_skill_router
+from app.api.fn_tool import router as fn_tool_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.navigation import router as navigation_router
@@ -69,7 +69,7 @@ def create_app():
 
     server.include_router(auth_router)
     server.include_router(events_router)
-    server.include_router(fn_skill_router)
+    server.include_router(fn_tool_router)
     server.include_router(health_router)
     server.include_router(ingest_router)
     server.include_router(user_router)

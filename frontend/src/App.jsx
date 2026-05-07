@@ -12,7 +12,7 @@ import IssueList from './pages/AiPartner/IssueList'
 import IssueDetail from './pages/AiPartner/IssueDetail'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
-import FnSkillList from './pages/fn_skill/FnSkillList'
+import FnToolList from './pages/fn_tool/FnToolList'
 import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
@@ -93,18 +93,10 @@ function AppRoutes() {
           }
         />
         <Route
-          path="settings/skill"
+          path="fn_tool"
           element={
-            <PermissionGuard fnKey="fn_skill">
-              <FnSkillList />
-            </PermissionGuard>
-          }
-        />
-        <Route
-          path="fn_skill"
-          element={
-            <PermissionGuard fnKey="fn_skill">
-              <FnSkillList />
+            <PermissionGuard fnKey="fn_tool">
+              <FnToolList />
             </PermissionGuard>
           }
         />

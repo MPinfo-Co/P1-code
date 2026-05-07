@@ -1,29 +1,29 @@
-.fn-skill-form-title {
+.fn-tool-form-title {
   font-size: 16px !important;
   font-weight: 600 !important;
 }
 
-.fn-skill-form-stack {
+.fn-tool-form-stack {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.fn-skill-form-section-title {
+.fn-tool-form-section-title {
   font-size: 14px !important;
   font-weight: 700 !important;
   color: #1e293b !important;
   margin-top: 4px !important;
 }
 
-.fn-skill-form-label {
+.fn-tool-form-label {
   font-size: 13px !important;
   font-weight: 600 !important;
   color: #334155 !important;
   margin-bottom: 4px !important;
 }
 
-.fn-skill-param-row {
+.fn-tool-param-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -35,10 +35,10 @@
   background: #fafafa;
 }
 
-.fn-skill-form-cancel-btn {
+.fn-tool-form-cancel-btn {
   font-size: 13px !important;
 }
 
-.fn-skill-form-save-btn {
+.fn-tool-form-save-btn {
   font-size: 13px !important;
 }

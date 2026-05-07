@@ -12,5 +12,5 @@ export const ICON_MAP = {
   fn_ai_config: <TuneOutlinedIcon fontSize="small" />,
   fn_user: <PeopleAltOutlinedIcon fontSize="small" />,
   fn_role: <ManageAccountsIcon fontSize="small" />,
-  fn_skill: <ExtensionOutlinedIcon fontSize="small" />,
+  fn_tool: <ExtensionOutlinedIcon fontSize="small" />,
 }

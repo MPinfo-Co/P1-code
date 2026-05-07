@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
-from app.db.models.fn_skill import Skill, SkillBodyParam
+from app.db.models.fn_tool import Tool, ToolBodyParam
 from app.db.models.function_access import FunctionItems as Function, FunctionFolder, RoleFunction
 from app.db.models.user_role import Role, TokenBlacklist, User, UserRole
 
@@ -25,8 +25,8 @@ _SEED_TABLES = [
     FunctionFolder.__table__,
     Function.__table__,
     RoleFunction.__table__,
-    Skill.__table__,
-    SkillBodyParam.__table__,
+    Tool.__table__,
+    ToolBodyParam.__table__,
 ]
 
 
