@@ -14,6 +14,7 @@ import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
 import FnToolList from './pages/fn_tool/FnToolList'
 import AiConfig from './pages/Settings/AiConfig'
+import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -97,6 +98,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_tool">
               <FnToolList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="expert/setting"
+          element={
+            <PermissionGuard fnKey="fn_expert_setting">
+              <FnExpertSetting />
             </PermissionGuard>
           }
         />

@@ -4,6 +4,7 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined'
+import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
 
 export const ICON_MAP = {
   ai_partner: <SmartToyOutlinedIcon fontSize="small" />,
@@ -13,4 +14,5 @@ export const ICON_MAP = {
   fn_user: <PeopleAltOutlinedIcon fontSize="small" />,
   fn_role: <ManageAccountsIcon fontSize="small" />,
   fn_tool: <ExtensionOutlinedIcon fontSize="small" />,
+  fn_expert_setting: <SecurityOutlinedIcon fontSize="small" />,
 }
