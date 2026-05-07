@@ -97,3 +97,4 @@ frontend/
 
 ## Backend server
 1. Backend server runs at @.env [VITE_API_URL]
+2. When design API route and request body, inspect @../backend/app/api folder for detail
