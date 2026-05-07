@@ -13,6 +13,7 @@ import IssueDetail from './pages/AiPartner/IssueDetail'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
 import FnCompanyDataList from './pages/fn_company_data/FnCompanyDataList'
+import FnToolList from './pages/fn_tool/FnToolList'
 import AiConfig from './pages/Settings/AiConfig'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
@@ -97,6 +98,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_company_data">
               <FnCompanyDataList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="fn_tool"
+          element={
+            <PermissionGuard fnKey="fn_tool">
+              <FnToolList />
             </PermissionGuard>
           }
         />
