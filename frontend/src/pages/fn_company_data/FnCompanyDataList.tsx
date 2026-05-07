@@ -15,6 +15,7 @@ import DialogActions from '@mui/material/DialogActions'
 import { useCompanyDataQuery, useDeleteCompanyData } from '@/queries/useCompanyDataQuery'
 import type { CompanyDataRow } from '@/queries/useCompanyDataQuery'
 import FnCompanyDataForm from './FnCompanyDataForm'
+import './FnCompanyDataList.css'
 
 interface AppliedFilter {
   keyword?: string
@@ -142,44 +143,28 @@ export default function FnCompanyDataList() {
   ]
 
   return (
-    <Box sx={{ px: '20px', py: '14px', bgcolor: '#f0f4f8', minHeight: '100%' }}>
-      <Typography sx={{ fontSize: 18, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
-        公司資料
-      </Typography>
-
-      {/* Filter Bar */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          bgcolor: '#f1f5f9',
-          px: '12px',
-          py: '3px',
-          mb: '5px',
-          borderRadius: 1,
-        }}
-      >
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap' }}>
-          關鍵字:
-        </Typography>
-        <TextField
-          size="small"
-          placeholder="搜尋資料名稱、內容、適用夥伴..."
-          value={filterKeyword}
-          onChange={(e) => setFilterKeyword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-          sx={{
-            width: 260,
-            '& .MuiInputBase-root': { height: 24 },
-            '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
-          }}
-        />
+    <Box>
+      <Box className="fn-company-data-filter-bar">
+        <Box className="fn-company-data-filter-group">
+          <Typography className="fn-company-data-filter-label">關鍵字搜尋:</Typography>
+          <TextField
+            size="small"
+            placeholder="搜尋資料名稱、內容、適用夥伴..."
+            value={filterKeyword}
+            onChange={(e) => setFilterKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleApply()}
+            sx={{
+              width: 200,
+              '& .MuiInputBase-root': { height: 24 },
+              '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
+            }}
+          />
+        </Box>
         <Button
           variant="outlined"
           size="small"
           onClick={handleApply}
-          sx={{ height: 24, fontSize: 12, borderRadius: '3px' }}
+          className="fn-company-data-apply-btn"
         >
           套用
         </Button>
@@ -187,7 +172,7 @@ export default function FnCompanyDataList() {
           variant="contained"
           size="small"
           onClick={handleAddClick}
-          sx={{ height: 24, fontSize: 12, borderRadius: '3px', ml: 'auto' }}
+          className="fn-company-data-add-btn"
         >
           新增資料
         </Button>
@@ -196,16 +181,9 @@ export default function FnCompanyDataList() {
       {error ? (
         <Alert severity="error">載入失敗：{(error as Error).message}</Alert>
       ) : (
-        <Box
-          sx={{
-            bgcolor: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: 1,
-            overflow: 'hidden',
-          }}
-        >
+        <Box className="fn-company-data-grid-wrap">
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Box className="fn-company-data-loading">
               <CircularProgress />
             </Box>
           ) : (
