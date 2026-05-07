@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.schema.roles import (
+    FunctionOptionItem,
+    FunctionOptionsOut,
     RoleAddRequest,
     RoleAddOut,
     RoleDelOut,
@@ -222,3 +224,25 @@ def get_role_options(
     rows = db.query(Role).order_by(Role.name.asc()).all()
     items = [{"id": r.id, "name": r.name} for r in rows]
     return {"message": "查詢成功", "data": items}
+
+
+@router.get("/function-options", response_model=FunctionOptionsOut)
+def get_function_options(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> FunctionOptionsOut:
+    """Return all tb_function_items rows for role permission checkboxes."""
+    rows = (
+        db.query(FunctionItems)
+        .order_by(FunctionItems.sort_order.asc(), FunctionItems.function_id.asc())
+        .all()
+    )
+    items = [
+        FunctionOptionItem(
+            function_id=r.function_id,
+            function_code=r.function_code,
+            function_label=r.function_label,
+        )
+        for r in rows
+    ]
+    return FunctionOptionsOut(data=items)
