@@ -94,3 +94,6 @@ frontend/
 - `npm run build` — production build
 - `npm run lint` — run ESLint
 - `npm run preview` — preview built output
+
+## Backend server
+1. Backend server runs at @.env [VITE_API_URL]
