@@ -9,7 +9,10 @@ export default function Layout() {
       <Sidebar />
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Header />
-        <Box component="main" sx={{ flex: 1, overflow: 'auto', bgcolor: '#f0f4f8', p: '14px 20px' }}>
+        <Box
+          component="main"
+          sx={{ flex: 1, overflow: 'auto', bgcolor: '#f0f4f8', p: '14px 20px' }}
+        >
           <Outlet />
         </Box>
       </Box>

@@ -38,7 +38,9 @@ class SecurityEvent(Base):
         String(20), nullable=False, default="pending", server_default="pending"
     )
     match_key: Mapped[str] = mapped_column(String(200), nullable=False)
-    detection_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    detection_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     continued_from: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("tb_security_events.id"), nullable=True
     )
@@ -49,13 +51,17 @@ class SecurityEvent(Base):
     logs: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     ioc_list: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     mitre_tags: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     __table_args__ = (
-        CheckConstraint("star_rank BETWEEN 1 AND 5", name="ck_tb_security_events_star_rank"),
+        CheckConstraint(
+            "star_rank BETWEEN 1 AND 5", name="ck_tb_security_events_star_rank"
+        ),
         Index("idx_tb_security_events_event_date", "event_date"),
         Index("idx_tb_security_events_star_rank", star_rank.desc()),
         Index("idx_tb_security_events_current_status", "current_status"),
@@ -80,8 +86,8 @@ class EventHistory(Base):
     new_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
-
-    __table_args__ = (
-        Index("idx_tb_event_history_event_id", "event_id"),
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
     )
+
+    __table_args__ = (Index("idx_tb_event_history_event_id", "event_id"),)

@@ -17,7 +17,9 @@ class FunctionFolder(Base):
     default_open: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
-    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
 
 class FunctionItems(Base):
@@ -31,7 +33,9 @@ class FunctionItems(Base):
     folder_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_function_folder.id"), nullable=False
     )
-    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
 
 class RoleFunction(Base):

@@ -37,7 +37,9 @@ def get_me(
     """Return the current user's basic info and accessible function list."""
     user = db.query(User).filter(User.id == auth.user_id).first()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="請重新登入")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="請重新登入"
+        )
 
     # Collect function_codes via user_roles → role_function → functions (deduplicated)
     function_names = (
@@ -61,7 +63,11 @@ def get_me(
 
 def _has_user_permission(user_id: int, db: Session) -> bool:
     """Return True if the user has fn_user function permission via tb_role_function."""
-    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_USER_NAME).first()
+    fn = (
+        db.query(FunctionItems)
+        .filter(FunctionItems.function_code == FN_USER_NAME)
+        .first()
+    )
     if fn is None:
         return False
     return (
@@ -104,7 +110,11 @@ def get_user_list(
     query = db.query(User)
 
     if role_id is not None:
-        sub = db.query(UserRole.user_id).filter(UserRole.role_id == role_id).scalar_subquery()
+        sub = (
+            db.query(UserRole.user_id)
+            .filter(UserRole.role_id == role_id)
+            .scalar_subquery()
+        )
         query = query.filter(User.id.in_(sub))
 
     if keyword:
@@ -202,7 +212,9 @@ def update_user(
 
     user = db.query(User).filter(User.email == email).first()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在"
+        )
 
     changes = payload.model_dump(exclude_unset=True)
 
@@ -248,7 +260,9 @@ def delete_user(
 
     user = db.query(User).filter(User.email == email).first()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在"
+        )
 
     # Prevent self-deletion: look up the requesting user's email
     requesting_user = db.query(User).filter(User.id == auth.user_id).first()
@@ -263,5 +277,3 @@ def delete_user(
     db.commit()
     system_logger.info(f"User {auth.user_id} deleted user {user.id} ({email})")
     return UserDeleteOut()
-
-

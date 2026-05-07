@@ -2,7 +2,15 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, SmallInteger, String, Text, TIMESTAMP
+from sqlalchemy import (
+    Boolean,
+    ForeignKey,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    TIMESTAMP,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 

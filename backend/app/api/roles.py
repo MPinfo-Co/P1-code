@@ -30,7 +30,11 @@ FN_USER_NAME = "fn_user"
 
 def _has_fn_role_permission(user_id: int, db: Session) -> bool:
     """Return True if the user has fn_role function permission via tb_role_function."""
-    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_ROLE_NAME).first()
+    fn = (
+        db.query(FunctionItems)
+        .filter(FunctionItems.function_code == FN_ROLE_NAME)
+        .first()
+    )
     if fn is None:
         return False
     return (

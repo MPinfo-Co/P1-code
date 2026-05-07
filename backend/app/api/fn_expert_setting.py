@@ -125,9 +125,7 @@ def get_expert_settings(
         return {"message": "查詢成功", "data": data.model_dump()}
 
     setting = (
-        db.query(ExpertSetting)
-        .filter(ExpertSetting.partner_id == partner.id)
-        .first()
+        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
     )
 
     if setting is None:
@@ -246,13 +244,13 @@ def save_expert_settings(
         db.flush()
 
     existing = (
-        db.query(ExpertSetting)
-        .filter(ExpertSetting.partner_id == partner.id)
-        .first()
+        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
     )
 
     # Check first-time password requirement
-    if existing is None and (not payload.ssb_password or not payload.ssb_password.strip()):
+    if existing is None and (
+        not payload.ssb_password or not payload.ssb_password.strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="首次儲存需提供 SSB 密碼",
@@ -347,7 +345,9 @@ def test_ssb_connection(
     # --- Resolve password ---
     test_password = payload.password
     if payload.password == "**":
-        partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
+        partner = (
+            db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
+        )
         if partner:
             setting = (
                 db.query(ExpertSetting)

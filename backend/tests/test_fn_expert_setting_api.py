@@ -14,7 +14,11 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.fn_expert_setting import AiPartner, ExpertSetting
-from app.db.models.function_access import FunctionItems as Function, FunctionFolder, RoleFunction
+from app.db.models.function_access import (
+    FunctionItems as Function,
+    FunctionFolder,
+    RoleFunction,
+)
 from app.db.models.user_role import Role, User, UserRole
 from app.utils.util_store import create_access_token, hash_password
 
@@ -44,7 +48,9 @@ def _create_expert_tables(engine):
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "資安專家", sort_order: int = 1) -> int:
+def _make_function_folder(
+    db: Session, name: str = "資安專家", sort_order: int = 1
+) -> int:
     folder = FunctionFolder(
         folder_code=name, folder_label=name, default_open=True, sort_order=sort_order
     )
@@ -54,7 +60,12 @@ def _make_function_folder(db: Session, name: str = "資安專家", sort_order: i
 
 
 def _make_function(db: Session, code: str, folder_id: int, sort_order: int = 1) -> int:
-    fn = Function(function_code=code, function_label=code, folder_id=folder_id, sort_order=sort_order)
+    fn = Function(
+        function_code=code,
+        function_label=code,
+        folder_id=folder_id,
+        sort_order=sort_order,
+    )
     db.add(fn)
     db.flush()
     return fn.function_id
@@ -67,7 +78,9 @@ def _make_role(db: Session, name: str) -> int:
     return role.id
 
 
-def _make_user(db: Session, email: str, name: str = "Test User", password: str = "password123") -> int:
+def _make_user(
+    db: Session, email: str, name: str = "Test User", password: str = "password123"
+) -> int:
     user = User(name=name, email=email, password_hash=hash_password(password))
     db.add(user)
     db.flush()
@@ -116,7 +129,9 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> tuple[int, int]:
     return user_id, role_id
 
 
-def _create_partner_and_setting(engine, password_enc: str | None = None) -> tuple[int, int]:
+def _create_partner_and_setting(
+    engine, password_enc: str | None = None
+) -> tuple[int, int]:
     """Create tb_ai_partners + tb_expert_settings rows. Return (partner_id, setting_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
@@ -181,6 +196,7 @@ def test_get_settings_with_existing_data_returns_200(client, engine):
     admin_id, _, _ = _setup_admin(engine)
     # Need a password_enc value - encrypt something for testing
     from app.api.fn_expert_setting import _encrypt
+
     enc = _encrypt("mypassword")
     _create_partner_and_setting(engine, password_enc=enc)
 
@@ -281,6 +297,7 @@ def test_save_settings_empty_password_keeps_old_password(client, engine):
     """對應 T7"""
     admin_id, _, _ = _setup_admin(engine)
     from app.api.fn_expert_setting import _encrypt, _decrypt
+
     original_enc = _encrypt("original_password")
     partner_id, _ = _create_partner_and_setting(engine, password_enc=original_enc)
 
@@ -295,7 +312,9 @@ def test_save_settings_empty_password_keeps_old_password(client, engine):
     # Verify DB still has the original password
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    setting = db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner_id).first()
+    setting = (
+        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner_id).first()
+    )
     assert setting is not None
     assert setting.ssb_password_enc is not None
     assert _decrypt(setting.ssb_password_enc) == "original_password"
@@ -363,7 +382,9 @@ def test_save_settings_is_enabled_true_persists(client, engine):
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
-    setting = db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
+    setting = (
+        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
+    )
     assert setting.is_enabled is True
     db.close()
 
@@ -388,7 +409,9 @@ def test_save_settings_is_enabled_false_persists(client, engine):
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
-    setting = db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
+    setting = (
+        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
+    )
     assert setting.is_enabled is False
     db.close()
 

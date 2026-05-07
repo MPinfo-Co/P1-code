@@ -20,9 +20,13 @@ class ToolCreate(BaseModel):
     endpoint_url: str = Field(..., description="API Endpoint URL")
     http_method: str = Field(..., description="HTTP Method")
     auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
-    auth_header_name: str | None = Field(None, description="API Key 模式下的 Header 名稱")
+    auth_header_name: str | None = Field(
+        None, description="API Key 模式下的 Header 名稱"
+    )
     credential: str | None = Field(None, description="憑證（明文，後端加密儲存）")
-    body_params: list[ToolBodyParamCreate] = Field(default_factory=list, description="Body 參數定義")
+    body_params: list[ToolBodyParamCreate] = Field(
+        default_factory=list, description="Body 參數定義"
+    )
 
 
 class ToolUpdate(BaseModel):
@@ -33,9 +37,13 @@ class ToolUpdate(BaseModel):
     endpoint_url: str = Field(..., description="API Endpoint URL")
     http_method: str = Field(..., description="HTTP Method")
     auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
-    auth_header_name: str | None = Field(None, description="API Key 模式下的 Header 名稱")
+    auth_header_name: str | None = Field(
+        None, description="API Key 模式下的 Header 名稱"
+    )
     credential: str | None = Field(None, description="憑證（空白表示不變更）")
-    body_params: list[ToolBodyParamCreate] = Field(default_factory=list, description="Body 參數定義")
+    body_params: list[ToolBodyParamCreate] = Field(
+        default_factory=list, description="Body 參數定義"
+    )
 
 
 class ToolBodyParamItem(BaseModel):
@@ -73,9 +81,13 @@ class ToolTestRequest(BaseModel):
     endpoint_url: str = Field(..., description="API Endpoint URL")
     http_method: str = Field(..., description="HTTP Method")
     auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
-    auth_header_name: str | None = Field(None, description="API Key 模式下的 Header 名稱")
+    auth_header_name: str | None = Field(
+        None, description="API Key 模式下的 Header 名稱"
+    )
     credential: str | None = Field(None, description="憑證")
-    body_params_values: dict | None = Field(None, description="Body 參數值（key-value）")
+    body_params_values: dict | None = Field(
+        None, description="Body 參數值（key-value）"
+    )
     tool_id: int | None = Field(None, description="指定工具 id 時使用 DB 儲存的憑證")
 
 

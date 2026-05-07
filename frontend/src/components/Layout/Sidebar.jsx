@@ -34,6 +34,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (navFolders.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpenFolders((prev) => {
         const next = {}
         navFolders.forEach((f) => {
@@ -44,8 +45,7 @@ export default function Sidebar() {
     }
   }, [navFolders])
 
-  const allowedFunctions =
-    user && Array.isArray(user.functions) ? new Set(user.functions) : null
+  const allowedFunctions = user && Array.isArray(user.functions) ? new Set(user.functions) : null
 
   function handleToggleFolder(code) {
     setOpenFolders((prev) => ({ ...prev, [code]: !prev[code] }))

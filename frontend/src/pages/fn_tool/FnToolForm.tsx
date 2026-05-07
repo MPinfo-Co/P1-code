@@ -74,9 +74,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   }
 
   function handleBodyParamChange(index: number, field: keyof BodyParam, value: unknown) {
-    setBodyParams((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
-    )
+    setBodyParams((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)))
   }
 
   async function handleTest() {
@@ -89,7 +87,9 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     try {
       const bodyParamsValues =
         showBodyParams && bodyParams.length > 0
-          ? Object.fromEntries(bodyParams.map((p) => [p.param_name, testParamValues[p.param_name] ?? '']))
+          ? Object.fromEntries(
+              bodyParams.map((p) => [p.param_name, testParamValues[p.param_name] ?? ''])
+            )
           : undefined
       const result = await testTool.mutateAsync({
         endpoint_url: endpointUrl.trim(),
@@ -142,9 +142,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="fn-tool-form-title">
-        {isEdit ? '編輯工具' : '新增工具'}
-      </DialogTitle>
+      <DialogTitle className="fn-tool-form-title">{isEdit ? '編輯工具' : '新增工具'}</DialogTitle>
       <DialogContent sx={{ pt: '16px !important' }}>
         <Box className="fn-tool-form-stack">
           {formError && (
@@ -351,24 +349,32 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
           {showBodyParams && bodyParams.filter((p) => p.param_name.trim()).length > 0 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography sx={{ fontSize: 13, color: '#475569' }}>測試參數值</Typography>
-              {bodyParams.filter((p) => p.param_name.trim()).map((param) => (
-                <Box key={param.param_name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography sx={{ fontSize: 13, minWidth: 120, color: '#334155' }}>
-                    {param.param_name}
-                    {param.is_required && <span style={{ color: '#ef4444' }}> *</span>}
-                  </Typography>
-                  <TextField
-                    size="small"
-                    fullWidth
-                    placeholder={`${param.param_type}${param.description ? `（${param.description}）` : ''}`}
-                    value={testParamValues[param.param_name] ?? ''}
-                    onChange={(e) =>
-                      setTestParamValues((prev) => ({ ...prev, [param.param_name]: e.target.value }))
-                    }
-                    sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
-                  />
-                </Box>
-              ))}
+              {bodyParams
+                .filter((p) => p.param_name.trim())
+                .map((param) => (
+                  <Box
+                    key={param.param_name}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                  >
+                    <Typography sx={{ fontSize: 13, minWidth: 120, color: '#334155' }}>
+                      {param.param_name}
+                      {param.is_required && <span style={{ color: '#ef4444' }}> *</span>}
+                    </Typography>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder={`${param.param_type}${param.description ? `（${param.description}）` : ''}`}
+                      value={testParamValues[param.param_name] ?? ''}
+                      onChange={(e) =>
+                        setTestParamValues((prev) => ({
+                          ...prev,
+                          [param.param_name]: e.target.value,
+                        }))
+                      }
+                      sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+                    />
+                  </Box>
+                ))}
             </Box>
           )}
 

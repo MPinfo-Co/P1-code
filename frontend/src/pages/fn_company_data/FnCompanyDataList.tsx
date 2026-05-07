@@ -1,7 +1,7 @@
-// src/pages/fn_tool/FnToolList.tsx
+// src/pages/fn_company_data/FnCompanyDataList.tsx
 import { useState } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
-import type { GridColDef } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -12,28 +12,28 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
-import { useToolsQuery, useDeleteTool } from '@/queries/useToolsQuery'
-import type { ToolRow } from '@/queries/useToolsQuery'
-import FnToolForm from './FnToolForm'
-import './FnToolList.css'
+import { useCompanyDataQuery, useDeleteCompanyData } from '@/queries/useCompanyDataQuery'
+import type { CompanyDataRow } from '@/queries/useCompanyDataQuery'
+import FnCompanyDataForm from './FnCompanyDataForm'
+import './FnCompanyDataList.css'
 
 interface AppliedFilter {
   keyword?: string
 }
 
-export default function FnToolList() {
+export default function FnCompanyDataList() {
   const [filterKeyword, setFilterKeyword] = useState('')
   const [appliedFilter, setAppliedFilter] = useState<AppliedFilter>({})
 
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingRow, setEditingRow] = useState<ToolRow | null>(null)
+  const [editingRow, setEditingRow] = useState<CompanyDataRow | null>(null)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [deletingRow, setDeletingRow] = useState<ToolRow | null>(null)
+  const [deletingRow, setDeletingRow] = useState<CompanyDataRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: tools = [], isLoading, error } = useToolsQuery(appliedFilter)
-  const deleteTool = useDeleteTool()
+  const { data: rows = [], isLoading, error } = useCompanyDataQuery(appliedFilter)
+  const deleteCompanyData = useDeleteCompanyData()
 
   function handleApply() {
     const filter: AppliedFilter = {}
@@ -46,12 +46,12 @@ export default function FnToolList() {
     setIsFormOpen(true)
   }
 
-  function handleEditClick(row: ToolRow) {
+  function handleEditClick(row: CompanyDataRow) {
     setEditingRow(row)
     setIsFormOpen(true)
   }
 
-  function handleDeleteClick(row: ToolRow) {
+  function handleDeleteClick(row: CompanyDataRow) {
     setDeletingRow(row)
     setDeleteError(null)
     setIsDeleteDialogOpen(true)
@@ -61,7 +61,7 @@ export default function FnToolList() {
     if (!deletingRow) return
     setDeleteError(null)
     try {
-      await deleteTool.mutateAsync(deletingRow.id)
+      await deleteCompanyData.mutateAsync(deletingRow.id)
       setIsDeleteDialogOpen(false)
       setDeletingRow(null)
     } catch (err) {
@@ -72,32 +72,59 @@ export default function FnToolList() {
   const columns: GridColDef[] = [
     {
       field: 'name',
-      headerName: '工具名稱',
+      headerName: '資料名稱',
       flex: 1,
-      renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
+      minWidth: 150,
+      renderCell: (params: GridRenderCellParams<CompanyDataRow>) => (
+        <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{params.value}</Typography>
       ),
     },
     {
-      field: 'description',
-      headerName: '工具說明',
+      field: 'content',
+      headerName: '內容',
       flex: 2,
-      renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13, color: '#64748b' }}>{value}</Typography>
-      ),
+      minWidth: 200,
+      renderCell: (params: GridRenderCellParams<CompanyDataRow>) => {
+        const lines = (params.value as string)
+          .split('\n')
+          .filter((line: string) => line.trim() !== '')
+        const firstLine = lines[0] ?? ''
+        const hasMore = lines.length > 1
+        return (
+          <Typography sx={{ fontSize: 13, py: 0.5 }}>
+            {firstLine}
+            {hasMore ? '...' : ''}
+          </Typography>
+        )
+      },
+    },
+    {
+      field: 'partners',
+      headerName: '適用夥伴',
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params: GridRenderCellParams<CompanyDataRow>) => {
+        const partners = params.row.partners as CompanyDataRow['partners']
+        if (!partners || partners.length === 0) {
+          return <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>—</Typography>
+        }
+        return (
+          <Typography sx={{ fontSize: 13 }}>{partners.map((p) => p.name).join('、')}</Typography>
+        )
+      },
     },
     {
       field: 'actions',
       headerName: '執行動作',
-      width: 160,
+      width: 140,
       sortable: false,
-      renderCell: ({ row }: { row: ToolRow }) => (
-        <Box className="fn-tool-actions-cell">
+      renderCell: (params: GridRenderCellParams<CompanyDataRow>) => (
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
           <Button
             size="small"
             variant="outlined"
-            className="fn-tool-action-btn"
-            onClick={() => handleEditClick(row)}
+            onClick={() => handleEditClick(params.row)}
+            sx={{ fontSize: 12, height: 24, minWidth: 40, borderRadius: '3px' }}
           >
             修改
           </Button>
@@ -105,8 +132,8 @@ export default function FnToolList() {
             size="small"
             variant="outlined"
             color="error"
-            className="fn-tool-action-btn-error"
-            onClick={() => handleDeleteClick(row)}
+            onClick={() => handleDeleteClick(params.row)}
+            sx={{ fontSize: 12, height: 24, minWidth: 40, borderRadius: '3px' }}
           >
             刪除
           </Button>
@@ -117,12 +144,12 @@ export default function FnToolList() {
 
   return (
     <Box>
-      <Box className="fn-tool-filter-bar">
-        <Box className="fn-tool-filter-group">
-          <Typography className="fn-tool-filter-label">關鍵字:</Typography>
+      <Box className="fn-company-data-filter-bar">
+        <Box className="fn-company-data-filter-group">
+          <Typography className="fn-company-data-filter-label">關鍵字搜尋:</Typography>
           <TextField
             size="small"
-            placeholder="搜尋工具名稱..."
+            placeholder="搜尋資料名稱、內容、適用夥伴..."
             value={filterKeyword}
             onChange={(e) => setFilterKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleApply()}
@@ -133,30 +160,35 @@ export default function FnToolList() {
             }}
           />
         </Box>
-        <Button variant="outlined" size="small" onClick={handleApply} className="fn-tool-apply-btn">
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleApply}
+          className="fn-company-data-apply-btn"
+        >
           套用
         </Button>
         <Button
           variant="contained"
           size="small"
           onClick={handleAddClick}
-          className="fn-tool-add-btn"
+          className="fn-company-data-add-btn"
         >
-          ＋ 新增工具
+          新增資料
         </Button>
       </Box>
 
       {error ? (
         <Alert severity="error">載入失敗：{(error as Error).message}</Alert>
       ) : (
-        <Box className="fn-tool-grid-wrap">
+        <Box className="fn-company-data-grid-wrap">
           {isLoading ? (
-            <Box className="fn-tool-loading">
+            <Box className="fn-company-data-loading">
               <CircularProgress />
             </Box>
           ) : (
             <DataGrid
-              rows={tools}
+              rows={rows}
               columns={columns}
               getRowId={(row) => row.id}
               pageSizeOptions={[10, 25]}
@@ -164,6 +196,8 @@ export default function FnToolList() {
               disableRowSelectionOnClick
               rowHeight={36}
               columnHeaderHeight={36}
+              getRowHeight={() => 'auto'}
+              localeText={{ noRowsLabel: '沒有符合條件的資料' }}
               sx={{
                 border: 'none',
                 '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
@@ -176,7 +210,7 @@ export default function FnToolList() {
         </Box>
       )}
 
-      <FnToolForm
+      <FnCompanyDataForm
         key={editingRow?.id ?? 'new'}
         open={isFormOpen}
         row={editingRow}
@@ -184,28 +218,26 @@ export default function FnToolList() {
         onSuccess={() => setIsFormOpen(false)}
       />
 
+      {/* Delete Confirm Dialog */}
       <Dialog
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle className="fn-tool-dialog-title">確認刪除工具</DialogTitle>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 600 }}>確認刪除</DialogTitle>
         <DialogContent>
           {deleteError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {deleteError}
             </Alert>
           )}
-          <Typography sx={{ fontSize: 14 }}>
-            確定要刪除「<strong>{deletingRow?.name}</strong>」？此操作無法還原
-          </Typography>
+          <Typography sx={{ fontSize: 14 }}>確定要刪除「{deletingRow?.name}」？</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setIsDeleteDialogOpen(false)}
-            className="fn-tool-cancel-btn"
-            disabled={deleteTool.isPending}
+            disabled={deleteCompanyData.isPending}
           >
             取消
           </Button>
@@ -213,9 +245,9 @@ export default function FnToolList() {
             onClick={handleDeleteConfirm}
             variant="contained"
             color="error"
-            disabled={deleteTool.isPending}
+            disabled={deleteCompanyData.isPending}
           >
-            {deleteTool.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}
+            {deleteCompanyData.isPending ? <CircularProgress size={18} color="inherit" /> : '確認'}
           </Button>
         </DialogActions>
       </Dialog>
