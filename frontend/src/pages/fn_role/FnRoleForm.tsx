@@ -12,8 +12,8 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import { useCreateRole, useUpdateRole } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
+import { useFunctionOptionsQuery } from '@/queries/useRoleOptionsQuery'
 import { useUserOptionsQuery } from '@/queries/useUserOptionsQuery'
-import './FnRoleForm.css'
 
 interface Props {
   open: boolean
@@ -35,7 +35,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
-  
+  const { data: allFunctions = [] } = useFunctionOptionsQuery()
 
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
@@ -54,11 +54,11 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
     setSelectedMemberIds(isAllSelected ? [] : allIds)
   }
 
-  // function toggleFunction(functionId: number) {
-  //   setSelectedFunctionIds((prev) =>
-  //     prev.includes(functionId) ? prev.filter((id) => id !== functionId) : [...prev, functionId]
-  //   )
-  // }
+  function toggleFunction(functionId: number) {
+    setSelectedFunctionIds((prev) =>
+      prev.includes(functionId) ? prev.filter((id) => id !== functionId) : [...prev, functionId]
+    )
+  }
 
   async function handleSave() {
     setFormError(null)
@@ -92,17 +92,20 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle className="fn-role-form-title">{isEdit ? '編輯角色' : '新增角色'}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 800 }}>{isEdit ? '編輯角色' : '新增角色'}</DialogTitle>
       <DialogContent sx={{ pt: '16px !important' }}>
-        <Box className="fn-role-form-stack">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {formError && (
             <Alert severity="error" onClose={() => setFormError(null)}>
               {formError}
             </Alert>
           )}
 
+          {/* 角色名稱 */}
           <Box>
-            <Typography className="fn-role-form-label">角色名稱</Typography>
+            <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 0.75 }}>
+              角色名稱
+            </Typography>
             <TextField
               fullWidth
               size="small"
@@ -113,49 +116,130 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
             />
           </Box>
 
+          {/* 成員 */}
           <Box>
-            <Box className="fn-role-form-section-header">
-              <Typography className="fn-role-form-label" sx={{ mb: 0 }}>
-                成員
-              </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 1,
+              }}
+            >
+              <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>成員</Typography>
               <Button
                 size="small"
                 variant="outlined"
                 onClick={toggleAllMembers}
-                className="fn-role-form-toggle-all"
+                sx={{
+                  fontSize: 12,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: '#f1f5f9' },
+                }}
               >
                 全選
               </Button>
             </Box>
-            <Box className="fn-role-form-members-box">
+            <Box
+              sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 2,
+                p: 0.5,
+                bgcolor: '#f8fafc',
+                maxHeight: 140,
+                overflowY: 'auto',
+              }}
+            >
               {userOptions.map((u) => (
-                <Box key={u.id} component="label" className="fn-role-form-member-row">
+                <Box
+                  key={u.id}
+                  component="label"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.25,
+                    p: '7px 10px',
+                    borderRadius: 1.5,
+                    cursor: 'pointer',
+                    bgcolor: 'white',
+                    mb: 0.5,
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={selectedMemberIds.includes(u.id)}
                     onChange={() => toggleMember(u.id)}
-                    className="fn-role-form-checkbox"
+                    style={{ width: 15, height: 15, accentColor: '#2e3f6e' }}
                   />
-                  <Typography className="fn-role-form-member-name">{u.name}</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                    {u.name}
+                  </Typography>
                 </Box>
               ))}
             </Box>
           </Box>
 
+          {/* 功能權限 */}
           <Box>
-            <Typography className="fn-role-form-label">功能權限</Typography>
-                    </Box>
+            <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 1 }}>
+              功能權限
+            </Typography>
+            <Box
+              sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 2,
+                p: 0.5,
+                bgcolor: '#f8fafc',
+              }}
+            >
+              {allFunctions.map((fn, i) => (
+                <Box
+                  key={fn.function_id}
+                  component="label"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.25,
+                    p: 1,
+                    borderRadius: 1.5,
+                    bgcolor: 'white',
+                    border: '1px solid #e2e8f0',
+                    mb: i < allFunctions.length - 1 ? 0.5 : 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedFunctionIds.includes(fn.function_id)}
+                    onChange={() => toggleFunction(fn.function_id)}
+                    style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
+                  />
+                  <Box>
+                    <Typography
+                      component="strong"
+                      sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
+                    >
+                      {fn.function_label}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} className="fn-role-form-cancel-btn" disabled={isPending}>
+        <Button onClick={onClose} sx={{ color: '#64748b' }} disabled={isPending}>
           取消
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={isPending}
-          className="fn-role-form-save-btn"
+          sx={{ bgcolor: '#2e3f6e', '&:hover': { bgcolor: '#1e2d52' } }}
         >
           {isPending ? <CircularProgress size={18} color="inherit" /> : '儲存'}
         </Button>

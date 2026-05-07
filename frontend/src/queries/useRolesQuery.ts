@@ -59,21 +59,6 @@ export function useRolesQuery(params: QueryParams = {}) {
   })
 }
 
-// export function useFunctionOptionsQuery() {
-//   return useQuery<FunctionOption[]>({
-//     queryKey: ['functionOptions'],
-//     queryFn: async () => {
-//       const token = getToken()
-//       const res = await fetch(`${BASE_URL}/api/functions/options`, {
-//         headers: { Authorization: `Bearer ${token}` },
-//       })
-//       if (!res.ok) throw new Error('功能選項載入失敗')
-//       const json = await res.json()
-//       return json.data ?? json
-//     },
-//   })
-// }
-
 export function useCreateRole() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -72,6 +72,7 @@ class FunctionOptionItem(BaseModel):
 
     function_id: int
     function_code: str
+    function_label: str
 
 
 class FunctionOptionsOut(BaseModel):
