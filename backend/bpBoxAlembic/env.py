@@ -9,7 +9,7 @@ from alembic import context
 
 from app.config.settings import settings
 from app.db.models import base
-from app.db import models
+from app.db import models  # noqa: F401  side-effect: register all models with Base.metadata
 
 load_dotenv()
 
@@ -78,9 +78,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

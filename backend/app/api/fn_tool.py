@@ -39,7 +39,11 @@ VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 
 def _has_fn_tool_permission(user_id: int, db: Session) -> bool:
     """Return True if the user has fn_tool function permission."""
-    fn = db.query(FunctionItems).filter(FunctionItems.function_code == FN_TOOL_NAME).first()
+    fn = (
+        db.query(FunctionItems)
+        .filter(FunctionItems.function_code == FN_TOOL_NAME)
+        .first()
+    )
     if fn is None:
         return False
     return (
@@ -111,11 +115,15 @@ def list_tools(
 
     tool_ids = [t.id for t in tools]
     all_params = (
-        db.query(ToolBodyParam)
-        .filter(ToolBodyParam.tool_id.in_(tool_ids))
-        .order_by(ToolBodyParam.tool_id, ToolBodyParam.sort_order)
-        .all()
-    ) if tool_ids else []
+        (
+            db.query(ToolBodyParam)
+            .filter(ToolBodyParam.tool_id.in_(tool_ids))
+            .order_by(ToolBodyParam.tool_id, ToolBodyParam.sort_order)
+            .all()
+        )
+        if tool_ids
+        else []
+    )
     params_by_tool: dict[int, list] = {}
     for p in all_params:
         params_by_tool.setdefault(p.tool_id, []).append(p)
@@ -157,21 +165,42 @@ def add_tool(
 
     # Validation
     if not payload.name or not payload.name.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填"
+        )
     if len(payload.name) > 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱不可超過 100 字")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱不可超過 100 字"
+        )
     if db.query(Tool).filter(Tool.name == payload.name).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在"
+        )
     if not payload.endpoint_url or not payload.endpoint_url.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填"
+        )
     if payload.auth_type not in VALID_AUTH_TYPES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法")
-    if payload.auth_type == "api_key" and (not payload.auth_header_name or not payload.auth_header_name.strip()):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Key 模式下 Header 名稱為必填")
-    if payload.auth_type in {"api_key", "bearer"} and (not payload.credential or not payload.credential.strip()):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="憑證為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
+        )
+    if payload.auth_type == "api_key" and (
+        not payload.auth_header_name or not payload.auth_header_name.strip()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API Key 模式下 Header 名稱為必填",
+        )
+    if payload.auth_type in {"api_key", "bearer"} and (
+        not payload.credential or not payload.credential.strip()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="憑證為必填"
+        )
     if payload.http_method not in VALID_HTTP_METHODS:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
+        )
 
     # Create tool
     credential_enc = _encrypt(payload.credential) if payload.credential else None
@@ -229,20 +258,39 @@ def update_tool(
 
     # Validation
     if not payload.name or not payload.name.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填"
+        )
     if len(payload.name) > 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱不可超過 100 字")
-    conflict = db.query(Tool).filter(Tool.name == payload.name, Tool.id != tool_id).first()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱不可超過 100 字"
+        )
+    conflict = (
+        db.query(Tool).filter(Tool.name == payload.name, Tool.id != tool_id).first()
+    )
     if conflict:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在"
+        )
     if not payload.endpoint_url or not payload.endpoint_url.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填"
+        )
     if payload.auth_type not in VALID_AUTH_TYPES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法")
-    if payload.auth_type == "api_key" and (not payload.auth_header_name or not payload.auth_header_name.strip()):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Key 模式下 Header 名稱為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
+        )
+    if payload.auth_type == "api_key" and (
+        not payload.auth_header_name or not payload.auth_header_name.strip()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API Key 模式下 Header 名稱為必填",
+        )
     if payload.http_method not in VALID_HTTP_METHODS:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
+        )
 
     # Update fields
     tool.name = payload.name
@@ -323,9 +371,13 @@ def test_tool(
         )
 
     if not payload.endpoint_url or not payload.endpoint_url.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填"
+        )
     if payload.http_method not in VALID_HTTP_METHODS:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
+        )
 
     # Resolve credential
     credential: str | None = None
@@ -344,7 +396,9 @@ def test_tool(
         headers["Authorization"] = f"Bearer {credential}"
 
     # Build body
-    json_body = payload.body_params_values if payload.http_method in {"POST", "PUT"} else None
+    json_body = (
+        payload.body_params_values if payload.http_method in {"POST", "PUT"} else None
+    )
 
     # Execute request
     try:
@@ -361,7 +415,9 @@ def test_tool(
         except Exception:
             response_body = response.text
 
-        result = ToolTestResult(http_status=response.status_code, response_body=response_body)
+        result = ToolTestResult(
+            http_status=response.status_code, response_body=response_body
+        )
         return {"message": "測試完成", "data": result.model_dump()}
 
     except httpx.TimeoutException as exc:

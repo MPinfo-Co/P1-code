@@ -28,7 +28,9 @@ def list_events(
         alias="status",
         description="Comma-separated, e.g. pending,investigating",
     ),
-    keyword: str | None = Query(None, description="Substring match on title or affected_summary."),
+    keyword: str | None = Query(
+        None, description="Substring match on title or affected_summary."
+    ),
     date_from: str | None = Query(None, description="ISO8601 date, e.g. 2026-03-01"),
     date_to: str | None = Query(None, description="ISO8601 date, inclusive."),
     page: int = Query(1, ge=1),
@@ -54,9 +56,13 @@ def list_events(
         )
 
     if date_from:
-        query = query.filter(SecurityEvent.event_date >= parse_iso_date(date_from, "date_from"))
+        query = query.filter(
+            SecurityEvent.event_date >= parse_iso_date(date_from, "date_from")
+        )
     if date_to:
-        query = query.filter(SecurityEvent.event_date <= parse_iso_date(date_to, "date_to"))
+        query = query.filter(
+            SecurityEvent.event_date <= parse_iso_date(date_to, "date_to")
+        )
 
     total = query.count()
     rows = (
@@ -82,7 +88,9 @@ def get_event(
     """Get a single event from `tb_security_events` by id."""
     event = db.get(SecurityEvent, event_id)
     if event is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
     return EventDetail.model_validate(event)
 
 
@@ -96,7 +104,9 @@ def update_event(
     """Update `current_status` and/or `assignee_user_id` on a security event."""
     event = db.get(SecurityEvent, event_id)
     if event is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
 
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
@@ -122,7 +132,9 @@ def list_history(
     """Get the processing log for one event from `tb_event_history`."""
 
     if db.get(SecurityEvent, event_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
 
     rows = (
         db.query(EventHistory)
@@ -130,7 +142,9 @@ def list_history(
         .order_by(EventHistory.created_at.asc(), EventHistory.id.asc())
         .all()
     )
-    return EventHistoryListResponse(items=[EventHistoryEntry.model_validate(r) for r in rows])
+    return EventHistoryListResponse(
+        items=[EventHistoryEntry.model_validate(r) for r in rows]
+    )
 
 
 @router.post(
@@ -146,7 +160,9 @@ def add_history(
 ) -> EventHistoryCreateResponse:
     """Append one row to `tb_event_history` for the given event."""
     if db.get(SecurityEvent, event_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
 
     entry = EventHistory(
         event_id=event_id,

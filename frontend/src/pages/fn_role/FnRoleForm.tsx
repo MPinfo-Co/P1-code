@@ -29,13 +29,12 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>(
     () => row?.users.map((u) => u.id) ?? []
   )
-  const [selectedFunctionIds, setSelectedFunctionIds] = useState<number[]>(
+  const [selectedFunctionIds, _setSelectedFunctionIds] = useState<number[]>(
     () => row?.functions.map((f) => f.function_id) ?? []
   )
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
-  
 
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
@@ -55,7 +54,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   }
 
   // function toggleFunction(functionId: number) {
-  //   setSelectedFunctionIds((prev) =>
+  //   _setSelectedFunctionIds((prev) =>
   //     prev.includes(functionId) ? prev.filter((id) => id !== functionId) : [...prev, functionId]
   //   )
   // }
@@ -144,7 +143,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
 
           <Box>
             <Typography className="fn-role-form-label">功能權限</Typography>
-                    </Box>
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

@@ -12,11 +12,14 @@ Any 4xx response other than 400, 401, or 404 is rewritten to a generic
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from app.db.connector import SessionLocal
 
-from app.logger_utils.log_channels import get_error_logger, get_system_logger, get_user_logger
+from app.logger_utils.log_channels import (
+    get_error_logger,
+    get_system_logger,
+    get_user_logger,
+)
 from app.utils.util_store import authenticate
 
 _ALLOWED_4XX: frozenset[int] = frozenset({400, 401, 403, 404, 409})
@@ -67,14 +70,12 @@ class RequestResponseHandlerMiddleware(BaseHTTPMiddleware):
             f"Request: {request.method} {request.url.path} client={client_host}"
         )
 
-
-
-        auth_header = request.headers.get('authorization') or ''
+        auth_header = request.headers.get("authorization") or ""
         user_id = None
-        if auth_header.lower().startswith('bearer '):
+        if auth_header.lower().startswith("bearer "):
             creds = HTTPAuthorizationCredentials(
-                scheme='Bearer',
-                credentials=auth_header.split(' ', 1)[1],
+                scheme="Bearer",
+                credentials=auth_header.split(" ", 1)[1],
             )
             with SessionLocal() as db:
                 try:
@@ -91,10 +92,11 @@ class RequestResponseHandlerMiddleware(BaseHTTPMiddleware):
             )
             raise
 
-        if 400 <= response.status_code < 500 and response.status_code not in _ALLOWED_4XX:
-            response = JSONResponse(
-                status_code=400, content={"detail": "Bad Request"}
-            )
+        if (
+            400 <= response.status_code < 500
+            and response.status_code not in _ALLOWED_4XX
+        ):
+            response = JSONResponse(status_code=400, content={"detail": "Bad Request"})
 
         _resolve_logger(request).info(
             f"Response: {request.method} {request.url.path} -> {response.status_code}"

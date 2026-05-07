@@ -21,15 +21,14 @@ from app.utils.util_store import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 system_logger = get_system_logger()
 
+
 @router.post("/login", response_model=LoginResponse)
 def login(login_req: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
     """Authenticate `email` + `password` and return a JWT access token."""
     system_logger.info(f"User with Email: {login_req.email} attempt to login")
     user = db.query(User).filter(User.email == login_req.email).first()
-    if user is None or not verify_password(
-        user.password_hash, login_req.password
-    ):
-        system_logger.warning('Error Email input')
+    if user is None or not verify_password(user.password_hash, login_req.password):
+        system_logger.warning("Error Email input")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -57,7 +56,9 @@ def logout(
     db.add(
         TokenBlacklist(
             token_jti=jti,
-            expired_at=datetime.fromtimestamp(exp, tz=timezone.utc).replace(tzinfo=None),
+            expired_at=datetime.fromtimestamp(exp, tz=timezone.utc).replace(
+                tzinfo=None
+            ),
             updated_by=auth.user_id,
         )
     )

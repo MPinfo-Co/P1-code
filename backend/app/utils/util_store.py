@@ -81,7 +81,9 @@ def create_access_token(user_id: int) -> str:
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
     }
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(
+        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
 
 
 def authenticate(

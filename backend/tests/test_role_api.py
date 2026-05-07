@@ -11,7 +11,11 @@ Tests for fn_role APIs:
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.utils.util_store import create_access_token, hash_password
-from app.db.models.function_access import FunctionItems as Function, FunctionFolder, RoleFunction
+from app.db.models.function_access import (
+    FunctionItems as Function,
+    FunctionFolder,
+    RoleFunction,
+)
 from app.db.models.user_role import Role, User, UserRole
 
 
@@ -21,14 +25,21 @@ from app.db.models.user_role import Role, User, UserRole
 
 
 def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2) -> int:
-    folder = FunctionFolder(folder_code=name, folder_label=name, default_open=False, sort_order=sort_order)
+    folder = FunctionFolder(
+        folder_code=name, folder_label=name, default_open=False, sort_order=sort_order
+    )
     db.add(folder)
     db.flush()
     return folder.id
 
 
 def _make_function(db: Session, name: str, folder_id: int, sort_order: int = 1) -> int:
-    fn = Function(function_code=name, function_label=name, folder_id=folder_id, sort_order=sort_order)
+    fn = Function(
+        function_code=name,
+        function_label=name,
+        folder_id=folder_id,
+        sort_order=sort_order,
+    )
     db.add(fn)
     db.flush()
     return fn.function_id
@@ -41,7 +52,9 @@ def _make_role(db: Session, name: str) -> int:
     return role.id
 
 
-def _make_user(db: Session, email: str, name: str = "Test User", password: str = "password123") -> int:
+def _make_user(
+    db: Session, email: str, name: str = "Test User", password: str = "password123"
+) -> int:
     user = User(name=name, email=email, password_hash=hash_password(password))
     db.add(user)
     db.flush()

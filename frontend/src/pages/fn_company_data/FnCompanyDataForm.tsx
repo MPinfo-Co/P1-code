@@ -12,7 +12,11 @@ import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
-import { usePartnerOptionsQuery, useCreateCompanyData, useUpdateCompanyData } from '@/queries/useCompanyDataQuery'
+import {
+  usePartnerOptionsQuery,
+  useCreateCompanyData,
+  useUpdateCompanyData,
+} from '@/queries/useCompanyDataQuery'
 import type { CompanyDataRow } from '@/queries/useCompanyDataQuery'
 
 interface Props {
@@ -92,7 +96,9 @@ export default function FnCompanyDataForm({ open, row, onClose, onSuccess }: Pro
       <DialogTitle sx={{ fontSize: 16, fontWeight: 600 }}>
         {isEdit ? '編輯資料' : '新增資料'}
       </DialogTitle>
-      <DialogContent sx={{ pt: '16px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <DialogContent
+        sx={{ pt: '16px !important', display: 'flex', flexDirection: 'column', gap: 2 }}
+      >
         {submitError && (
           <Alert severity="error" sx={{ mb: 0 }}>
             {submitError}

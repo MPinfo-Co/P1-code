@@ -11,7 +11,11 @@ Tests for fn_user APIs:
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.utils.util_store import create_access_token, hash_password
-from app.db.models.function_access import FunctionItems as Function, FunctionFolder, RoleFunction
+from app.db.models.function_access import (
+    FunctionItems as Function,
+    FunctionFolder,
+    RoleFunction,
+)
 from app.db.models.user_role import Role, User, UserRole
 
 
@@ -22,7 +26,9 @@ from app.db.models.user_role import Role, User, UserRole
 
 def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2) -> int:
     """Create a function folder and return its id."""
-    folder = FunctionFolder(folder_code=name, folder_label=name, default_open=False, sort_order=sort_order)
+    folder = FunctionFolder(
+        folder_code=name, folder_label=name, default_open=False, sort_order=sort_order
+    )
     db.add(folder)
     db.flush()
     return folder.id
@@ -30,7 +36,12 @@ def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2
 
 def _make_function(db: Session, name: str, folder_id: int, sort_order: int = 1) -> int:
     """Create a function entry and return its function_id."""
-    fn = Function(function_code=name, function_label=name, folder_id=folder_id, sort_order=sort_order)
+    fn = Function(
+        function_code=name,
+        function_label=name,
+        folder_id=folder_id,
+        sort_order=sort_order,
+    )
     db.add(fn)
     db.flush()
     return fn.function_id
@@ -369,9 +380,7 @@ def test_delete_user_returns_200(client, engine):
     db.commit()
     db.close()
 
-    resp = client.delete(
-        "/api/user/todelete@test.com", headers=_auth_headers(admin_id)
-    )
+    resp = client.delete("/api/user/todelete@test.com", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     assert resp.json()["message"] == "刪除成功"
 
