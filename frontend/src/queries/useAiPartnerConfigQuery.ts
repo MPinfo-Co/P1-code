@@ -53,7 +53,7 @@ export function useAiPartnerConfigQuery(params: AiPartnerQueryParams = {}) {
       const search = new URLSearchParams()
       if (params.keyword) search.set('keyword', params.keyword)
       const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/api/ai-partner-config${qs ? `?${qs}` : ''}`, {
+      const res = await fetch(`${BASE_URL}/ai-partner-config${qs ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
@@ -68,7 +68,7 @@ export function useToolOptionsQuery() {
     queryKey: ['tool-options'],
     queryFn: async () => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/tool/options`, {
+      const res = await fetch(`${BASE_URL}/tool/options`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢工具選項失敗')
@@ -83,7 +83,7 @@ export function useCreateAiPartner() {
   return useMutation({
     mutationFn: async (payload: CreateAiPartnerPayload) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/ai-partner-config`, {
+      const res = await fetch(`${BASE_URL}/ai-partner-config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +113,7 @@ export function useUpdateAiPartner() {
   return useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: UpdateAiPartnerPayload }) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/ai-partner-config/${id}`, {
+      const res = await fetch(`${BASE_URL}/ai-partner-config/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ export function useDeleteAiPartner() {
   return useMutation({
     mutationFn: async (id: number) => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/api/ai-partner-config/${id}`, {
+      const res = await fetch(`${BASE_URL}/ai-partner-config/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
