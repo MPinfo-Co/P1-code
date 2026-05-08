@@ -1,0 +1,74 @@
+.fn-ai-partner-config-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+}
+
+.fn-ai-partner-config-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fn-ai-partner-config-filter-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  white-space: nowrap;
+}
+
+.fn-ai-partner-config-apply-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+}
+
+.fn-ai-partner-config-add-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  margin-left: auto !important;
+}
+
+.fn-ai-partner-config-grid-wrap {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.fn-ai-partner-config-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.fn-ai-partner-config-actions-cell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fn-ai-partner-config-action-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  padding: 0 8px !important;
+}
+
+.fn-ai-partner-config-action-btn-error {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  padding: 0 8px !important;
+}
+
+.fn-ai-partner-config-dialog-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.fn-ai-partner-config-cancel-btn {
+  font-size: 13px !important;
+}

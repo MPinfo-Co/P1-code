@@ -14,6 +14,7 @@ import FnRoleList from './pages/fn_role/FnRoleList'
 import FnCompanyDataList from './pages/fn_company_data/FnCompanyDataList'
 import FnToolList from './pages/fn_tool/FnToolList'
 import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
+import FnAiPartnerConfigList from './pages/fn_ai_partner_config/FnAiPartnerConfigList'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -97,6 +98,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_expert_setting">
               <FnExpertSetting />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="ai-partner-config"
+          element={
+            <PermissionGuard fnKey="fn_ai_partner_config">
+              <FnAiPartnerConfigList />
             </PermissionGuard>
           }
         />
