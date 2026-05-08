@@ -28,6 +28,24 @@ system_logger = get_system_logger()
 
 FN_TOOL_NAME = "fn_tool"
 
+
+# ---------------------------------------------------------------------------
+# GET /tool/options
+# ---------------------------------------------------------------------------
+
+
+@router.get("/options", status_code=status.HTTP_200_OK)
+def list_tool_options(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """Return all tools as options (id, name, description). Requires login only."""
+    tools = db.query(Tool).order_by(Tool.name.asc()).all()
+    data = [
+        {"id": t.id, "name": t.name, "description": t.description} for t in tools
+    ]
+    return {"message": "查詢成功", "data": data}
+
 VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
 VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 
