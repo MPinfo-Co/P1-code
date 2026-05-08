@@ -4,16 +4,10 @@ import useAuthStore from '@/stores/authStore'
 
 const BASE_URL = import.meta.env.VITE_API_URL
 
-export interface PartnerOption {
-  id: number
-  name: string
-}
-
 export interface CompanyDataRow {
   id: number
   name: string
   content: string
-  partners: PartnerOption[]
 }
 
 export interface QueryParams {
@@ -23,13 +17,11 @@ export interface QueryParams {
 export interface CreateCompanyDataPayload {
   name: string
   content: string
-  partner_ids: number[]
 }
 
 export interface UpdateCompanyDataPayload {
   name: string
   content: string
-  partner_ids: number[]
 }
 
 function getToken() {
@@ -54,21 +46,6 @@ export function useCompanyDataQuery(params: QueryParams = {}) {
   })
 }
 
-export function usePartnerOptionsQuery() {
-  return useQuery<PartnerOption[]>({
-    queryKey: ['company-data-partner-options'],
-    queryFn: async () => {
-      const token = getToken()
-      const res = await fetch(`${BASE_URL}/company-data/partner-options`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('取得夥伴選項失敗')
-      const json = await res.json()
-      return json.data ?? json
-    },
-  })
-}
-
 export function useCreateCompanyData() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -83,7 +60,6 @@ export function useCreateCompanyData() {
         body: JSON.stringify({
           name: payload.name,
           content: payload.content,
-          partner_ids: payload.partner_ids,
         }),
       })
       if (!res.ok) {
@@ -111,7 +87,6 @@ export function useUpdateCompanyData() {
         body: JSON.stringify({
           name: payload.name,
           content: payload.content,
-          partner_ids: payload.partner_ids,
         }),
       })
       if (!res.ok) {

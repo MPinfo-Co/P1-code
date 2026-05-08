@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -19,7 +19,6 @@ import Chip from '@mui/material/Chip'
 import Popover from '@mui/material/Popover'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
-import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined'
 import './IssueList.css'
 
 const STAR_COLOR: Record<number, string> = {
@@ -126,7 +125,6 @@ function formatDesc(text: string | null) {
 }
 
 export default function IssueList() {
-  const { partnerId } = useParams()
   const navigate = useNavigate()
 
   const [filterStatus, setFilterStatus] = useState('all')
@@ -177,7 +175,6 @@ export default function IssueList() {
   }, [applied, page])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents()
   }, [fetchEvents])
 
@@ -214,15 +211,6 @@ export default function IssueList() {
         <Typography variant="h5" className="issue-list-title">
           安全事件清單
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackOutlinedIcon />}
-          size="small"
-          onClick={() => navigate('/fn_partner')}
-          className="issue-list-back-btn"
-        >
-          回上一頁
-        </Button>
       </Box>
 
       <Box className="issue-list-filter-bar">
@@ -321,7 +309,7 @@ export default function IssueList() {
                     <TableRow
                       key={row.id}
                       hover
-                      onClick={() => navigate(`/fn_partner/${partnerId}/issues/${row.id}`)}
+                      onClick={() => navigate(`/fn_expert/issues/${row.id}`)}
                       className="issue-list-row"
                     >
                       <TableCell className="issue-list-cell-title">{row.title}</TableCell>
@@ -401,7 +389,7 @@ export default function IssueList() {
                           variant="contained"
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/fn_partner/${partnerId}/issues/${row.id}`)
+                            navigate(`/fn_expert/issues/${row.id}`)
                           }}
                           className="issue-list-action-btn"
                           sx={{ py: 0.5 }}

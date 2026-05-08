@@ -99,21 +99,6 @@ export default function FnCompanyDataList() {
       },
     },
     {
-      field: 'partners',
-      headerName: '適用夥伴',
-      flex: 1,
-      minWidth: 150,
-      renderCell: (params: GridRenderCellParams<CompanyDataRow>) => {
-        const partners = params.row.partners as CompanyDataRow['partners']
-        if (!partners || partners.length === 0) {
-          return <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>—</Typography>
-        }
-        return (
-          <Typography sx={{ fontSize: 13 }}>{partners.map((p) => p.name).join('、')}</Typography>
-        )
-      },
-    },
-    {
       field: 'actions',
       headerName: '執行動作',
       width: 140,

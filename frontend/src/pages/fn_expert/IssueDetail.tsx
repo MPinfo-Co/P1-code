@@ -188,7 +188,7 @@ function formatDesc(text?: string | null) {
 }
 
 export default function IssueDetail() {
-  const { partnerId, issueId } = useParams()
+  const { issueId } = useParams()
   const navigate = useNavigate()
 
   const [event, setEvent] = useState<EventDetail | null>(null)
@@ -220,11 +220,9 @@ export default function IssueDetail() {
   }, [issueId])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvent()
   }, [fetchEvent])
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabIndex(0)
     setChatVisible(true)
   }, [issueId])
@@ -306,7 +304,7 @@ export default function IssueDetail() {
             </Typography>
           </Box>
           <Button
-            onClick={() => navigate(`/fn_partner/${partnerId}/issues`)}
+            onClick={() => navigate(`/fn_expert`)}
             variant="outlined"
             startIcon={<ArrowBackIosNew sx={{ fontSize: '14px !important' }} />}
             className="issue-detail-back-btn"

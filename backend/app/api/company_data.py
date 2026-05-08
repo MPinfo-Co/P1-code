@@ -8,11 +8,9 @@ from app.api.schema.company_data import (
     CompanyDataCreate,
     CompanyDataItem,
     CompanyDataUpdate,
-    PartnerItem,
-    PartnerOptionItem,
 )
 from app.db.connector import get_db
-from app.db.models.fn_company_data import AiPartner, CompanyData, PartnerCompanyData
+from app.db.models.fn_company_data import CompanyData
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.utils.util_store import AuthContext, authenticate
@@ -44,37 +42,13 @@ def _has_company_data_permission(user_id: int, db: Session) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# GET /api/company-data/partner-options
-# Must be defined before /{id} to avoid routing conflict.
-# ---------------------------------------------------------------------------
-
-
-@router.get("/partner-options")
-def list_partner_options(
-    db: Session = Depends(get_db),
-    auth: AuthContext = Depends(authenticate),
-):
-    """回傳所有啟用中的 AI 夥伴，供前端下拉選單使用。僅需登入，不檢查功能權限。"""
-    rows = (
-        db.query(AiPartner)
-        .filter(AiPartner.is_enabled.is_(True))
-        .order_by(AiPartner.name.asc())
-        .all()
-    )
-    data = [PartnerOptionItem(id=r.id, name=r.name) for r in rows]
-    return {"message": "查詢成功", "data": [d.model_dump() for d in data]}
-
-
-# ---------------------------------------------------------------------------
 # GET /api/company-data
 # ---------------------------------------------------------------------------
 
 
 @router.get("")
 def list_company_data(
-    keyword: str | None = Query(
-        None, description="關鍵字篩選（name / content / partner name）"
-    ),
+    keyword: str | None = Query(None, description="關鍵字篩選（name / content）"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ):
@@ -88,38 +62,17 @@ def list_company_data(
     query = db.query(CompanyData)
     if keyword:
         pattern = f"%{keyword}%"
-        partner_match_subq = (
-            db.query(PartnerCompanyData.company_data_id)
-            .join(AiPartner, AiPartner.id == PartnerCompanyData.partner_id)
-            .filter(AiPartner.name.ilike(pattern))
-        )
         query = query.filter(
             or_(
                 CompanyData.name.ilike(pattern),
                 CompanyData.content.ilike(pattern),
-                CompanyData.id.in_(partner_match_subq),
             )
         )
     rows = query.order_by(CompanyData.created_at.asc()).all()
 
-    result: list[CompanyDataItem] = []
-    for row in rows:
-        partners = (
-            db.query(AiPartner)
-            .join(PartnerCompanyData, AiPartner.id == PartnerCompanyData.partner_id)
-            .filter(PartnerCompanyData.company_data_id == row.id)
-            .all()
-        )
-        partner_items = [PartnerItem(id=p.id, name=p.name) for p in partners]
-        result.append(
-            CompanyDataItem(
-                id=row.id,
-                name=row.name,
-                content=row.content,
-                partners=partner_items,
-            )
-        )
-
+    result = [
+        CompanyDataItem(id=row.id, name=row.name, content=row.content) for row in rows
+    ]
     return {"message": "查詢成功", "data": [i.model_dump() for i in result]}
 
 
@@ -141,7 +94,6 @@ def create_company_data(
             detail="您沒有執行此操作的權限",
         )
 
-    # Validate name
     if not payload.name or not payload.name.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,14 +105,12 @@ def create_company_data(
             detail="資料名稱不可超過 200 字",
         )
 
-    # Check name uniqueness
     if db.query(CompanyData).filter(CompanyData.name == payload.name).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="資料名稱已存在",
         )
 
-    # Validate content
     if not payload.content or not payload.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -169,11 +119,6 @@ def create_company_data(
 
     record = CompanyData(name=payload.name, content=payload.content)
     db.add(record)
-    db.flush()
-
-    for partner_id in payload.partner_ids:
-        db.add(PartnerCompanyData(company_data_id=record.id, partner_id=partner_id))
-
     db.commit()
     return {"message": "新增成功"}
 
@@ -204,7 +149,6 @@ def update_company_data(
             detail="資料不存在",
         )
 
-    # Validate name
     if not payload.name or not payload.name.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -216,7 +160,6 @@ def update_company_data(
             detail="資料名稱不可超過 200 字",
         )
 
-    # Check name uniqueness (exclude self)
     conflict = (
         db.query(CompanyData)
         .filter(CompanyData.name == payload.name, CompanyData.id != record_id)
@@ -228,7 +171,6 @@ def update_company_data(
             detail="資料名稱已存在",
         )
 
-    # Validate content
     if not payload.content or not payload.content.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -237,15 +179,6 @@ def update_company_data(
 
     record.name = payload.name
     record.content = payload.content
-    # updated_at 由 SQLAlchemy onupdate=func.now() 自動處理，不手動賦值
-
-    # Replace partner associations
-    db.query(PartnerCompanyData).filter(
-        PartnerCompanyData.company_data_id == record_id
-    ).delete()
-
-    for partner_id in payload.partner_ids:
-        db.add(PartnerCompanyData(company_data_id=record_id, partner_id=partner_id))
 
     db.commit()
     return {"message": "更新成功"}
@@ -275,11 +208,6 @@ def delete_company_data(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="資料不存在",
         )
-
-    # Delete associations first
-    db.query(PartnerCompanyData).filter(
-        PartnerCompanyData.company_data_id == record_id
-    ).delete()
 
     db.delete(record)
     db.commit()

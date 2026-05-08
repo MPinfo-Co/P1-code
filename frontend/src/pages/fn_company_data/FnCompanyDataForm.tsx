@@ -6,17 +6,9 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
-import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
-import Checkbox from '@mui/material/Checkbox'
-import FormControlLabel from '@mui/material/FormControlLabel'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
-import {
-  usePartnerOptionsQuery,
-  useCreateCompanyData,
-  useUpdateCompanyData,
-} from '@/queries/useCompanyDataQuery'
+import { useCreateCompanyData, useUpdateCompanyData } from '@/queries/useCompanyDataQuery'
 import type { CompanyDataRow } from '@/queries/useCompanyDataQuery'
 
 interface Props {
@@ -36,13 +28,9 @@ export default function FnCompanyDataForm({ open, row, onClose, onSuccess }: Pro
 
   const [name, setName] = useState(() => row?.name ?? '')
   const [content, setContent] = useState(() => row?.content ?? '')
-  const [selectedPartnerIds, setSelectedPartnerIds] = useState<number[]>(
-    () => row?.partners.map((p) => p.id) ?? []
-  )
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const { data: partnerOptions = [], isLoading: isPartnersLoading } = usePartnerOptionsQuery()
   const createCompanyData = useCreateCompanyData()
   const updateCompanyData = useUpdateCompanyData()
 
@@ -56,12 +44,6 @@ export default function FnCompanyDataForm({ open, row, onClose, onSuccess }: Pro
     return Object.keys(newErrors).length === 0
   }
 
-  function handleTogglePartner(id: number) {
-    setSelectedPartnerIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    )
-  }
-
   async function handleSave() {
     if (!validate()) return
     setSubmitError(null)
@@ -72,14 +54,12 @@ export default function FnCompanyDataForm({ open, row, onClose, onSuccess }: Pro
           payload: {
             name: name.trim(),
             content: content.trim(),
-            partner_ids: selectedPartnerIds,
           },
         })
       } else {
         await createCompanyData.mutateAsync({
           name: name.trim(),
           content: content.trim(),
-          partner_ids: selectedPartnerIds,
         })
       }
       onSuccess()
@@ -125,58 +105,6 @@ export default function FnCompanyDataForm({ open, row, onClose, onSuccess }: Pro
           error={!!errors.content}
           helperText={errors.content}
         />
-        <Box>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', mb: 1 }}>
-            適用夥伴
-          </Typography>
-          {isPartnersLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-              <CircularProgress size={20} />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                border: '1px solid #e2e8f0',
-                borderRadius: 1,
-                p: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 0.5,
-                maxHeight: 200,
-                overflowY: 'auto',
-              }}
-            >
-              {partnerOptions.map((p) => (
-                <FormControlLabel
-                  key={p.id}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedPartnerIds.includes(p.id)}
-                      onChange={() => handleTogglePartner(p.id)}
-                      sx={{ color: '#2e3f6e', '&.Mui-checked': { color: '#2e3f6e' } }}
-                    />
-                  }
-                  label={<Typography sx={{ fontSize: 13 }}>{p.name}</Typography>}
-                  sx={{
-                    display: 'flex',
-                    bgcolor: 'white',
-                    borderRadius: 1,
-                    border: '1px solid #e2e8f0',
-                    px: 1,
-                    mx: 0,
-                    mb: 0,
-                  }}
-                />
-              ))}
-              {partnerOptions.length === 0 && (
-                <Typography sx={{ fontSize: 13, color: '#94a3b8', py: 1, textAlign: 'center' }}>
-                  無可用夥伴
-                </Typography>
-              )}
-            </Box>
-          )}
-        </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={isSubmitting}>
