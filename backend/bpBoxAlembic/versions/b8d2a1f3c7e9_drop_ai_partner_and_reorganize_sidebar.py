@@ -152,16 +152,7 @@ def downgrade() -> None:
         sa.UniqueConstraint("name"),
     )
 
-    # 6. 還原資安專家 partner seed
-    op.execute(
-        "INSERT INTO tb_ai_partners (id, name, description, is_builtin, is_enabled) "
-        "VALUES (1, '資安專家', '排程、資料來源（syslog-ng Store Box）', true, true)"
-    )
-    op.execute(
-        "SELECT setval('tb_ai_partners_id_seq', (SELECT MAX(id) FROM tb_ai_partners))"
-    )
-
-    # 7. 還原 tb_partners_company_data 表 + 4 筆 seed 連結
+    # 6. 還原 tb_partners_company_data 表 (空表, c8e4f1d72a93 修正後不再 seed)
     op.create_table(
         "tb_partners_company_data",
         sa.Column("company_data_id", sa.Integer(), nullable=False),
@@ -169,8 +160,4 @@ def downgrade() -> None:
         sa.ForeignKeyConstraint(["company_data_id"], ["tb_company_data.id"]),
         sa.ForeignKeyConstraint(["partner_id"], ["tb_ai_partners.id"]),
         sa.PrimaryKeyConstraint("company_data_id", "partner_id"),
-    )
-    op.execute(
-        "INSERT INTO tb_partners_company_data (company_data_id, partner_id) VALUES "
-        "(1, 1), (2, 1), (3, 1), (4, 1)"
     )
