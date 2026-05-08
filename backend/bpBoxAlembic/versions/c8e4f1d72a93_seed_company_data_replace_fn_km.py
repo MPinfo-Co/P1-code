@@ -39,27 +39,6 @@ def upgrade() -> None:
         "SELECT 1, function_id FROM tb_function_items WHERE function_code = 'fn_company_data'"
     )
 
-    ai_partners = table(
-        "tb_ai_partners",
-        column("id", sa.Integer),
-        column("name", sa.String),
-        column("description", sa.Text),
-        column("is_builtin", sa.Boolean),
-        column("is_enabled", sa.Boolean),
-    )
-    op.bulk_insert(
-        ai_partners,
-        [
-            {
-                "id": 1,
-                "name": "資安專家",
-                "description": "排程、資料來源（syslog-ng Store Box）",
-                "is_builtin": True,
-                "is_enabled": True,
-            },
-        ],
-    )
-
     company_data = table(
         "tb_company_data",
         column("id", sa.Integer),
@@ -112,27 +91,15 @@ def upgrade() -> None:
         ],
     )
 
+    # Sync sequence so future autoincrement inserts don't collide with seeded ids.
     op.execute(
-        "INSERT INTO tb_partners_company_data (company_data_id, partner_id) VALUES "
-        "(1, 1), (2, 1), (3, 1), (4, 1)"
+        "SELECT setval('tb_company_data_id_seq', (SELECT MAX(id) FROM tb_company_data))"
     )
-
-    # Same nextval-collision risk as tb_function_items above — sync these too
-    # so future autoincrement inserts (e.g. user creates a new partner from UI) don't collide.
-    for seq, tbl in (
-        ("tb_ai_partners_id_seq", "tb_ai_partners"),
-        ("tb_company_data_id_seq", "tb_company_data"),
-    ):
-        op.execute(f"SELECT setval('{seq}', (SELECT MAX(id) FROM {tbl}))")
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.execute(
-        "DELETE FROM tb_partners_company_data WHERE company_data_id IN (1, 2, 3, 4)"
-    )
     op.execute("DELETE FROM tb_company_data WHERE id IN (1, 2, 3, 4)")
-    op.execute("DELETE FROM tb_ai_partners WHERE id = 1")
 
     op.execute(
         "DELETE FROM tb_role_function "
