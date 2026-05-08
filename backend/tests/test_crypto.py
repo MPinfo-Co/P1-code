@@ -10,3 +10,7 @@ def test_encrypt_decrypt_roundtrip():
 
 def test_decrypt_none_returns_none():
     assert decrypt(None) is None
+
+
+def test_decrypt_empty_string_returns_none():
+    assert decrypt("") is None
