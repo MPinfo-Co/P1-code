@@ -85,7 +85,7 @@ frontend/
 ```
 
 ## Rules
-- Styling of componant seperate in a .css file
+- Styling of componant seperated in a .css file
 - Individual function store in different directory in src/pages
 - When applying create or update, re-render page for new data to display
 
