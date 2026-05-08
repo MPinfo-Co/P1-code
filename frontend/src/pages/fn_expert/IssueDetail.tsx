@@ -224,6 +224,7 @@ export default function IssueDetail() {
   }, [fetchEvent])
   useEffect(() => {
     setTabIndex(0)
+
     setChatVisible(true)
   }, [issueId])
 
