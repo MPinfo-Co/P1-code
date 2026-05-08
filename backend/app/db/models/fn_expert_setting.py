@@ -1,55 +1,23 @@
-"""ORM models for fn_expert_settings: tb_ai_partners, tb_expert_settings."""
+"""ORM model for fn_expert_setting: tb_expert_settings (single-row settings)."""
 
 from datetime import datetime
 
-from sqlalchemy import (
-    Boolean,
-    ForeignKey,
-    Integer,
-    SmallInteger,
-    String,
-    Text,
-    TIMESTAMP,
-)
+from sqlalchemy import Boolean, Integer, SmallInteger, String, Text, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from .base import Base
 
 
-class AiPartner(Base):
-    """AI 夥伴主表。"""
-
-    __tablename__ = "tb_ai_partners"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_builtin: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
-    is_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
-    )
-    model_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, nullable=False, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now()
-    )
-
-
 class ExpertSetting(Base):
-    """資安專家設定表：儲存排程與 SSB 連線設定。"""
+    """資安專家設定（單例）：儲存排程與 SSB 連線設定。
+
+    系統僅保留一筆紀錄（id=1，由 migration seed 寫入）。
+    """
 
     __tablename__ = "tb_expert_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    partner_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_ai_partners.id"), nullable=False, unique=True
-    )
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )

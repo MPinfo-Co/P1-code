@@ -7,14 +7,12 @@ import { IssuesProvider } from './contexts/IssuesContext'
 import Layout from './components/Layout/Layout'
 import Login from './pages/Login/Login'
 import Home from './pages/Home/Home'
-import AiPartner from './pages/AiPartner/AiPartner'
-import IssueList from './pages/AiPartner/IssueList'
-import IssueDetail from './pages/AiPartner/IssueDetail'
+import IssueList from './pages/fn_expert/IssueList'
+import IssueDetail from './pages/fn_expert/IssueDetail'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
 import FnCompanyDataList from './pages/fn_company_data/FnCompanyDataList'
 import FnToolList from './pages/fn_tool/FnToolList'
-import AiConfig from './pages/Settings/AiConfig'
 import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
@@ -47,25 +45,17 @@ function AppRoutes() {
       >
         <Route index element={<Home />} />
         <Route
-          path="fn_partner"
+          path="fn_expert"
           element={
-            <PermissionGuard fnKey="fn_partner">
-              <AiPartner />
-            </PermissionGuard>
-          }
-        />
-        <Route
-          path="fn_partner/:partnerId/issues"
-          element={
-            <PermissionGuard fnKey="fn_partner">
+            <PermissionGuard fnKey="fn_expert">
               <IssueList />
             </PermissionGuard>
           }
         />
         <Route
-          path="fn_partner/:partnerId/issues/:issueId"
+          path="fn_expert/issues/:issueId"
           element={
-            <PermissionGuard fnKey="fn_partner">
+            <PermissionGuard fnKey="fn_expert">
               <IssueDetail />
             </PermissionGuard>
           }
@@ -87,14 +77,6 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_ai_config"
-          element={
-            <PermissionGuard fnKey="fn_ai_config">
-              <AiConfig />
-            </PermissionGuard>
-          }
-        />
-        <Route
           path="fn_company_data"
           element={
             <PermissionGuard fnKey="fn_company_data">
@@ -111,7 +93,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="expert/setting"
+          path="fn_expert_setting"
           element={
             <PermissionGuard fnKey="fn_expert_setting">
               <FnExpertSetting />

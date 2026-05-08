@@ -1,9 +1,10 @@
 """
 Tests for fn_expert_setting APIs (Issue 211):
-  GET    /api/expert/settings
-  PUT    /api/expert/settings
-  POST   /api/expert/ssb-test
+  GET    /expert/settings
+  PUT    /expert/settings
+  POST   /expert/ssb-test
 
+ExpertSetting 採單例設計：tb_expert_settings 永遠只有 id=1 一筆紀錄。
 TestSpec IDs: T1–T21
 """
 
@@ -11,9 +12,9 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-from app.db.models.fn_expert_setting import AiPartner, ExpertSetting
+from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -24,8 +25,8 @@ from app.utils.util_store import create_access_token, hash_password
 
 os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 
-EXPERT_PARTNER_NAME = "資安專家"
-_EXPERT_TABLES = [AiPartner.__table__, ExpertSetting.__table__]
+SETTING_ID = 1
+_EXPERT_TABLES = [ExpertSetting.__table__]
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ _EXPERT_TABLES = [AiPartner.__table__, ExpertSetting.__table__]
 
 @pytest.fixture(scope="function", autouse=True)
 def _create_expert_tables(engine):
-    """Ensure tb_ai_partners and tb_expert_settings exist in the test engine."""
+    """Ensure tb_expert_settings exists in the test engine."""
     for table in _EXPERT_TABLES:
         table.create(bind=engine, checkfirst=True)
     yield
@@ -48,9 +49,7 @@ def _create_expert_tables(engine):
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(
-    db: Session, name: str = "資安專家", sort_order: int = 1
-) -> int:
+def _make_function_folder(db, name: str = "資安專家", sort_order: int = 1) -> int:
     folder = FunctionFolder(
         folder_code=name, folder_label=name, default_open=True, sort_order=sort_order
     )
@@ -59,7 +58,7 @@ def _make_function_folder(
     return folder.id
 
 
-def _make_function(db: Session, code: str, folder_id: int, sort_order: int = 1) -> int:
+def _make_function(db, code: str, folder_id: int, sort_order: int = 1) -> int:
     fn = Function(
         function_code=code,
         function_label=code,
@@ -71,7 +70,7 @@ def _make_function(db: Session, code: str, folder_id: int, sort_order: int = 1) 
     return fn.function_id
 
 
-def _make_role(db: Session, name: str) -> int:
+def _make_role(db, name: str) -> int:
     role = Role(name=name)
     db.add(role)
     db.flush()
@@ -79,7 +78,7 @@ def _make_role(db: Session, name: str) -> int:
 
 
 def _make_user(
-    db: Session, email: str, name: str = "Test User", password: str = "password123"
+    db, email: str, name: str = "Test User", password: str = "password123"
 ) -> int:
     user = User(name=name, email=email, password_hash=hash_password(password))
     db.add(user)
@@ -87,12 +86,12 @@ def _make_user(
     return user.id
 
 
-def _assign_role(db: Session, user_id: int, role_id: int) -> None:
+def _assign_role(db, user_id: int, role_id: int) -> None:
     db.add(UserRole(user_id=user_id, role_id=role_id))
     db.flush()
 
 
-def _grant_function(db: Session, role_id: int, function_id: int) -> None:
+def _grant_function(db, role_id: int, function_id: int) -> None:
     db.add(RoleFunction(role_id=role_id, function_id=function_id))
     db.flush()
 
@@ -129,17 +128,12 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> tuple[int, int]:
     return user_id, role_id
 
 
-def _create_partner_and_setting(
-    engine, password_enc: str | None = None
-) -> tuple[int, int]:
-    """Create tb_ai_partners + tb_expert_settings rows. Return (partner_id, setting_id)."""
+def _seed_setting(engine, password_enc: str | None = None) -> int:
+    """Seed singleton tb_expert_settings row (id=1) with a non-default value set."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    partner = AiPartner(name=EXPERT_PARTNER_NAME, is_builtin=True)
-    db.add(partner)
-    db.flush()
     setting = ExpertSetting(
-        partner_id=partner.id,
+        id=SETTING_ID,
         is_enabled=False,
         frequency="daily",
         schedule_time="02:00",
@@ -152,10 +146,9 @@ def _create_partner_and_setting(
     )
     db.add(setting)
     db.commit()
-    pid = partner.id
     sid = setting.id
     db.close()
-    return pid, sid
+    return sid
 
 
 def _valid_save_payload(**overrides) -> dict:
@@ -187,20 +180,19 @@ def _valid_ssb_test_payload(**overrides) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# GET /api/expert/settings
+# GET /expert/settings
 # ---------------------------------------------------------------------------
 
 
 def test_get_settings_with_existing_data_returns_200(client, engine):
     """對應 T1"""
     admin_id, _, _ = _setup_admin(engine)
-    # Need a password_enc value - encrypt something for testing
     from app.api.fn_expert_setting import _encrypt
 
     enc = _encrypt("mypassword")
-    _create_partner_and_setting(engine, password_enc=enc)
+    _seed_setting(engine, password_enc=enc)
 
-    resp = client.get("/api/expert/settings", headers=_auth_headers(admin_id))
+    resp = client.get("/expert/settings", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     body = resp.json()
     assert body["message"] == "查詢成功"
@@ -217,16 +209,17 @@ def test_get_settings_with_existing_data_returns_200(client, engine):
 
 
 def test_get_settings_no_existing_data_returns_defaults(client, engine):
-    """對應 T2"""
+    """對應 T2 — 無預先 seed 時，API 應 lazy create 並回 default 值。"""
     admin_id, _, _ = _setup_admin(engine)
 
-    resp = client.get("/api/expert/settings", headers=_auth_headers(admin_id))
+    resp = client.get("/expert/settings", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     body = resp.json()
     data = body["data"]
     assert data["is_enabled"] is False
     assert data["frequency"] == "daily"
-    assert data["schedule_time"] == "02:00"
+    # schedule_time / weekday / ssb_host etc 預設皆為 None
+    assert data["schedule_time"] is None
     assert data["weekday"] is None
     assert data["ssb_host"] is None
     assert data["ssb_logspace"] is None
@@ -236,7 +229,7 @@ def test_get_settings_no_existing_data_returns_defaults(client, engine):
 
 def test_get_settings_unauthenticated_returns_401(client, engine):
     """對應 T3"""
-    resp = client.get("/api/expert/settings")
+    resp = client.get("/expert/settings")
     assert resp.status_code == 401
 
 
@@ -244,13 +237,13 @@ def test_get_settings_no_permission_returns_403(client, engine):
     """對應 T15"""
     user_id, _ = _setup_plain_user(engine)
 
-    resp = client.get("/api/expert/settings", headers=_auth_headers(user_id))
+    resp = client.get("/expert/settings", headers=_auth_headers(user_id))
     assert resp.status_code == 403
     assert resp.json()["detail"] == "您沒有執行此操作的權限"
 
 
 # ---------------------------------------------------------------------------
-# PUT /api/expert/settings
+# PUT /expert/settings
 # ---------------------------------------------------------------------------
 
 
@@ -259,7 +252,7 @@ def test_save_settings_daily_returns_200(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(),
         headers=_auth_headers(admin_id),
     )
@@ -272,7 +265,7 @@ def test_save_settings_weekly_without_weekday_returns_400(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(frequency="weekly", weekday=None),
         headers=_auth_headers(admin_id),
     )
@@ -285,7 +278,7 @@ def test_save_settings_invalid_schedule_time_format_returns_400(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(schedule_time="25:00"),
         headers=_auth_headers(admin_id),
     )
@@ -299,22 +292,18 @@ def test_save_settings_empty_password_keeps_old_password(client, engine):
     from app.api.fn_expert_setting import _encrypt, _decrypt
 
     original_enc = _encrypt("original_password")
-    partner_id, _ = _create_partner_and_setting(engine, password_enc=original_enc)
+    _seed_setting(engine, password_enc=original_enc)
 
-    # Save with empty password - should keep existing
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(ssb_password=""),
         headers=_auth_headers(admin_id),
     )
     assert resp.status_code == 200
 
-    # Verify DB still has the original password
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    setting = (
-        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner_id).first()
-    )
+    setting = db.get(ExpertSetting, SETTING_ID)
     assert setting is not None
     assert setting.ssb_password_enc is not None
     assert _decrypt(setting.ssb_password_enc) == "original_password"
@@ -323,7 +312,7 @@ def test_save_settings_empty_password_keeps_old_password(client, engine):
 
 def test_save_settings_unauthenticated_returns_401(client, engine):
     """對應 T8"""
-    resp = client.put("/api/expert/settings", json=_valid_save_payload())
+    resp = client.put("/expert/settings", json=_valid_save_payload())
     assert resp.status_code == 401
 
 
@@ -332,7 +321,7 @@ def test_save_settings_no_permission_returns_403(client, engine):
     user_id, _ = _setup_plain_user(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(),
         headers=_auth_headers(user_id),
     )
@@ -341,11 +330,11 @@ def test_save_settings_no_permission_returns_403(client, engine):
 
 
 def test_save_settings_first_time_empty_password_returns_400(client, engine):
-    """對應 T18"""
+    """對應 T18 — 沒既有密碼又給空字串應擋。"""
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(ssb_password=""),
         headers=_auth_headers(admin_id),
     )
@@ -358,7 +347,7 @@ def test_save_settings_empty_host_returns_400(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(ssb_host=""),
         headers=_auth_headers(admin_id),
     )
@@ -371,20 +360,16 @@ def test_save_settings_is_enabled_true_persists(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(is_enabled=True),
         headers=_auth_headers(admin_id),
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "設定已儲存"
 
-    # Verify DB
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
-    setting = (
-        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
-    )
+    setting = db.get(ExpertSetting, SETTING_ID)
     assert setting.is_enabled is True
     db.close()
 
@@ -392,15 +377,13 @@ def test_save_settings_is_enabled_true_persists(client, engine):
 def test_save_settings_is_enabled_false_persists(client, engine):
     """對應 T21"""
     admin_id, _, _ = _setup_admin(engine)
-    # First set to enabled
     client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(is_enabled=True),
         headers=_auth_headers(admin_id),
     )
-    # Now disable
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(is_enabled=False),
         headers=_auth_headers(admin_id),
     )
@@ -408,10 +391,7 @@ def test_save_settings_is_enabled_false_persists(client, engine):
 
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
-    setting = (
-        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
-    )
+    setting = db.get(ExpertSetting, SETTING_ID)
     assert setting.is_enabled is False
     db.close()
 
@@ -421,7 +401,7 @@ def test_save_settings_empty_logspace_returns_400(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(ssb_logspace=""),
         headers=_auth_headers(admin_id),
     )
@@ -434,7 +414,7 @@ def test_save_settings_empty_username_returns_400(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
-        "/api/expert/settings",
+        "/expert/settings",
         json=_valid_save_payload(ssb_username=""),
         headers=_auth_headers(admin_id),
     )
@@ -443,33 +423,112 @@ def test_save_settings_empty_username_returns_400(client, engine):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/expert/ssb-test
+# POST /expert/ssb-test
 # ---------------------------------------------------------------------------
 
 
-def test_ssb_test_connection_success_returns_200(client, engine):
-    """對應 T9"""
-    admin_id, _, _ = _setup_admin(engine)
+def _make_login_resp(token: str = "session-token-abc123"):
+    """Mock 成功的 POST /api/5/login 回應."""
+    mock = MagicMock()
+    mock.is_success = True
+    mock.status_code = 200
+    mock.json.return_value = {
+        "result": token,
+        "error": {"code": None, "message": None},
+        "warnings": [],
+    }
+    return mock
 
-    mock_response = MagicMock()
-    mock_response.is_success = True
-    mock_response.status_code = 200
+
+def _make_list_logspaces_resp(logspaces: list[str]):
+    """Mock GET /api/5/search/logspace/list_logspaces 回應."""
+    mock = MagicMock()
+    mock.is_success = True
+    mock.status_code = 200
+    mock.json.return_value = {
+        "result": logspaces,
+        "error": {"code": None, "message": None},
+        "warnings": [],
+    }
+    return mock
+
+
+def test_ssb_test_connection_success_returns_200(client, engine):
+    """對應 T9 — login 成功 + logspace 在清單內 → 200."""
+    admin_id, _, _ = _setup_admin(engine)
 
     with patch("app.api.fn_expert_setting.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_ctx.get.return_value = mock_response
+        mock_ctx.post.return_value = _make_login_resp()
+        mock_ctx.get.return_value = _make_list_logspaces_resp(
+            ["center", "local", "ALL"]
+        )
         mock_client_cls.return_value = mock_ctx
 
         resp = client.post(
-            "/api/expert/ssb-test",
+            "/expert/ssb-test",
             json=_valid_ssb_test_payload(),
             headers=_auth_headers(admin_id),
         )
 
     assert resp.status_code == 200
     assert resp.json()["message"] == "連線成功"
+
+
+def test_ssb_test_auth_failed_returns_502(client, engine):
+    """SSB 帳密錯誤時回 502 + 認證失敗訊息."""
+    admin_id, _, _ = _setup_admin(engine)
+
+    auth_failed_resp = MagicMock()
+    auth_failed_resp.is_success = True
+    auth_failed_resp.status_code = 200
+    auth_failed_resp.json.return_value = {
+        "result": None,
+        "error": {"code": "auth.failed", "message": "Invalid credentials"},
+        "warnings": [],
+    }
+
+    with patch("app.api.fn_expert_setting.httpx.Client") as mock_client_cls:
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_ctx.post.return_value = auth_failed_resp
+        mock_client_cls.return_value = mock_ctx
+
+        resp = client.post(
+            "/expert/ssb-test",
+            json=_valid_ssb_test_payload(),
+            headers=_auth_headers(admin_id),
+        )
+
+    assert resp.status_code == 502
+    assert "SSB 認證失敗" in resp.json()["detail"]
+
+
+def test_ssb_test_logspace_not_found_returns_502(client, engine):
+    """Logspace 不在 SSB 清單中時回 502 + 可用 logspace 提示."""
+    admin_id, _, _ = _setup_admin(engine)
+
+    with patch("app.api.fn_expert_setting.httpx.Client") as mock_client_cls:
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_ctx.post.return_value = _make_login_resp()
+        mock_ctx.get.return_value = _make_list_logspaces_resp(["local", "center"])
+        mock_client_cls.return_value = mock_ctx
+
+        resp = client.post(
+            "/expert/ssb-test",
+            json=_valid_ssb_test_payload(logspace="nonexistent"),
+            headers=_auth_headers(admin_id),
+        )
+
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert "nonexistent" in detail
+    assert "local" in detail and "center" in detail
 
 
 def test_ssb_test_unreachable_host_returns_502(client, engine):
@@ -482,11 +541,11 @@ def test_ssb_test_unreachable_host_returns_502(client, engine):
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
-        mock_ctx.get.side_effect = _httpx.ConnectError("Connection refused")
+        mock_ctx.post.side_effect = _httpx.ConnectError("Connection refused")
         mock_client_cls.return_value = mock_ctx
 
         resp = client.post(
-            "/api/expert/ssb-test",
+            "/expert/ssb-test",
             json=_valid_ssb_test_payload(host="10.255.255.1"),
             headers=_auth_headers(admin_id),
         )
@@ -500,7 +559,7 @@ def test_ssb_test_empty_host_returns_400(client, engine):
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.post(
-        "/api/expert/ssb-test",
+        "/expert/ssb-test",
         json=_valid_ssb_test_payload(host=""),
         headers=_auth_headers(admin_id),
     )
@@ -510,7 +569,7 @@ def test_ssb_test_empty_host_returns_400(client, engine):
 
 def test_ssb_test_unauthenticated_returns_401(client, engine):
     """對應 T12"""
-    resp = client.post("/api/expert/ssb-test", json=_valid_ssb_test_payload())
+    resp = client.post("/expert/ssb-test", json=_valid_ssb_test_payload())
     assert resp.status_code == 401
 
 
@@ -519,7 +578,7 @@ def test_ssb_test_no_permission_returns_403(client, engine):
     user_id, _ = _setup_plain_user(engine)
 
     resp = client.post(
-        "/api/expert/ssb-test",
+        "/expert/ssb-test",
         json=_valid_ssb_test_payload(),
         headers=_auth_headers(user_id),
     )

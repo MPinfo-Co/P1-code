@@ -23,8 +23,6 @@ import {
   useSsbTest,
 } from '@/queries/useExpertSettingQuery'
 
-const MASKED_PASSWORD = '********'
-
 interface FormState {
   isEnabled: boolean
   frequency: 'daily' | 'weekly' | 'manual'
@@ -57,7 +55,7 @@ function buildInitialForm(data: {
     ssbPort: data.ssb_port ?? 443,
     ssbLogspace: data.ssb_logspace ?? '',
     ssbUsername: data.ssb_username ?? '',
-    ssbPassword: data.ssb_password ? MASKED_PASSWORD : '',
+    ssbPassword: '',
   }
 }
 
@@ -128,7 +126,7 @@ export default function FnExpertSetting() {
         ssb_port: currentForm.ssbPort,
         ssb_logspace: currentForm.ssbLogspace,
         ssb_username: currentForm.ssbUsername,
-        ssb_password: currentForm.ssbPassword === MASKED_PASSWORD ? '' : currentForm.ssbPassword,
+        ssb_password: currentForm.ssbPassword,
       })
       setSaveMessage('設定已儲存')
     } catch (err) {
@@ -155,7 +153,7 @@ export default function FnExpertSetting() {
   const scheduleDisabled = !currentForm.isEnabled
 
   return (
-    <Box sx={{ maxWidth: 720, mx: 'auto' }}>
+    <Box>
       {/* 分析排程區塊 */}
       <Box
         sx={{
@@ -331,7 +329,7 @@ export default function FnExpertSetting() {
               type={isPasswordVisible ? 'text' : 'password'}
               value={currentForm.ssbPassword}
               onChange={(e) => updateForm({ ssbPassword: e.target.value })}
-              placeholder="密碼"
+              placeholder={data?.ssb_password ? '已設定（留空保留原密碼）' : '密碼'}
               size="small"
               fullWidth
               InputProps={{

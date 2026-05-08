@@ -1,20 +1,6 @@
 """Pydantic schemas for fn_company_data endpoints."""
 
-from pydantic import BaseModel, Field
-
-
-# ---------------------------------------------------------------------------
-# Shared sub-schemas
-# ---------------------------------------------------------------------------
-
-
-class PartnerItem(BaseModel):
-    """單筆 AI 夥伴資訊（id + name）。"""
-
-    id: int
-    name: str
-
-    model_config = {"from_attributes": True}
+from pydantic import BaseModel
 
 
 # ---------------------------------------------------------------------------
@@ -23,12 +9,11 @@ class PartnerItem(BaseModel):
 
 
 class CompanyDataItem(BaseModel):
-    """列表單項：公司資料 + 已關聯的 AI 夥伴清單。"""
+    """列表單項。"""
 
     id: int
     name: str
     content: str
-    partners: list[PartnerItem] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -43,9 +28,6 @@ class CompanyDataCreate(BaseModel):
 
     name: str
     content: str
-    partner_ids: list[int] = Field(
-        default_factory=list, description="適用夥伴的 partner_id 清單"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -58,20 +40,3 @@ class CompanyDataUpdate(BaseModel):
 
     name: str
     content: str
-    partner_ids: list[int] = Field(
-        default_factory=list, description="適用夥伴的 partner_id 清單"
-    )
-
-
-# ---------------------------------------------------------------------------
-# GET /api/company-data/partner-options
-# ---------------------------------------------------------------------------
-
-
-class PartnerOptionItem(BaseModel):
-    """夥伴下拉選項單項。"""
-
-    id: int
-    name: str
-
-    model_config = {"from_attributes": True}

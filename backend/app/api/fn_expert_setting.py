@@ -1,4 +1,8 @@
-"""/api/expert router — 資安專家設定 (fn_expert_setting)."""
+"""/api/expert router — 資安專家設定 (fn_expert_setting)。
+
+ExpertSetting 採單例設計：tb_expert_settings 永遠只有 id=1 一筆紀錄，
+由 migration seed 寫入；API 只做 GET / PUT，無 list / create / delete。
+"""
 
 import base64
 import os
@@ -15,18 +19,18 @@ from app.api.schema.fn_expert_setting import (
 )
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models.fn_expert_setting import AiPartner, ExpertSetting
+from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-router = APIRouter(prefix="/api/expert", tags=["fn_expert_setting"])
+router = APIRouter(prefix="/expert", tags=["fn_expert_setting"])
 system_logger = get_system_logger()
 
 FN_EXPERT_SETTING_NAME = "fn_expert_setting"
-EXPERT_PARTNER_NAME = "資安專家"
+SETTING_ID = 1  # singleton row id
 
 VALID_FREQUENCIES = {"daily", "weekly", "manual"}
 _SCHEDULE_TIME_RE = re.compile(r"^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
@@ -89,6 +93,20 @@ def _has_fn_expert_setting_permission(user_id: int, db: Session) -> bool:
     )
 
 
+def _get_or_create_singleton(db: Session) -> ExpertSetting:
+    """Return the singleton ExpertSetting row, creating it lazily if missing.
+
+    Migration seeds row id=1, but this guard makes the API robust against
+    accidental row deletion.
+    """
+    record = db.get(ExpertSetting, SETTING_ID)
+    if record is None:
+        record = ExpertSetting(id=SETTING_ID)
+        db.add(record)
+        db.flush()
+    return record
+
+
 # ---------------------------------------------------------------------------
 # GET /api/expert/settings
 # ---------------------------------------------------------------------------
@@ -106,44 +124,9 @@ def get_expert_settings(
             detail="您沒有執行此操作的權限",
         )
 
-    # Find the 資安專家 partner
-    partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
+    setting = _get_or_create_singleton(db)
+    db.commit()  # persist the row if it was just created
 
-    if partner is None:
-        # Return defaults when partner not set up yet
-        data = ExpertSettingOut(
-            is_enabled=False,
-            frequency="daily",
-            schedule_time="02:00",
-            weekday=None,
-            ssb_host=None,
-            ssb_port=443,
-            ssb_logspace=None,
-            ssb_username=None,
-            ssb_password=None,
-        )
-        return {"message": "查詢成功", "data": data.model_dump()}
-
-    setting = (
-        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
-    )
-
-    if setting is None:
-        # Return defaults
-        data = ExpertSettingOut(
-            is_enabled=False,
-            frequency="daily",
-            schedule_time="02:00",
-            weekday=None,
-            ssb_host=None,
-            ssb_port=443,
-            ssb_logspace=None,
-            ssb_username=None,
-            ssb_password=None,
-        )
-        return {"message": "查詢成功", "data": data.model_dump()}
-
-    # Mask password
     ssb_password: str | None = None
     if setting.ssb_password_enc:
         ssb_password = "********"
@@ -235,20 +218,11 @@ def save_expert_settings(
             detail="Username 為必填欄位",
         )
 
-    # --- Upsert logic ---
-    partner = db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
-    if partner is None:
-        # Create a stub partner if not yet in DB
-        partner = AiPartner(name=EXPERT_PARTNER_NAME, is_builtin=True)
-        db.add(partner)
-        db.flush()
+    # --- Update singleton ---
+    record = _get_or_create_singleton(db)
 
-    existing = (
-        db.query(ExpertSetting).filter(ExpertSetting.partner_id == partner.id).first()
-    )
-
-    # Check first-time password requirement
-    if existing is None and (
+    # First-time password requirement: if no password stored yet, payload must provide one.
+    if not record.ssb_password_enc and (
         not payload.ssb_password or not payload.ssb_password.strip()
     ):
         raise HTTPException(
@@ -256,37 +230,17 @@ def save_expert_settings(
             detail="首次儲存需提供 SSB 密碼",
         )
 
-    # Encrypt password if provided
-    password_enc: str | None = None
+    record.is_enabled = payload.is_enabled
+    record.frequency = payload.frequency
+    record.schedule_time = payload.schedule_time
+    record.weekday = payload.weekday
+    record.ssb_host = payload.ssb_host
+    record.ssb_port = payload.ssb_port
+    record.ssb_logspace = payload.ssb_logspace
+    record.ssb_username = payload.ssb_username
     if payload.ssb_password and payload.ssb_password.strip():
-        password_enc = _encrypt(payload.ssb_password)
-
-    if existing is not None:
-        existing.is_enabled = payload.is_enabled
-        existing.frequency = payload.frequency
-        existing.schedule_time = payload.schedule_time
-        existing.weekday = payload.weekday
-        existing.ssb_host = payload.ssb_host
-        existing.ssb_port = payload.ssb_port
-        existing.ssb_logspace = payload.ssb_logspace
-        existing.ssb_username = payload.ssb_username
-        if password_enc is not None:
-            existing.ssb_password_enc = password_enc
-        # else: keep existing password
-    else:
-        new_setting = ExpertSetting(
-            partner_id=partner.id,
-            is_enabled=payload.is_enabled,
-            frequency=payload.frequency,
-            schedule_time=payload.schedule_time,
-            weekday=payload.weekday,
-            ssb_host=payload.ssb_host,
-            ssb_port=payload.ssb_port,
-            ssb_logspace=payload.ssb_logspace,
-            ssb_username=payload.ssb_username,
-            ssb_password_enc=password_enc,
-        )
-        db.add(new_setting)
+        record.ssb_password_enc = _encrypt(payload.ssb_password)
+    # else: keep existing password
 
     db.commit()
     system_logger.info(f"User {auth.user_id} saved expert settings")
@@ -345,32 +299,60 @@ def test_ssb_connection(
     # --- Resolve password ---
     test_password = payload.password
     if payload.password == "**":
-        partner = (
-            db.query(AiPartner).filter(AiPartner.name == EXPERT_PARTNER_NAME).first()
-        )
-        if partner:
-            setting = (
-                db.query(ExpertSetting)
-                .filter(ExpertSetting.partner_id == partner.id)
-                .first()
-            )
-            if setting and setting.ssb_password_enc:
-                test_password = _decrypt(setting.ssb_password_enc)
+        record = db.get(ExpertSetting, SETTING_ID)
+        if record and record.ssb_password_enc:
+            test_password = _decrypt(record.ssb_password_enc)
 
     # --- Connect to SSB ---
-    url = f"https://{payload.host}:{payload.port}/api/5/"
+    # 兩步驗證:
+    # 1. POST /api/5/login 拿 session token (驗證帳密)
+    # 2. GET /api/5/search/logspace/list_logspaces 帶 cookie (驗證 logspace 存在)
+    base_url = f"https://{payload.host}:{payload.port}"
     try:
         with httpx.Client(timeout=10.0, verify=False) as http_client:
-            response = http_client.get(
-                url,
-                auth=(payload.username, test_password),
+            # Step 1: login
+            login_resp = http_client.post(
+                f"{base_url}/api/5/login",
+                data={"username": payload.username, "password": test_password},
             )
-        if response.is_success:
-            return {"message": "連線成功"}
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"無法連線至 SSB：HTTP {response.status_code}",
-        )
+            if not login_resp.is_success:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"無法連線至 SSB：HTTP {login_resp.status_code}",
+                )
+            login_body = login_resp.json()
+            login_error = login_body.get("error") or {}
+            if login_error.get("code") is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"SSB 認證失敗：{login_error.get('message', '未知錯誤')}",
+                )
+            token = login_body.get("result")
+            if not token:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="SSB 回應格式異常：無 session token",
+                )
+
+            # Step 2: 驗證 logspace 存在
+            list_resp = http_client.get(
+                f"{base_url}/api/5/search/logspace/list_logspaces",
+                headers={"Cookie": f"AUTHENTICATION_TOKEN={token}"},
+            )
+            if not list_resp.is_success:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"取得 logspace 清單失敗：HTTP {list_resp.status_code}",
+                )
+            logspaces = list_resp.json().get("result") or []
+            if payload.logspace not in logspaces:
+                available = ", ".join(logspaces) if logspaces else "(無)"
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Logspace「{payload.logspace}」不存在，可用：{available}",
+                )
+
+        return {"message": "連線成功"}
     except httpx.TimeoutException as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
