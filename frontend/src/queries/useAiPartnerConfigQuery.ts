@@ -7,7 +7,7 @@ const BASE_URL = import.meta.env.VITE_API_URL
 export interface AiPartnerRow {
   id: number
   name: string
-  description: string
+  description: string | null
   is_enabled: boolean
   role_definition: string | null
   behavior_limit: string | null
@@ -99,7 +99,7 @@ export function useCreateAiPartner() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '新增失敗')
+        throw new Error(err.detail ?? err.message ?? '新增失敗')
       }
     },
     onSuccess: () => {
@@ -130,7 +130,7 @@ export function useUpdateAiPartner() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '更新失敗')
+        throw new Error(err.detail ?? err.message ?? '更新失敗')
       }
     },
     onSuccess: () => {
@@ -150,7 +150,7 @@ export function useDeleteAiPartner() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '刪除失敗')
+        throw new Error(err.detail ?? err.message ?? '刪除失敗')
       }
     },
     onSuccess: () => {

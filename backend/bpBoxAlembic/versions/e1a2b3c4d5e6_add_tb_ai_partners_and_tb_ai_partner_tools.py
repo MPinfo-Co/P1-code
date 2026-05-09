@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e1a2b3c4d5e6"
-down_revision: Union[str, Sequence[str], None] = "d9e2f4a61b88"
+down_revision: Union[str, Sequence[str], None] = "c1e3f5a7b9d2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -56,8 +56,22 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("partner_id", "tool_id"),
     )
 
+    op.execute(
+        "INSERT INTO tb_function_items (function_code, function_label, folder_id, sort_order) "
+        "VALUES ('fn_ai_partner_config', 'AI 夥伴設定管理', 1, 2)"
+    )
+    op.execute(
+        "INSERT INTO tb_role_function (role_id, function_id) "
+        "SELECT 1, function_id FROM tb_function_items WHERE function_code = 'fn_ai_partner_config'"
+    )
+
 
 def downgrade() -> None:
-    """Drop tb_ai_partner_tools and tb_ai_partners."""
+    """Drop tb_ai_partner_tools and tb_ai_partners, remove fn_ai_partner_config seed."""
+    op.execute(
+        "DELETE FROM tb_role_function WHERE function_id = "
+        "(SELECT function_id FROM tb_function_items WHERE function_code = 'fn_ai_partner_config')"
+    )
+    op.execute("DELETE FROM tb_function_items WHERE function_code = 'fn_ai_partner_config'")
     op.drop_table("tb_ai_partner_tools")
     op.drop_table("tb_ai_partners")
