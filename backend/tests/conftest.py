@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
+from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_tool import Tool, ToolBodyParam
 from app.db.models.function_access import (
     FunctionItems as Function,
@@ -31,6 +32,7 @@ _SEED_TABLES = [
     RoleFunction.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
+    ExpertSetting.__table__,
 ]
 
 
@@ -63,3 +65,18 @@ def client(engine):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def db_session(engine):
+    """Yield a SQLAlchemy Session bound to the test engine.
+
+    Each test gets a fresh in-memory DB (engine is function-scoped).
+    No rollback/savepoint magic — the engine fixture drops tables at teardown.
+    """
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()

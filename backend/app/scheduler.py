@@ -9,7 +9,10 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config.settings import settings
+from app.db.connector import SessionLocal
+from app.db.models.fn_expert_setting import ExpertSetting
 from app.logger_utils.log_channels import get_system_logger
+from app.utils.crypto import decrypt
 
 logger = get_system_logger()
 
@@ -36,8 +39,48 @@ def get_runtime() -> RuntimeSettings:
 
 
 def _sync_settings() -> None:
-    """Stub — Task 5 implements; needed here so the job can be registered."""
-    pass
+    """Reload `tb_expert_settings` (id=1) into the runtime cache.
+
+    Reschedules the Sonnet job's CronTrigger when `schedule_time` changes.
+    Safe no-op if the singleton row is missing.
+    """
+    global _runtime
+    session = SessionLocal()
+    try:
+        row = session.get(ExpertSetting, 1)
+        if row is None:
+            logger.info("tb_expert_settings has no id=1 row; scheduler stays disabled")
+            return
+        new_rt = RuntimeSettings(
+            is_enabled=bool(row.is_enabled),
+            schedule_time=row.schedule_time,
+            ssb_host=row.ssb_host,
+            ssb_port=row.ssb_port or 443,
+            ssb_logspace=row.ssb_logspace,
+            ssb_username=row.ssb_username,
+            ssb_password=decrypt(row.ssb_password_enc),
+            last_loaded_at=datetime.utcnow(),
+        )
+    finally:
+        session.close()
+
+    prev_time = _runtime.schedule_time
+    _runtime = new_rt
+
+    if (
+        _scheduler is not None
+        and new_rt.schedule_time
+        and new_rt.schedule_time != prev_time
+    ):
+        try:
+            hh, mm = new_rt.schedule_time.split(":")
+            _scheduler.reschedule_job(
+                "sonnet_job",
+                trigger=CronTrigger(hour=int(hh), minute=int(mm)),
+            )
+            logger.info("rescheduled sonnet_job to %s UTC daily", new_rt.schedule_time)
+        except (ValueError, KeyError) as exc:
+            logger.error("failed to reschedule sonnet_job: %s", exc)
 
 
 def _haiku_job() -> None:
