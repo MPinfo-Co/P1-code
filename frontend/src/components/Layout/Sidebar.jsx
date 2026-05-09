@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
 import { ICON_MAP } from '../../constants/navigation'
@@ -31,19 +31,6 @@ export default function Sidebar() {
   const { data: navFolders = [] } = useNavigationQuery()
 
   const [openFolders, setOpenFolders] = useState({})
-
-  useEffect(() => {
-    if (navFolders.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOpenFolders((prev) => {
-        const next = {}
-        navFolders.forEach((f) => {
-          next[f.folder_code] = prev[f.folder_code] ?? f.default_open
-        })
-        return next
-      })
-    }
-  }, [navFolders])
 
   const allowedFunctions = user && Array.isArray(user.functions) ? new Set(user.functions) : null
 
