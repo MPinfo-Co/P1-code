@@ -10,7 +10,6 @@ class NavFunctionItem(BaseModel):
 class NavFolderItem(BaseModel):
     folder_code: str
     folder_label: str
-    default_open: bool
     sort_order: int
     items: list[NavFunctionItem]
 

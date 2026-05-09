@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.connector import get_db
 from app.db.models.function_access import FunctionItems, FunctionFolder
 from app.utils.util_store import AuthContext, authenticate
-from app.api.schema.navigation import NavigationOut, NavFolderItem, NavFunctionItem
+from app.api.schema.navigation import NavFolderItem, NavFunctionItem, NavigationOut
 
 router = APIRouter(prefix="/navigation", tags=["navigation"])
 
@@ -30,7 +30,6 @@ def get_navigation(
             NavFolderItem(
                 folder_code=folder.folder_code,
                 folder_label=folder.folder_label,
-                default_open=folder.default_open,
                 sort_order=folder.sort_order,
                 items=[
                     NavFunctionItem(
