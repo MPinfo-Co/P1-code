@@ -13,7 +13,8 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
-from app.db.models.analysis import ChunkResult, LogBatch
+from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
+from app.db.models.events import SecurityEvent
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_tool import Tool, ToolBodyParam
 from app.db.models.function_access import (
@@ -51,6 +52,8 @@ _SEED_TABLES = [
     ExpertSetting.__table__,
     LogBatch.__table__,
     ChunkResult.__table__,
+    DailyAnalysis.__table__,
+    SecurityEvent.__table__,
 ]
 
 

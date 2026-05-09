@@ -105,8 +105,22 @@ def _haiku_job() -> None:
 
 
 def _sonnet_job() -> None:
-    """Stub — Task 7 implements."""
-    pass
+    """APScheduler entry point for the Sonnet daily aggregation job.
+
+    Wires the production factories into ``run_pro_task``. Wrapped in a
+    broad except so a single failed run never tears down the scheduler.
+    """
+    from anthropic import Anthropic
+
+    from app.tasks.pro_task import run_pro_task
+
+    try:
+        run_pro_task(
+            anthropic_client_factory=lambda: Anthropic(api_key=settings.anthropic_api_key),
+            db_factory=SessionLocal,
+        )
+    except Exception:
+        logger.exception("sonnet_job failed")
 
 
 def start_scheduler() -> None:
