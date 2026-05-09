@@ -304,7 +304,7 @@ export default function IssueDetail() {
             </Typography>
           </Box>
           <Button
-            onClick={() => navigate(`/fn_expert`)}
+            onClick={() => navigate(`/expert`)}
             variant="outlined"
             startIcon={<ArrowBackIosNew sx={{ fontSize: '14px !important' }} />}
             className="issue-detail-back-btn"

@@ -46,7 +46,7 @@ function AppRoutes() {
       >
         <Route index element={<Home />} />
         <Route
-          path="fn_expert"
+          path="expert"
           element={
             <PermissionGuard fnKey="fn_expert">
               <IssueList />
@@ -54,7 +54,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_expert/issues/:issueId"
+          path="expert/issues/:issueId"
           element={
             <PermissionGuard fnKey="fn_expert">
               <IssueDetail />
@@ -62,7 +62,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_user"
+          path="user"
           element={
             <PermissionGuard fnKey="fn_user">
               <FnUserList />
@@ -70,7 +70,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_role"
+          path="role"
           element={
             <PermissionGuard fnKey="fn_role">
               <FnRoleList />
@@ -78,7 +78,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_company_data"
+          path="company_data"
           element={
             <PermissionGuard fnKey="fn_company_data">
               <FnCompanyDataList />
@@ -86,7 +86,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_tool"
+          path="tool"
           element={
             <PermissionGuard fnKey="fn_tool">
               <FnToolList />
@@ -94,7 +94,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="fn_expert_setting"
+          path="expert_setting"
           element={
             <PermissionGuard fnKey="fn_expert_setting">
               <FnExpertSetting />
@@ -102,7 +102,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="ai-partner-config"
+          path="ai_partner_config"
           element={
             <PermissionGuard fnKey="fn_ai_partner_config">
               <FnAiPartnerConfigList />
