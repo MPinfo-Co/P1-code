@@ -84,8 +84,24 @@ def _sync_settings() -> None:
 
 
 def _haiku_job() -> None:
-    """Stub — Task 6 implements."""
-    pass
+    """APScheduler entry point for the Haiku interval job.
+
+    Wires the production factories into ``run_haiku_task``. Wrapped in a
+    broad except so a single failed run never tears down the scheduler.
+    """
+    from anthropic import Anthropic
+
+    from app.tasks.haiku_task import run_haiku_task
+    from app.tasks.ssb_client import SSBClient
+
+    try:
+        run_haiku_task(
+            ssb_client_factory=lambda **kw: SSBClient(**kw),
+            anthropic_client_factory=lambda **kw: Anthropic(**kw),
+            db_factory=SessionLocal,
+        )
+    except Exception:
+        logger.exception("haiku_job failed")
 
 
 def _sonnet_job() -> None:
