@@ -42,7 +42,6 @@ def _seed_folders_and_functions(engine) -> None:
             id=1,
             folder_code="ai_partner",
             folder_label="AI 夥伴",
-            default_open=True,
             sort_order=1,
         )
     )
@@ -51,7 +50,6 @@ def _seed_folders_and_functions(engine) -> None:
             id=2,
             folder_code="settings",
             folder_label="設定",
-            default_open=False,
             sort_order=2,
         )
     )

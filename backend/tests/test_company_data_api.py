@@ -100,7 +100,7 @@ def _assign_role(db: Session, user_id: int, role_id: int) -> None:
 
 def _make_folder(db: Session, code: str = "資安專家") -> int:
     folder = FunctionFolder(
-        folder_code=code, folder_label=code, default_open=False, sort_order=1
+        folder_code=code, folder_label=code, sort_order=1
     )
     db.add(folder)
     db.flush()
