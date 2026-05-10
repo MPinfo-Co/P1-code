@@ -1,7 +1,7 @@
 """rename fn_tool to fn_ai_partner_tool in function_items
 
 Revision ID: a1b2c3d4e5f6
-Revises: f3a1c8b92e05
+Revises: b2d4f6a8c1e3
 Create Date: 2026-05-10 00:00:00.000000
 
 將 tb_function_items.function_code 從 fn_tool 改為 fn_ai_partner_tool，
@@ -11,7 +11,7 @@ Create Date: 2026-05-10 00:00:00.000000
 from alembic import op
 
 revision = "a1b2c3d4e5f6"
-down_revision = "f3a1c8b92e05"
+down_revision = "b2d4f6a8c1e3"
 branch_labels = None
 depends_on = None
 
