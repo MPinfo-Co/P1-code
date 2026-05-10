@@ -7,11 +7,9 @@ from app.api.schema.fn_ai_partner_config import (
     AiPartnerCreate,
     AiPartnerItem,
     AiPartnerUpdate,
-    ToolOptionItem,
 )
 from app.db.connector import get_db
 from app.db.models.fn_ai_partner_config import AiPartner, AiPartnerTool
-from app.db.models.fn_tool import Tool
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
