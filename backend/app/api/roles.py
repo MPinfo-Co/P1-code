@@ -93,9 +93,7 @@ def list_roles(
 
         # Get AI partner ids
         partner_rows = (
-            db.query(RoleAiPartner)
-            .filter(RoleAiPartner.role_id == role.id)
-            .all()
+            db.query(RoleAiPartner).filter(RoleAiPartner.role_id == role.id).all()
         )
         partner_ids = [r.partner_id for r in partner_rows]
 

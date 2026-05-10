@@ -3,7 +3,16 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.api.schema.fn_ai_partner_chat import (
@@ -111,7 +120,9 @@ def _build_system_prompt(partner: AiPartnerConfig) -> str:
 # ── Tool definition assembly ──────────────────────────────────────────────────
 
 
-def _build_tool_definitions(partner_id: int, db: Session) -> tuple[list[dict], list[dict]]:
+def _build_tool_definitions(
+    partner_id: int, db: Session
+) -> tuple[list[dict], list[dict]]:
     """從 tb_ai_partner_tools JOIN tb_tools + tb_tool_body_params 組裝 tool 定義與設定清單。
 
     Returns:
@@ -240,8 +251,7 @@ def list_partners(
     )
 
     items = [
-        PartnerItem(id=p.id, name=p.name, description=p.description)
-        for p in partners
+        PartnerItem(id=p.id, name=p.name, description=p.description) for p in partners
     ]
     return PartnersOut(data=items)
 
@@ -388,6 +398,7 @@ def send_message(
     if has_image:
         image_bytes = image.file.read()
         import base64
+
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
         media_type = image.content_type or "image/jpeg"
         user_vision_content: list = []
@@ -420,7 +431,7 @@ def send_message(
             tools=tool_defs or None,
             tool_configs=tool_configs or None,
         )
-    except (AgentMaxIterationError, LLMClientError):
+    except (AgentMaxIterationError, LLMClientError):  # fmt: skip
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI 服務暫時無法使用",
@@ -529,7 +540,7 @@ def new_conversation(
             tools=greeting_tools,
             tool_configs=tool_configs or None,
         )
-    except (AgentMaxIterationError, LLMClientError):
+    except (AgentMaxIterationError, LLMClientError):  # fmt: skip
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI 服務暫時無法使用",

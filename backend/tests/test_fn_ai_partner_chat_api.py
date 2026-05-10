@@ -33,7 +33,9 @@ def _auth(user_id: int) -> dict:
     return {"Authorization": f"Bearer {create_access_token(user_id)}"}
 
 
-def _make_folder(db: Session, code: str = "ai_folder", label: str = "AI 夥伴", order: int = 1) -> int:
+def _make_folder(
+    db: Session, code: str = "ai_folder", label: str = "AI 夥伴", order: int = 1
+) -> int:
     f = FunctionFolder(folder_code=code, folder_label=label, sort_order=order)
     db.add(f)
     db.flush()
@@ -557,8 +559,11 @@ def test_add_role_with_partner_ids_writes_tb_role_ai_partners(client, engine):
     Session2_ = sessionmaker(bind=engine)
     db2 = Session2_()
     from app.db.models.user_role import Role
+
     new_role = db2.query(Role).filter(Role.name == "新角色含夥伴").first()
-    bindings = db2.query(RoleAiPartner).filter(RoleAiPartner.role_id == new_role.id).all()
+    bindings = (
+        db2.query(RoleAiPartner).filter(RoleAiPartner.role_id == new_role.id).all()
+    )
     db2.close()
     assert len(bindings) == 2
     partner_ids_in_db = {b.partner_id for b in bindings}
@@ -601,7 +606,9 @@ def test_update_role_partner_ids_replaces_bindings(client, engine):
 
     Session2_ = sessionmaker(bind=engine)
     db2 = Session2_()
-    bindings = db2.query(RoleAiPartner).filter(RoleAiPartner.role_id == target_role_id).all()
+    bindings = (
+        db2.query(RoleAiPartner).filter(RoleAiPartner.role_id == target_role_id).all()
+    )
     db2.close()
     assert len(bindings) == 1
     assert bindings[0].partner_id == p3

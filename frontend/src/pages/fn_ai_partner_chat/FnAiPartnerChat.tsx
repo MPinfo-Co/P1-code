@@ -135,7 +135,11 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
-          setSendError(msg.includes('503') || msg.includes('無法使用') ? 'AI 服務暫時無法使用，請稍後再試' : msg)
+          setSendError(
+            msg.includes('503') || msg.includes('無法使用')
+              ? 'AI 服務暫時無法使用，請稍後再試'
+              : msg
+          )
           setIsSending(false)
         },
       }
@@ -260,7 +264,14 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
                 <Box
                   component="img"
                   src={msg.image_url}
-                  sx={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 1, mb: 0.75, display: 'block' }}
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    objectFit: 'cover',
+                    borderRadius: 1,
+                    mb: 0.75,
+                    display: 'block',
+                  }}
                 />
               )}
               <Typography sx={{ fontSize: 14, whiteSpace: 'pre-wrap', color: 'inherit' }}>
@@ -368,9 +379,25 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
               <Box
                 component="img"
                 src={imagePreviewUrl}
-                sx={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 1, border: '1px solid #e2e8f0' }}
+                sx={{
+                  width: 56,
+                  height: 56,
+                  objectFit: 'cover',
+                  borderRadius: 1,
+                  border: '1px solid #e2e8f0',
+                }}
               />
-              <IconButton size="small" onClick={handleRemoveImage} sx={{ bgcolor: '#94a3b8', color: 'white', width: 18, height: 18, '&:hover': { bgcolor: '#64748b' } }}>
+              <IconButton
+                size="small"
+                onClick={handleRemoveImage}
+                sx={{
+                  bgcolor: '#94a3b8',
+                  color: 'white',
+                  width: 18,
+                  height: 18,
+                  '&:hover': { bgcolor: '#64748b' },
+                }}
+              >
                 <CloseIcon sx={{ fontSize: 12 }} />
               </IconButton>
             </Box>
@@ -409,7 +436,12 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
       </Box>
 
       {/* Confirm new chat dialog */}
-      <Dialog open={isConfirmNewOpen} onClose={() => setIsConfirmNewOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={isConfirmNewOpen}
+        onClose={() => setIsConfirmNewOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle sx={{ fontWeight: 700, fontSize: 16 }}>開始新對話</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14 }}>確定要清除目前對話並重新開始嗎？</Typography>

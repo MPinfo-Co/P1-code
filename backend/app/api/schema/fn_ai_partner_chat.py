@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 # ── Partners ────────────────────────────────────────────────────────────────
 
+
 class PartnerItem(BaseModel):
     """單筆 AI 夥伴（供當前角色使用的清單）。"""
 
@@ -25,6 +26,7 @@ class PartnersOut(BaseModel):
 
 
 # ── History ─────────────────────────────────────────────────────────────────
+
 
 class MessageItem(BaseModel):
     """單筆對話訊息。"""
@@ -54,6 +56,7 @@ class HistoryOut(BaseModel):
 
 # ── Send ─────────────────────────────────────────────────────────────────────
 
+
 class SendData(BaseModel):
     """send API 的 data 欄位。"""
 
@@ -69,6 +72,7 @@ class SendOut(BaseModel):
 
 
 # ── New ──────────────────────────────────────────────────────────────────────
+
 
 class NewRequest(BaseModel):
     """Body for POST /api/ai-partner-chat/new。"""
@@ -92,6 +96,7 @@ class NewOut(BaseModel):
 
 
 # ── Options ──────────────────────────────────────────────────────────────────
+
 
 class PartnerOptionItem(BaseModel):
     """單筆 AI 夥伴選項（id、name）。"""
