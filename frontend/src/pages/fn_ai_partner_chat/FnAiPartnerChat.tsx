@@ -1,5 +1,5 @@
 // src/pages/fn_ai_partner_chat/FnAiPartnerChat.tsx
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'

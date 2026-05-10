@@ -13,15 +13,12 @@ Also covers fn_role partner_ids integration:
 """
 
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
-from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_config import AiPartnerConfig
 from app.db.models.function_access import FunctionFolder, FunctionItems, RoleFunction
 from app.db.models.user_role import Role, User, UserRole
 from app.utils.util_store import create_access_token, hash_password
