@@ -15,6 +15,7 @@ import FnCompanyDataList from './pages/fn_company_data/FnCompanyDataList'
 import FnToolList from './pages/fn_ai_partner_tool/FnToolList'
 import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
 import FnAiPartnerConfigList from './pages/fn_ai_partner_config/FnAiPartnerConfigList'
+import FnAiPartnerChatPage from './pages/fn_ai_partner_chat/FnAiPartnerChatPage'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -106,6 +107,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_ai_partner_config">
               <FnAiPartnerConfigList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="ai_partner_chat"
+          element={
+            <PermissionGuard fnKey="fn_ai_partner_chat">
+              <FnAiPartnerChatPage />
             </PermissionGuard>
           }
         />

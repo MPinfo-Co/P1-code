@@ -22,11 +22,13 @@ backend/
 │   │   │   ├── auth.py
 │   │   │   ├── company_data.py
 │   │   │   ├── events.py
+│   │   │   ├── fn_ai_partner_chat.py # AI 夥伴對話 schemas
 │   │   │   ├── ingest.py
 │   │   │   ├── roles.py
 │   │   │   ├── navigation.py
 │   │   │   └── user.py
 │   │   ├── auth.py                   # Login / token endpoints
+│   │   ├── fn_ai_partner_chat.py     # AI 夥伴對話 endpoints (fn_ai_partner_chat)
 │   │   ├── company_data.py           # Company background data CRUD (fn_company_data)
 │   │   ├── events.py                 # Security event endpoints
 │   │   ├── health.py                 # Liveness / readiness probe
@@ -42,9 +44,13 @@ backend/
 │   │       ├── analysis.py           # Pipeline / analysis tables
 │   │       ├── base.py               # Declarative Base + mixins
 │   │       ├── events.py             # Security event tables
+│   │       ├── fn_ai_partner_chat.py # tb_conversations · tb_messages · tb_role_ai_partners
 │   │       ├── fn_company_data.py    # tb_company_data · tb_ai_partners · tb_partners_company_data
 │   │       ├── function_access.py    # Function/folder + role-function ACL
 │   │       └── user_role.py          # Users, roles, user-role link
+│   ├── services/                     # External integrations
+│   │   ├── llm_client.py             # Anthropic API 封裝（單次呼叫，含 retry）
+│   │   └── ai_agent.py               # Agentic loop（tool_call 迴圈，上限 5 次）
 │   ├── logger_utils/                 # Centralized logging setup
 │   │   ├── log_channels.py
 │   │   └── logger_config.json
