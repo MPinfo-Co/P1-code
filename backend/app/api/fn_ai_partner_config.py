@@ -9,7 +9,7 @@ from app.api.schema.fn_ai_partner_config import (
     AiPartnerUpdate,
 )
 from app.db.connector import get_db
-from app.db.models.fn_ai_partner_config import AiPartner, AiPartnerTool
+from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -65,13 +65,13 @@ def list_ai_partners(
             detail="您沒有執行此操作的權限",
         )
 
-    query = db.query(AiPartner)
+    query = db.query(AiPartnerConfig)
     if keyword:
         query = query.filter(
-            AiPartner.name.ilike(f"%{keyword}%")
-            | AiPartner.description.ilike(f"%{keyword}%")
+            AiPartnerConfig.name.ilike(f"%{keyword}%")
+            | AiPartnerConfig.description.ilike(f"%{keyword}%")
         )
-    partners = query.order_by(AiPartner.created_at.asc()).all()
+    partners = query.order_by(AiPartnerConfig.updated_at.asc()).all()
 
     partner_ids = [p.id for p in partners]
     all_links = (
@@ -122,18 +122,17 @@ def add_ai_partner(
             detail="夥伴名稱為必填",
         )
 
-    if db.query(AiPartner).filter(AiPartner.name == payload.name).first():
+    if db.query(AiPartnerConfig).filter(AiPartnerConfig.name == payload.name).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="夥伴名稱已存在",
         )
 
-    partner = AiPartner(
+    partner = AiPartnerConfig(
         name=payload.name,
         description=payload.description,
         role_definition=payload.role_definition,
         behavior_limit=payload.behavior_limit,
-        is_builtin=False,
         is_enabled=True,
     )
     db.add(partner)
@@ -168,7 +167,7 @@ def update_ai_partner(
             detail="您沒有執行此操作的權限",
         )
 
-    partner = db.query(AiPartner).filter(AiPartner.id == partner_id).first()
+    partner = db.query(AiPartnerConfig).filter(AiPartnerConfig.id == partner_id).first()
     if partner is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -182,8 +181,8 @@ def update_ai_partner(
         )
 
     conflict = (
-        db.query(AiPartner)
-        .filter(AiPartner.name == payload.name, AiPartner.id != partner_id)
+        db.query(AiPartnerConfig)
+        .filter(AiPartnerConfig.name == payload.name, AiPartnerConfig.id != partner_id)
         .first()
     )
     if conflict:
@@ -229,17 +228,11 @@ def delete_ai_partner(
             detail="您沒有執行此操作的權限",
         )
 
-    partner = db.query(AiPartner).filter(AiPartner.id == partner_id).first()
+    partner = db.query(AiPartnerConfig).filter(AiPartnerConfig.id == partner_id).first()
     if partner is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="AI 夥伴不存在",
-        )
-
-    if partner.is_builtin:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="內建夥伴不可刪除",
         )
 
     db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).delete()
