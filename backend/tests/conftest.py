@@ -11,6 +11,8 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
+from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
+from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import (
     FunctionItems as Function,
@@ -31,6 +33,11 @@ _SEED_TABLES = [
     RoleFunction.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
+    AiPartnerConfig.__table__,
+    AiPartnerTool.__table__,
+    Conversation.__table__,
+    Message.__table__,
+    RoleAiPartner.__table__,
 ]
 
 

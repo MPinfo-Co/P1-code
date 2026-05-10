@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(60, alias="JWT_EXPIRE_MINUTES")
     jwt_algorithm: str = "HS256"
     aes_key: str = Field("default-aes-256-key-32bytes12345678", alias="AES_KEY")
+    anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
+    anthropic_model: str = Field("claude-sonnet-4-6", alias="ANTHROPIC_MODEL")
 
 
 settings = Settings()
