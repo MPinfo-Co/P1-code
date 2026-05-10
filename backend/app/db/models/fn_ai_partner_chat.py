@@ -13,8 +13,8 @@ from .base import Base
 class Conversation(Base):
     """對話會話紀錄，對應 tb_conversations。
 
-    latest_suggestions 在 PostgreSQL 中以 TEXT[] 型別儲存；此 ORM 使用 JSON 型別
-    以保持跨資料庫相容性（包含 SQLite 測試環境）。Migration 腳本使用 postgresql.ARRAY。
+    latest_suggestions 在 PostgreSQL 中以 JSONB 型別儲存；此 ORM 使用 JSON 型別
+    以保持跨資料庫相容性（包含 SQLite 測試環境）。
     """
 
     __tablename__ = "tb_conversations"
