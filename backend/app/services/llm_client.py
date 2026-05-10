@@ -66,8 +66,11 @@ def chat(
         try:
             response = _client.messages.create(**kwargs)
             break
-        except anthropic.BadRequestError:
-            # Token 超限（400）— 不 retry
+        except anthropic.BadRequestError as exc:
+            # 400 — 不 retry；先辨別常見原因
+            msg = str(exc).lower()
+            if "credit balance is too low" in msg:
+                raise LLMClientError("AI 服務餘額不足，請聯絡管理員補充點數")
             raise LLMClientError("LLM 呼叫失敗：請求參數錯誤（token 超限或格式問題）")
         except anthropic.AuthenticationError:
             raise LLMClientError("LLM 呼叫失敗：API Key 驗證失敗")

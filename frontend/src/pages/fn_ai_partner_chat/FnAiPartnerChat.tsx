@@ -66,11 +66,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
-          setSendError(
-            msg.includes('503') || msg.includes('無法使用')
-              ? 'AI 服務暫時無法使用，請稍後再試'
-              : msg
-          )
+          setSendError(msg || 'AI 服務暫時無法使用，請稍後再試')
         },
       })
     }
@@ -143,11 +139,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
-          setSendError(
-            msg.includes('503') || msg.includes('無法使用')
-              ? 'AI 服務暫時無法使用，請稍後再試'
-              : msg
-          )
+          setSendError(msg || 'AI 服務暫時無法使用，請稍後再試')
           setIsSending(false)
         },
       }
