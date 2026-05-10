@@ -108,7 +108,7 @@ export default function Sidebar() {
                   {visibleItems.map((item) => (
                     <NavLink
                       key={item.function_code}
-                      to={`/${item.function_code}`}
+                      to={`/${item.function_code.replace(/^fn_/, '')}`}
                       style={{ textDecoration: 'none' }}
                     >
                       {({ isActive }) => (

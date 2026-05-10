@@ -88,6 +88,8 @@ frontend/
 - Styling of componant seperated in a .css file
 - Individual function store in different directory in src/pages
 - When applying create or update, re-render page for new data to display
+- Route path must be function_code with `fn_` prefix removed (e.g. fn_user → `user`, fn_expert_setting → `expert_setting`). Do NOT use the backend API path (kebab-case) as the frontend route path.
+- Sidebar generates nav links via `item.function_code.replace(/^fn_/, '')` — do not hardcode paths
 
 ## Commands
 - `npm run dev` — start dev server

@@ -309,7 +309,7 @@ export default function IssueList() {
                     <TableRow
                       key={row.id}
                       hover
-                      onClick={() => navigate(`/fn_expert/issues/${row.id}`)}
+                      onClick={() => navigate(`/expert/issues/${row.id}`)}
                       className="issue-list-row"
                     >
                       <TableCell className="issue-list-cell-title">{row.title}</TableCell>
@@ -389,7 +389,7 @@ export default function IssueList() {
                           variant="contained"
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/fn_expert/issues/${row.id}`)
+                            navigate(`/expert/issues/${row.id}`)
                           }}
                           className="issue-list-action-btn"
                           sx={{ py: 0.5 }}

@@ -1,0 +1,56 @@
+.fn-ai-partner-config-form-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.fn-ai-partner-config-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fn-ai-partner-config-form-section-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin-top: 4px !important;
+}
+
+.fn-ai-partner-config-form-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  margin-bottom: 4px !important;
+}
+
+.fn-ai-partner-config-form-cancel-btn {
+  font-size: 13px !important;
+}
+
+.fn-ai-partner-config-form-save-btn {
+  font-size: 13px !important;
+}
+
+.fn-ai-partner-config-tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.fn-ai-partner-config-tool-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.fn-ai-partner-config-tool-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}

@@ -18,4 +18,5 @@ export const ICON_MAP = {
   fn_tool: <ExtensionOutlinedIcon fontSize="small" />,
   fn_expert: <SmartToyOutlinedIcon fontSize="small" />,
   fn_expert_setting: <SecurityOutlinedIcon fontSize="small" />,
+  fn_ai_partner_config: <SmartToyOutlinedIcon fontSize="small" />,
 }
