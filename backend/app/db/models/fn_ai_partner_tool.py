@@ -1,4 +1,4 @@
-"""ORM models for fn_tool: tb_tools, tb_tool_body_params."""
+"""ORM models for fn_ai_partner_tool: tb_tools, tb_tool_body_params."""
 
 from datetime import datetime
 

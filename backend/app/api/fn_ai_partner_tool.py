@@ -1,4 +1,4 @@
-"""/tool router — AI工具管理 (fn_tool)."""
+"""/tool router — AI工具管理 (fn_ai_partner_tool)."""
 
 import base64
 import os
@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.schema.fn_tool import (
+from app.api.schema.fn_ai_partner_tool import (
     ToolCreate,
     ToolItem,
     ToolTestRequest,
@@ -17,16 +17,16 @@ from app.api.schema.fn_tool import (
 )
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
 
-router = APIRouter(prefix="/tool", tags=["fn_tool"])
+router = APIRouter(prefix="/tool", tags=["fn_ai_partner_tool"])
 system_logger = get_system_logger()
 
-FN_TOOL_NAME = "fn_tool"
+FN_TOOL_NAME = "fn_ai_partner_tool"
 
 
 # ---------------------------------------------------------------------------

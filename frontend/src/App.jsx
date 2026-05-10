@@ -12,7 +12,7 @@ import IssueDetail from './pages/fn_expert/IssueDetail'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
 import FnCompanyDataList from './pages/fn_company_data/FnCompanyDataList'
-import FnToolList from './pages/fn_tool/FnToolList'
+import FnToolList from './pages/fn_ai_partner_tool/FnToolList'
 import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
 import FnAiPartnerConfigList from './pages/fn_ai_partner_config/FnAiPartnerConfigList'
 import NotFound from './pages/NotFound'
@@ -86,9 +86,9 @@ function AppRoutes() {
           }
         />
         <Route
-          path="tool"
+          path="ai_partner_tool"
           element={
-            <PermissionGuard fnKey="fn_tool">
+            <PermissionGuard fnKey="fn_ai_partner_tool">
               <FnToolList />
             </PermissionGuard>
           }
