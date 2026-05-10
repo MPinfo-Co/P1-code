@@ -86,10 +86,10 @@ def client(engine):
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "AI夥伴", sort_order: int = 1) -> int:
-    folder = FunctionFolder(
-        folder_code=name, folder_label=name, default_open=False, sort_order=sort_order
-    )
+def _make_function_folder(
+    db: Session, name: str = "AI夥伴", sort_order: int = 1
+) -> int:
+    folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
     return folder.id
@@ -355,11 +355,7 @@ def test_update_ai_partner_returns_200(client, engine):
     # Verify tools updated
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    links = (
-        db.query(AiPartnerTool)
-        .filter(AiPartnerTool.partner_id == partner_id)
-        .all()
-    )
+    links = db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).all()
     assert len(links) == 1
     assert links[0].tool_id == tool_id
     db.close()
@@ -430,9 +426,7 @@ def test_delete_ai_partner_returns_200(client, engine):
     db = Session_()
     assert db.query(AiPartner).filter(AiPartner.id == partner_id).first() is None
     assert (
-        db.query(AiPartnerTool)
-        .filter(AiPartnerTool.partner_id == partner_id)
-        .count()
+        db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).count()
         == 0
     )
     db.close()
@@ -454,9 +448,7 @@ def test_delete_ai_partner_not_found_returns_404(client, engine):
     """對應 T12"""
     admin_id, _, _ = _setup_admin(engine)
 
-    resp = client.delete(
-        "/ai-partner-config/99999", headers=_auth_headers(admin_id)
-    )
+    resp = client.delete("/ai-partner-config/99999", headers=_auth_headers(admin_id))
     assert resp.status_code == 404
     assert resp.json()["detail"] == "AI 夥伴不存在"
 

@@ -31,7 +31,6 @@ def _setup_and_seed(engine) -> int:
             id=1,
             folder_code="ai_partner",
             folder_label="AI 夥伴",
-            default_open=True,
             sort_order=1,
         )
     )
@@ -40,7 +39,6 @@ def _setup_and_seed(engine) -> int:
             id=2,
             folder_code="settings",
             folder_label="設定",
-            default_open=False,
             sort_order=2,
         )
     )
@@ -88,7 +86,7 @@ def test_get_navigation_returns_structure(client, engine):
     assert "settings" in folder_codes
     ai_folder = next(f for f in data if f["folder_code"] == "ai_partner")
     assert ai_folder["folder_label"] == "AI 夥伴"
-    assert ai_folder["default_open"] is True
+    assert "default_open" not in ai_folder
     item_codes = [i["function_code"] for i in ai_folder["items"]]
     assert "fn_partner" in item_codes
     assert "fn_ai_config" in item_codes
