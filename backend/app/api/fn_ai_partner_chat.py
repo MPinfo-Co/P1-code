@@ -33,7 +33,7 @@ from app.config.settings import settings
 from app.db.connector import get_db
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
