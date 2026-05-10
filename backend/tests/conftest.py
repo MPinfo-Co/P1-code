@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,

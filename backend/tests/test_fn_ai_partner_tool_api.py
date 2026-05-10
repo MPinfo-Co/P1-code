@@ -1,5 +1,5 @@
 """
-Tests for fn_tool APIs:
+Tests for fn_ai_partner_tool APIs:
   GET    /tool
   POST   /tool
   PATCH  /tool/{id}
@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -82,11 +82,11 @@ def _auth_headers(user_id: int) -> dict:
 
 
 def _setup_admin_with_fn_tool(engine):
-    """Create admin user with fn_tool permission. Return (user_id, role_id, fn_tool_id)."""
+    """Create admin user with fn_ai_partner_tool permission. Return (user_id, role_id, fn_tool_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     folder_id = _make_function_folder(db, "AI夥伴", 1)
-    fn_tool_id = _make_function(db, "fn_tool", folder_id, 5)
+    fn_tool_id = _make_function(db, "fn_ai_partner_tool", folder_id, 5)
     role_id = _make_role(db, "admin")
     user_id = _make_user(db, "admin@test.com", name="Admin User")
     _assign_role(db, user_id, role_id)
@@ -97,7 +97,7 @@ def _setup_admin_with_fn_tool(engine):
 
 
 def _setup_plain_user(engine, email: str = "plain@test.com"):
-    """Create a user without fn_tool permission. Return (user_id, role_id)."""
+    """Create a user without fn_ai_partner_tool permission. Return (user_id, role_id)."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     role_id = _make_role(db, "plain_role")
@@ -469,7 +469,7 @@ def test_tool_test_success(client, engine):
     mock_response.status_code = 200
     mock_response.json.return_value = {"result": "ok"}
 
-    with patch("app.api.fn_tool.httpx.Client") as mock_client_cls:
+    with patch("app.api.fn_ai_partner_tool.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
@@ -498,7 +498,7 @@ def test_tool_test_external_returns_401(client, engine):
     mock_response.status_code = 401
     mock_response.json.return_value = {"error": "Unauthorized"}
 
-    with patch("app.api.fn_tool.httpx.Client") as mock_client_cls:
+    with patch("app.api.fn_ai_partner_tool.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
@@ -524,7 +524,7 @@ def test_tool_test_connection_failure_returns_502(client, engine):
 
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
-    with patch("app.api.fn_tool.httpx.Client") as mock_client_cls:
+    with patch("app.api.fn_ai_partner_tool.httpx.Client") as mock_client_cls:
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
