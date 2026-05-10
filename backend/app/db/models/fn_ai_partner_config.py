@@ -44,7 +44,6 @@ class AiPartnerConfig(Base):
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
-    model_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     role_definition: Mapped[str | None] = mapped_column(Text, nullable=True)
     behavior_limit: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(

@@ -421,7 +421,7 @@ def send_message(
 
     # 組裝工具定義
     tool_defs, tool_configs = _build_tool_definitions(partner_id, db)
-    model = partner.model_name or settings.anthropic_model
+    model = settings.anthropic_model
 
     try:
         result = ai_agent.run(
@@ -500,7 +500,7 @@ def new_conversation(
         .first()
     )
     system_prompt = _build_system_prompt(partner)
-    model = partner.model_name or settings.anthropic_model
+    model = settings.anthropic_model
 
     # 組裝工具定義（含 suggestions tool）
     tool_defs, tool_configs = _build_tool_definitions(payload.partner_id, db)
