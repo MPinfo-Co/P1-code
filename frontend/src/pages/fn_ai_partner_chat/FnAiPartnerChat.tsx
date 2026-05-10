@@ -64,6 +64,14 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           setSuggestions(data.suggestions)
           setIsInitialized(true)
         },
+        onError: (err) => {
+          const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
+          setSendError(
+            msg.includes('503') || msg.includes('無法使用')
+              ? 'AI 服務暫時無法使用，請稍後再試'
+              : msg
+          )
+        },
       })
     }
   }, [historyData, isInitialized, partner.id]) // eslint-disable-line react-hooks/exhaustive-deps
