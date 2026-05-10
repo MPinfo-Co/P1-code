@@ -32,9 +32,7 @@ os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 def _make_function_folder(
     db: Session, name: str = "AI夥伴", sort_order: int = 1
 ) -> int:
-    folder = FunctionFolder(
-        folder_code=name, folder_label=name, sort_order=sort_order
-    )
+    folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
     return folder.id

@@ -31,9 +31,7 @@ pytestmark = pytest.mark.skip(reason="API path baseline mismatch — tracked as 
 
 def _make_function_folder(db: Session, name: str = "設定", sort_order: int = 2) -> int:
     """Create a function folder and return its id."""
-    folder = FunctionFolder(
-        folder_code=name, folder_label=name, sort_order=sort_order
-    )
+    folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
     return folder.id

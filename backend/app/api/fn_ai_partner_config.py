@@ -75,9 +75,7 @@ def list_ai_partners(
 
     partner_ids = [p.id for p in partners]
     all_links = (
-        db.query(AiPartnerTool)
-        .filter(AiPartnerTool.partner_id.in_(partner_ids))
-        .all()
+        db.query(AiPartnerTool).filter(AiPartnerTool.partner_id.in_(partner_ids)).all()
         if partner_ids
         else []
     )
@@ -202,9 +200,7 @@ def update_ai_partner(
         partner.is_enabled = payload.is_enabled
 
     # Replace tool associations
-    db.query(AiPartnerTool).filter(
-        AiPartnerTool.partner_id == partner_id
-    ).delete()
+    db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).delete()
     for tool_id in payload.tool_ids or []:
         db.add(AiPartnerTool(partner_id=partner.id, tool_id=tool_id))
 
@@ -246,9 +242,7 @@ def delete_ai_partner(
             detail="內建夥伴不可刪除",
         )
 
-    db.query(AiPartnerTool).filter(
-        AiPartnerTool.partner_id == partner_id
-    ).delete()
+    db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).delete()
     db.delete(partner)
     db.commit()
     system_logger.info(f"User {auth.user_id} deleted AI partner {partner_id}")

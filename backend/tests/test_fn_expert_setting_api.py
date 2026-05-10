@@ -50,9 +50,7 @@ def _create_expert_tables(engine):
 
 
 def _make_function_folder(db, name: str = "資安專家", sort_order: int = 1) -> int:
-    folder = FunctionFolder(
-        folder_code=name, folder_label=name, sort_order=sort_order
-    )
+    folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
     return folder.id
