@@ -1,4 +1,4 @@
-// src/pages/fn_tool/FnToolList.tsx
+// src/pages/fn_ai_partner_tool/FnToolList.tsx
 import { useState } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
