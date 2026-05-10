@@ -96,7 +96,7 @@ export function useNewAiPartnerChat() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '建立新對話失敗')
+        throw new Error(err.detail ?? err.message ?? '建立新對話失敗')
       }
       const json = await res.json()
       return json.data ?? json
@@ -124,7 +124,7 @@ export function useSendAiPartnerMessage() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? '訊息傳送失敗')
+        throw new Error(err.detail ?? err.message ?? '訊息傳送失敗')
       }
       const json = await res.json()
       return json.data ?? json
