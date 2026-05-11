@@ -189,7 +189,7 @@ def run_pro_task(
             da.events_updated = 0
             da.completed_at = datetime.now(timezone.utc)
             db.commit()
-            logger.info("pro_task: no chunks for %s", today)
+            logger.info(f"pro_task: no chunks for {today}")
             return
 
         prev = _yesterday_open_events(db, today)

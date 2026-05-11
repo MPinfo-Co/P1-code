@@ -86,7 +86,7 @@ def run_haiku_task(
             )
             batch.chunks_done += 1
         except Exception as exc:
-            logger.exception("haiku_task: chunk %d failed", idx)
+            logger.exception(f"haiku_task: chunk {idx} failed")
             db.add(
                 ChunkResult(
                     batch_id=batch.id,

@@ -78,9 +78,9 @@ def _sync_settings() -> None:
                 "sonnet_job",
                 trigger=CronTrigger(hour=int(hh), minute=int(mm)),
             )
-            logger.info("rescheduled sonnet_job to %s UTC daily", new_rt.schedule_time)
+            logger.info(f"rescheduled sonnet_job to {new_rt.schedule_time} UTC daily")
         except (ValueError, KeyError) as exc:
-            logger.error("failed to reschedule sonnet_job: %s", exc)
+            logger.error(f"failed to reschedule sonnet_job: {exc}")
 
 
 def _haiku_job() -> None:
@@ -145,7 +145,8 @@ def start_scheduler() -> None:
     sched.add_job(_sonnet_job, CronTrigger(hour=0, minute=30), id="sonnet_job")
     sched.start()
     _scheduler = sched
-    logger.info("scheduler started: jobs=%s", [j.id for j in sched.get_jobs()])
+    job_ids = [j.id for j in sched.get_jobs()]
+    logger.info(f"scheduler started: jobs={job_ids}")
 
 
 def stop_scheduler() -> None:
