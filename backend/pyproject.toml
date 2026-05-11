@@ -37,6 +37,7 @@ dependencies = [
     "pytest-cov==7.1.0",
     "python-dotenv==1.2.2",
     "python-jose==3.5.0",
+    "python-multipart>=0.0.28",
     "rsa==4.9.1",
     "ruff==0.15.8",
     "six==1.17.0",
