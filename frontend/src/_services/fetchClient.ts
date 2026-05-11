@@ -57,10 +57,7 @@ function isLoginRequest(input: RequestInfo | URL): boolean {
  * 全域 fetch wrapper
  * 使用方式同 fetch()，直接替換既有呼叫。
  */
-export async function apiFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
+export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const response = await fetch(input, init)
 
   if (response.status === 401 && !isLoginRequest(input)) {
