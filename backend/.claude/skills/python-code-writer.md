@@ -14,6 +14,8 @@ Generate code fits logic of the project
    3. Modification in logic behind API
    4. Modification in FastAPI startup/teardown(lifespan)
    5. Modification in tasks(@app/tasks)
+   6. If changes includes file structure or workflow, modify @CLAUDE.md first and ask human to verify if is correct
+   7. Reload new CLAUDE.md for new project framework
 5. **Restrictions**: 
    1. Only use libraries in project environment, ask for human for additional package if required
    2. Don't restructure server/database

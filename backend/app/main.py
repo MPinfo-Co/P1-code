@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 from app.logger_utils import get_system_logger
+from app.scheduler import start_scheduler, stop_scheduler
 from app.api.auth import router as auth_router
 from app.api.fn_ai_partner_chat import router as fn_ai_partner_chat_router
 from app.api.company_data import router as company_data_router
@@ -41,7 +42,9 @@ async def lifespan(app: FastAPI):
         ┃  🚀 Ready for requests            ┃
         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
     """)
+    start_scheduler()
     yield
+    stop_scheduler()
     server_end_time = datetime.now()
     server_duration = server_end_time - server_start_time
     server_end_time_str = server_end_time.strftime("%Y%m%d-%H%M%S")

@@ -92,6 +92,28 @@ class RequestResponseHandlerMiddleware(BaseHTTPMiddleware):
             )
             raise
 
+        # FastAPI's ExceptionMiddleware sits inside this middleware, so
+        # `HTTPException` raised in routes is converted to a Response before
+        # it reaches the `try/except` above. Capture 4xx/5xx responses here
+        # so the original detail still lands in error.log.
+        if response.status_code >= 400:
+            body_bytes = b""
+            async for chunk in response.body_iterator:
+                body_bytes += chunk
+            body_text = body_bytes.decode("utf-8", errors="replace")
+
+            get_error_logger().error(
+                f"Error response: {request.method} {request.url.path} "
+                f"-> {response.status_code} client={client_host} body={body_text}"
+            )
+
+            response = Response(
+                content=body_bytes,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type,
+            )
+
         if (
             400 <= response.status_code < 500
             and response.status_code not in _ALLOWED_4XX
