@@ -28,7 +28,7 @@ function renderLogin(initialEntries: string[] = ['/login']) {
       <MemoryRouter initialEntries={initialEntries}>
         <Login />
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   )
 }
 
