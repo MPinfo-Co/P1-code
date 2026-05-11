@@ -5,6 +5,7 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks'
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined'
 
 export const ICON_MAP = {
   // folders
@@ -15,8 +16,9 @@ export const ICON_MAP = {
   fn_user: <PeopleAltOutlinedIcon fontSize="small" />,
   fn_role: <ManageAccountsIcon fontSize="small" />,
   fn_company_data: <LibraryBooksIcon fontSize="small" />,
-  fn_tool: <ExtensionOutlinedIcon fontSize="small" />,
+  fn_ai_partner_tool: <ExtensionOutlinedIcon fontSize="small" />,
   fn_expert: <SmartToyOutlinedIcon fontSize="small" />,
   fn_expert_setting: <SecurityOutlinedIcon fontSize="small" />,
   fn_ai_partner_config: <SmartToyOutlinedIcon fontSize="small" />,
+  fn_ai_partner_chat: <ChatOutlinedIcon fontSize="small" />,
 }

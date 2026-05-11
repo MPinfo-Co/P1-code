@@ -1,22 +1,19 @@
 """ORM models for fn_navbar: tb_function_folder, tb_functions, tb_role_function."""
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
 
 
 class FunctionFolder(Base):
-    """Navbar 目錄，管理功能分組的名稱與展開狀態。"""
+    """Navbar 目錄，管理功能分組的名稱與排序。"""
 
     __tablename__ = "tb_function_folder"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     folder_code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     folder_label: Mapped[str] = mapped_column(String(50), nullable=False)
-    default_open: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
     sort_order: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )

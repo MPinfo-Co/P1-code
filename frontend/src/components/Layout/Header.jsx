@@ -14,10 +14,10 @@ export default function Header() {
   const navItems = navFolders.flatMap((f) => f.items)
   const title =
     navItems
-      .filter(
-        (item) =>
-          pathname === `/${item.function_code}` || pathname.startsWith(`/${item.function_code}/`)
-      )
+      .filter((item) => {
+        const path = `/${item.function_code.replace(/^fn_/, '')}`
+        return pathname === path || pathname.startsWith(`${path}/`)
+      })
       .sort((a, b) => b.function_code.length - a.function_code.length)[0]?.function_label ??
     'MP-Box'
 

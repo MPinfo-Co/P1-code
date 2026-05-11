@@ -14,6 +14,7 @@ import { useCreateRole, useUpdateRole } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
 import { useFunctionOptionsQuery } from '@/queries/useRoleOptionsQuery'
 import { useUserOptionsQuery } from '@/queries/useUserOptionsQuery'
+import { useAiPartnerOptionsQuery } from '@/queries/useAiPartnerChatQuery'
 
 interface Props {
   open: boolean
@@ -32,10 +33,14 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   const [selectedFunctionIds, setSelectedFunctionIds] = useState<number[]>(
     () => row?.functions.map((f) => f.function_id) ?? []
   )
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<number[]>(
+    () => row?.partner_ids ?? []
+  )
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
   const { data: allFunctions = [] } = useFunctionOptionsQuery()
+  const { data: allPartners = [] } = useAiPartnerOptionsQuery()
 
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
@@ -60,6 +65,12 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
     )
   }
 
+  function togglePartner(partnerId: number) {
+    setSelectedPartnerIds((prev) =>
+      prev.includes(partnerId) ? prev.filter((id) => id !== partnerId) : [...prev, partnerId]
+    )
+  }
+
   async function handleSave() {
     setFormError(null)
     if (!roleName.trim()) {
@@ -75,6 +86,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
             name: roleName.trim(),
             member_ids: selectedMemberIds,
             function_ids: selectedFunctionIds,
+            partner_ids: selectedPartnerIds,
           },
         })
       } else {
@@ -82,6 +94,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
           name: roleName.trim(),
           member_ids: selectedMemberIds,
           function_ids: selectedFunctionIds,
+          partner_ids: selectedPartnerIds,
         })
       }
       onSuccess()
@@ -227,6 +240,62 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                   </Box>
                 </Box>
               ))}
+            </Box>
+          </Box>
+
+          {/* 可使用的 AI 夥伴 */}
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 1 }}>
+              可使用的 AI 夥伴
+            </Typography>
+            <Box
+              sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 2,
+                p: 0.5,
+                bgcolor: '#f8fafc',
+              }}
+            >
+              {allPartners.length === 0 ? (
+                <Box sx={{ p: 1 }}>
+                  <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>
+                    目前無啟用中的 AI 夥伴
+                  </Typography>
+                </Box>
+              ) : (
+                allPartners.map((partner, i) => (
+                  <Box
+                    key={partner.id}
+                    component="label"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.25,
+                      p: 1,
+                      borderRadius: 1.5,
+                      bgcolor: 'white',
+                      border: '1px solid #e2e8f0',
+                      mb: i < allPartners.length - 1 ? 0.5 : 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPartnerIds.includes(partner.id)}
+                      onChange={() => togglePartner(partner.id)}
+                      style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
+                    />
+                    <Box>
+                      <Typography
+                        component="strong"
+                        sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
+                      >
+                        {partner.name}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))
+              )}
             </Box>
           </Box>
         </Box>

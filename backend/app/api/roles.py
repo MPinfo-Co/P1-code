@@ -16,6 +16,7 @@ from app.api.schema.roles import (
     RoleUpdateOut,
 )
 from app.db.connector import get_db
+from app.db.models.fn_ai_partner_chat import RoleAiPartner
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import Role, User, UserRole
 from app.logger_utils import get_system_logger
@@ -90,12 +91,19 @@ def list_roles(
             for f in fn_rows
         ]
 
+        # Get AI partner ids
+        partner_rows = (
+            db.query(RoleAiPartner).filter(RoleAiPartner.role_id == role.id).all()
+        )
+        partner_ids = [r.partner_id for r in partner_rows]
+
         items.append(
             RoleItem(
                 id=role.id,
                 name=role.name,
                 users=users,
                 functions=functions,
+                partner_ids=partner_ids,
             )
         )
     return RoleListOut(data=items)
@@ -135,6 +143,9 @@ def add_role(
 
     for fid in payload.function_ids or []:
         db.add(RoleFunction(role_id=role.id, function_id=fid))
+
+    for pid in payload.partner_ids or []:
+        db.add(RoleAiPartner(role_id=role.id, partner_id=pid))
 
     db.commit()
     system_logger.info(f"User {auth.user_id} created role {role.id} ({role.name})")
@@ -184,6 +195,11 @@ def update_role(
         db.query(RoleFunction).filter(RoleFunction.role_id == role.id).delete()
         for fid in changes["function_ids"]:
             db.add(RoleFunction(role_id=role.id, function_id=fid))
+
+    if "partner_ids" in changes and changes["partner_ids"] is not None:
+        db.query(RoleAiPartner).filter(RoleAiPartner.role_id == role.id).delete()
+        for pid in changes["partner_ids"]:
+            db.add(RoleAiPartner(role_id=role.id, partner_id=pid))
 
     db.commit()
     system_logger.info(f"User {auth.user_id} updated role {role.id} ({role.name})")

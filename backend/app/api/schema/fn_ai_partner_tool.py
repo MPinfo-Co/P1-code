@@ -1,4 +1,4 @@
-"""Pydantic schemas for fn_tool API."""
+"""Pydantic schemas for fn_ai_partner_tool API."""
 
 from pydantic import BaseModel, Field
 

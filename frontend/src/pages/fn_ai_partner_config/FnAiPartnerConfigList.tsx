@@ -28,6 +28,7 @@ export default function FnAiPartnerConfigList() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<AiPartnerRow | null>(null)
+  const [formKey, setFormKey] = useState(0)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingRow, setDeletingRow] = useState<AiPartnerRow | null>(null)
@@ -44,6 +45,7 @@ export default function FnAiPartnerConfigList() {
 
   function handleAddClick() {
     setEditingRow(null)
+    setFormKey((k) => k + 1)
     setIsFormOpen(true)
   }
 
@@ -201,7 +203,7 @@ export default function FnAiPartnerConfigList() {
       )}
 
       <FnAiPartnerConfigForm
-        key={editingRow?.id ?? 'new'}
+        key={editingRow?.id ?? `new-${formKey}`}
         open={isFormOpen}
         row={editingRow}
         onClose={() => setIsFormOpen(false)}

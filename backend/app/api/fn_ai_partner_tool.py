@@ -1,4 +1,4 @@
-"""/tool router — AI工具管理 (fn_tool)."""
+"""/tool router — AI工具管理 (fn_ai_partner_tool)."""
 
 import base64
 import os
@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.schema.fn_tool import (
+from app.api.schema.fn_ai_partner_tool import (
     ToolCreate,
     ToolItem,
     ToolTestRequest,
@@ -17,16 +17,16 @@ from app.api.schema.fn_tool import (
 )
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
 
-router = APIRouter(prefix="/tool", tags=["fn_tool"])
+router = APIRouter(prefix="/tool", tags=["fn_ai_partner_tool"])
 system_logger = get_system_logger()
 
-FN_TOOL_NAME = "fn_tool"
+FN_TOOL_NAME = "fn_ai_partner_tool"
 
 
 # ---------------------------------------------------------------------------
@@ -41,10 +41,9 @@ def list_tool_options(
 ) -> dict:
     """Return all tools as options (id, name, description). Requires login only."""
     tools = db.query(Tool).order_by(Tool.name.asc()).all()
-    data = [
-        {"id": t.id, "name": t.name, "description": t.description} for t in tools
-    ]
+    data = [{"id": t.id, "name": t.name, "description": t.description} for t in tools]
     return {"message": "查詢成功", "data": data}
+
 
 VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
 VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}

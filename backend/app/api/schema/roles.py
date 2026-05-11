@@ -24,6 +24,7 @@ class RoleItem(BaseModel):
     name: str
     users: list[RoleUserItem] = Field(default_factory=list)
     functions: list[RoleFunctionItem] = Field(default_factory=list)
+    partner_ids: list[int] = Field(default_factory=list)
 
 
 class RoleListOut(BaseModel):
@@ -43,6 +44,9 @@ class RoleAddRequest(BaseModel):
     function_ids: list[int] = Field(
         default_factory=list, description="Function ids to grant to the role."
     )
+    partner_ids: list[int] = Field(
+        default_factory=list, description="AI partner ids to bind to the role."
+    )
 
 
 class RoleAddOut(BaseModel):
@@ -57,6 +61,7 @@ class RoleUpdateRequest(BaseModel):
     name: str | None = Field(None, description="New role name.")
     user_ids: list[int] | None = None
     function_ids: list[int] | None = None
+    partner_ids: list[int] | None = None
 
 
 class RoleUpdateOut(BaseModel):

@@ -5,7 +5,7 @@ Tests for fn_ai_partner_config APIs:
   PATCH  /ai-partner-config/{id}
   DELETE /ai-partner-config/{id}
 
-And fn_tool_options:
+And fn_ai_partner_tool options:
   GET    /tool/options
 """
 
@@ -23,8 +23,8 @@ from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
 from app.main import app
-from app.db.models.fn_ai_partner_config import AiPartner, AiPartnerTool
-from app.db.models.fn_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -45,7 +45,7 @@ _SEED_TABLES = [
     RoleFunction.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
-    AiPartner.__table__,
+    AiPartnerConfig.__table__,
     AiPartnerTool.__table__,
 ]
 
@@ -86,10 +86,10 @@ def client(engine):
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "AI夥伴", sort_order: int = 1) -> int:
-    folder = FunctionFolder(
-        folder_code=name, folder_label=name, default_open=False, sort_order=sort_order
-    )
+def _make_function_folder(
+    db: Session, name: str = "AI夥伴", sort_order: int = 1
+) -> int:
+    folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
     return folder.id
@@ -169,16 +169,18 @@ def _add_partner(
     engine,
     name: str,
     description: str | None = None,
-    is_builtin: bool = False,
     is_enabled: bool = True,
+    role_definition: str | None = None,
+    behavior_limit: str | None = None,
 ) -> int:
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    partner = AiPartner(
+    partner = AiPartnerConfig(
         name=name,
         description=description,
-        is_builtin=is_builtin,
         is_enabled=is_enabled,
+        role_definition=role_definition,
+        behavior_limit=behavior_limit,
     )
     db.add(partner)
     db.commit()
@@ -287,13 +289,12 @@ def test_add_ai_partner_returns_201(client, engine):
     assert resp.status_code == 201
     assert resp.json()["message"] == "新增成功"
 
-    # Verify DB records
+    # Verify DB records written to tb_ai_partner_configs
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    partner = db.query(AiPartner).filter(AiPartner.name == "新夥伴").first()
+    partner = db.query(AiPartnerConfig).filter(AiPartnerConfig.name == "新夥伴").first()
     assert partner is not None
     assert partner.is_enabled is True
-    assert partner.is_builtin is False
     links = db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner.id).all()
     assert len(links) == 1
     assert links[0].tool_id == tool_id
@@ -352,14 +353,10 @@ def test_update_ai_partner_returns_200(client, engine):
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
-    # Verify tools updated
+    # Verify tools updated in tb_ai_partner_tools
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    links = (
-        db.query(AiPartnerTool)
-        .filter(AiPartnerTool.partner_id == partner_id)
-        .all()
-    )
+    links = db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).all()
     assert len(links) == 1
     assert links[0].tool_id == tool_id
     db.close()
@@ -385,7 +382,7 @@ def test_update_ai_partner_disable_returns_200(client, engine):
 
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    partner = db.query(AiPartner).filter(AiPartner.id == partner_id).first()
+    partner = db.query(AiPartnerConfig).filter(AiPartnerConfig.id == partner_id).first()
     assert partner.is_enabled is False
     db.close()
 
@@ -405,7 +402,7 @@ def test_update_ai_partner_not_found_returns_404(client, engine):
 
 
 # ---------------------------------------------------------------------------
-# DELETE /ai-partner-config/{id} — T10, T11, T12
+# DELETE /ai-partner-config/{id} — T10, T11
 # ---------------------------------------------------------------------------
 
 
@@ -428,46 +425,33 @@ def test_delete_ai_partner_returns_200(client, engine):
     assert resp.json()["message"] == "刪除成功"
 
     db = Session_()
-    assert db.query(AiPartner).filter(AiPartner.id == partner_id).first() is None
     assert (
-        db.query(AiPartnerTool)
-        .filter(AiPartnerTool.partner_id == partner_id)
-        .count()
+        db.query(AiPartnerConfig).filter(AiPartnerConfig.id == partner_id).first()
+        is None
+    )
+    assert (
+        db.query(AiPartnerTool).filter(AiPartnerTool.partner_id == partner_id).count()
         == 0
     )
     db.close()
 
 
-def test_delete_builtin_ai_partner_returns_400(client, engine):
+def test_delete_ai_partner_not_found_returns_404(client, engine):
     """對應 T11"""
     admin_id, _, _ = _setup_admin(engine)
-    partner_id = _add_partner(engine, "內建夥伴", is_builtin=True)
 
-    resp = client.delete(
-        f"/ai-partner-config/{partner_id}", headers=_auth_headers(admin_id)
-    )
-    assert resp.status_code == 400
-    assert resp.json()["detail"] == "內建夥伴不可刪除"
-
-
-def test_delete_ai_partner_not_found_returns_404(client, engine):
-    """對應 T12"""
-    admin_id, _, _ = _setup_admin(engine)
-
-    resp = client.delete(
-        "/ai-partner-config/99999", headers=_auth_headers(admin_id)
-    )
+    resp = client.delete("/ai-partner-config/99999", headers=_auth_headers(admin_id))
     assert resp.status_code == 404
     assert resp.json()["detail"] == "AI 夥伴不存在"
 
 
 # ---------------------------------------------------------------------------
-# GET /tool/options — T13, T14
+# GET /tool/options — T12, T13
 # ---------------------------------------------------------------------------
 
 
 def test_list_tool_options_returns_200(client, engine):
-    """對應 T13"""
+    """對應 T12"""
     admin_id, _, _ = _setup_admin(engine)
     _add_tool(engine, "Ztool")
     _add_tool(engine, "Atool")
@@ -491,6 +475,6 @@ def test_list_tool_options_returns_200(client, engine):
 
 
 def test_list_tool_options_unauthenticated_returns_401(client, engine):
-    """對應 T14"""
+    """對應 T13"""
     resp = client.get("/tool/options")
     assert resp.status_code == 401

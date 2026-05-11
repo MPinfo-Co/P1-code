@@ -5,4 +5,3 @@ __pycache__/
 *.pyc
 logs/
 
-.claude/settings.local.json

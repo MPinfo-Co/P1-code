@@ -12,9 +12,10 @@ import IssueDetail from './pages/fn_expert/IssueDetail'
 import FnUserList from './pages/fn_user/FnUserList'
 import FnRoleList from './pages/fn_role/FnRoleList'
 import FnCompanyDataList from './pages/fn_company_data/FnCompanyDataList'
-import FnToolList from './pages/fn_tool/FnToolList'
+import FnToolList from './pages/fn_ai_partner_tool/FnToolList'
 import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
 import FnAiPartnerConfigList from './pages/fn_ai_partner_config/FnAiPartnerConfigList'
+import FnAiPartnerChatPage from './pages/fn_ai_partner_chat/FnAiPartnerChatPage'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -86,9 +87,9 @@ function AppRoutes() {
           }
         />
         <Route
-          path="tool"
+          path="ai_partner_tool"
           element={
-            <PermissionGuard fnKey="fn_tool">
+            <PermissionGuard fnKey="fn_ai_partner_tool">
               <FnToolList />
             </PermissionGuard>
           }
@@ -106,6 +107,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_ai_partner_config">
               <FnAiPartnerConfigList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="ai_partner_chat"
+          element={
+            <PermissionGuard fnKey="fn_ai_partner_chat">
+              <FnAiPartnerChatPage />
             </PermissionGuard>
           }
         />

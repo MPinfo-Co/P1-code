@@ -1,4 +1,4 @@
-// src/pages/fn_tool/FnToolForm.tsx
+// src/pages/fn_ai_partner_tool/FnToolForm.tsx
 import { useState } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'

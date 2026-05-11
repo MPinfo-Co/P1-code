@@ -72,6 +72,8 @@ def downgrade() -> None:
         "DELETE FROM tb_role_function WHERE function_id = "
         "(SELECT function_id FROM tb_function_items WHERE function_code = 'fn_ai_partner_config')"
     )
-    op.execute("DELETE FROM tb_function_items WHERE function_code = 'fn_ai_partner_config'")
+    op.execute(
+        "DELETE FROM tb_function_items WHERE function_code = 'fn_ai_partner_config'"
+    )
     op.drop_table("tb_ai_partner_tools")
     op.drop_table("tb_ai_partners")
