@@ -33,7 +33,7 @@ export function useFeedbackListQuery(params: FeedbackListParams = {}) {
       const search = new URLSearchParams()
       if (params.rating !== undefined) search.set('rating', String(params.rating))
       const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/api/feedback${qs ? `?${qs}` : ''}`, {
+      const res = await fetch(`${BASE_URL}/feedback${qs ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
@@ -52,7 +52,7 @@ export function useSubmitFeedback() {
       if (payload.comment !== undefined && payload.comment !== '') {
         body.comment = payload.comment
       }
-      const res = await fetch(`${BASE_URL}/api/feedback`, {
+      const res = await fetch(`${BASE_URL}/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
