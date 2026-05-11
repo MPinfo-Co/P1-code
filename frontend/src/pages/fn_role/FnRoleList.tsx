@@ -1,5 +1,5 @@
 // src/pages/fn_role/FnRoleList.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
@@ -14,6 +14,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import { useRolesQuery, useDeleteRole } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
+import Pagination from '@/components/ui/Pagination'
 import FnRoleForm from './FnRoleForm'
 import './FnRoleList.css'
 
@@ -24,6 +25,8 @@ interface AppliedFilter {
 export default function FnRoleList() {
   const [filterKeyword, setFilterKeyword] = useState('')
   const [appliedFilter, setAppliedFilter] = useState<AppliedFilter>({})
+  const [page, setPage] = useState(1)
+  const pageSize = 10
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<RoleRow | null>(null)
@@ -32,12 +35,26 @@ export default function FnRoleList() {
   const [deletingRow, setDeletingRow] = useState<RoleRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: roles = [], isLoading, error } = useRolesQuery(appliedFilter)
+  const { data, isLoading, error } = useRolesQuery({
+    page,
+    pageSize,
+    ...appliedFilter,
+  })
   const deleteRole = useDeleteRole()
+
+  const roles = data?.items ?? []
+
+  // Clamp page if total_pages decreased after mutation
+  useEffect(() => {
+    if (data && data.total_pages > 0 && page > data.total_pages) {
+      setPage(data.total_pages)
+    }
+  }, [data, page])
 
   function handleApply() {
     const filter: AppliedFilter = {}
     if (filterKeyword.trim()) filter.keyword = filterKeyword.trim()
+    setPage(1)
     setAppliedFilter(filter)
   }
 
@@ -158,23 +175,28 @@ export default function FnRoleList() {
               <CircularProgress />
             </Box>
           ) : (
-            <DataGrid
-              rows={roles}
-              columns={columns}
-              getRowId={(row) => row.name}
-              pageSizeOptions={[10, 25]}
-              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-              disableRowSelectionOnClick
-              rowHeight={36}
-              columnHeaderHeight={36}
-              sx={{
-                border: 'none',
-                '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
-                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
-                '& .MuiDataGrid-footerContainer': { minHeight: 36, height: 36, overflow: 'hidden' },
-                '& .MuiTablePagination-toolbar': { minHeight: 36, height: 36, padding: '0 8px' },
-              }}
-            />
+            <>
+              <DataGrid
+                rows={roles}
+                columns={columns}
+                getRowId={(row) => row.name}
+                hideFooter
+                disableRowSelectionOnClick
+                rowHeight={36}
+                columnHeaderHeight={36}
+                sx={{
+                  border: 'none',
+                  '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
+                  '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+                }}
+              />
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={data?.total ?? 0}
+                onPageChange={setPage}
+              />
+            </>
           )}
         </Box>
       )}

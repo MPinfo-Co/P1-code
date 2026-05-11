@@ -22,7 +22,17 @@ export interface RoleRow {
   partner_ids?: number[]
 }
 
+export interface PaginatedRolesResponse {
+  items: RoleRow[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export interface QueryParams {
+  page?: number
+  pageSize?: number
   keyword?: string
 }
 
@@ -45,19 +55,33 @@ function getToken() {
 }
 
 export function useRolesQuery(params: QueryParams = {}) {
-  return useQuery<RoleRow[]>({
-    queryKey: ['roles', params],
+  const { page = 1, pageSize = 10, keyword } = params
+  return useQuery<PaginatedRolesResponse>({
+    queryKey: ['roles', { page, pageSize, keyword }],
     queryFn: async () => {
       const token = getToken()
       const search = new URLSearchParams()
-      if (params.keyword) search.set('keyword', params.keyword)
-      const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/roles${qs ? `?${qs}` : ''}`, {
+      search.set('page', String(page))
+      search.set('page_size', String(pageSize))
+      if (keyword) search.set('keyword', keyword)
+      const res = await fetch(`${BASE_URL}/roles?${search.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
       const json = await res.json()
-      return json.data ?? json
+      if (json.items !== undefined) {
+        return json as PaginatedRolesResponse
+      }
+      // Legacy flat array fallback
+      const rawItems: RoleRow[] = json.data ?? json
+      const items = Array.isArray(rawItems) ? rawItems : []
+      return {
+        items,
+        total: items.length,
+        page,
+        page_size: pageSize,
+        total_pages: Math.max(1, Math.ceil(items.length / pageSize)),
+      }
     },
   })
 }
