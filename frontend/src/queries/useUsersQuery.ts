@@ -16,8 +16,18 @@ export interface RoleOption {
   name: string
 }
 
+export interface PaginatedUsersResponse {
+  items: UserRow[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export interface QueryParams {
-  role_id?: number
+  page?: number
+  pageSize?: number
+  roleFilter?: number
   keyword?: string
 }
 
@@ -39,20 +49,34 @@ function getToken() {
 }
 
 export function useUsersQuery(params: QueryParams = {}) {
-  return useQuery<UserRow[]>({
-    queryKey: ['users', params],
+  const { page = 1, pageSize = 10, roleFilter, keyword } = params
+  return useQuery<PaginatedUsersResponse>({
+    queryKey: ['users', { page, pageSize, roleFilter, keyword }],
     queryFn: async () => {
       const token = getToken()
       const search = new URLSearchParams()
-      if (params.role_id !== undefined) search.set('role_id', String(params.role_id))
-      if (params.keyword) search.set('keyword', params.keyword)
-      const qs = search.toString()
-      const res = await fetch(`${BASE_URL}/user${qs ? `?${qs}` : ''}`, {
+      search.set('page', String(page))
+      search.set('page_size', String(pageSize))
+      if (roleFilter !== undefined) search.set('role_id', String(roleFilter))
+      if (keyword) search.set('keyword', keyword)
+      const res = await fetch(`${BASE_URL}/user?${search.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error('查詢失敗')
       const json = await res.json()
-      return json.data ?? json
+      if (json.items !== undefined) {
+        return json as PaginatedUsersResponse
+      }
+      // Legacy flat array fallback
+      const rawItems: UserRow[] = json.data ?? json
+      const items = Array.isArray(rawItems) ? rawItems : []
+      return {
+        items,
+        total: items.length,
+        page,
+        page_size: pageSize,
+        total_pages: Math.max(1, Math.ceil(items.length / pageSize)),
+      }
     },
   })
 }
@@ -81,7 +105,7 @@ export function useCreateUser() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
     },
   })
 }
