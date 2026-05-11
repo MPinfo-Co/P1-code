@@ -1,5 +1,7 @@
 """/api/user and /api/users routers — user management."""
 
+from math import ceil
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -9,7 +11,6 @@ from app.api.schema.user import (
     UserCreateRequest,
     UserDeleteOut,
     UserItem,
-    UserListOut,
     UserMeData,
     UserMeResponse,
     UserOptionItem,
@@ -17,6 +18,7 @@ from app.api.schema.user import (
     UserUpdateOut,
     UserUpdateRequest,
 )
+from app.api.schema.pagination import PaginatedUserResponse
 from app.db.connector import get_db
 from app.db.models.user_role import User, UserRole
 from app.db.models.function_access import FunctionItems, RoleFunction
@@ -93,13 +95,15 @@ def _collect_role_ids(db: Session, user_ids: list[int]) -> dict[int, list[int]]:
     return out
 
 
-@router.get("", response_model=UserListOut)
+@router.get("", response_model=PaginatedUserResponse)
 def get_user_list(
     role_id: int | None = Query(None, description="Filter to users having this role."),
     keyword: str | None = Query(None, description="LIKE match on name or email."),
+    page: int = Query(1, ge=1, description="1-based page number."),
+    page_size: int = Query(10, ge=1, le=100, description="Number of records per page."),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
-) -> UserListOut:
+) -> PaginatedUserResponse:
     """List users in `tb_users`, optionally filtered by role and name/email keyword."""
     if not _has_user_permission(auth.user_id, db):
         raise HTTPException(
@@ -121,7 +125,11 @@ def get_user_list(
         like = f"%{keyword}%"
         query = query.filter(or_(User.name.ilike(like), User.email.ilike(like)))
 
-    rows = query.order_by(User.id.asc()).all()
+    query = query.order_by(User.id.asc())
+    total = query.count()
+    total_pages = max(1, ceil(total / page_size))
+    rows = query.offset((page - 1) * page_size).limit(page_size).all()
+
     role_map = _collect_role_ids(db, [u.id for u in rows])
 
     items = [
@@ -134,7 +142,13 @@ def get_user_list(
         )
         for u in rows
     ]
-    return UserListOut(data=items)
+    return PaginatedUserResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.post("", response_model=UserCreateOut, status_code=status.HTTP_201_CREATED)
