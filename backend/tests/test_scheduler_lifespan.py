@@ -1,4 +1,4 @@
-import os, pathlib, subprocess
+import pathlib
 from fastapi.testclient import TestClient
 from app.main import app
 from app import scheduler
