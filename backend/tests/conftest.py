@@ -1,12 +1,36 @@
 import os
 
+# Must be set before any app module is imported, as settings are loaded at import time.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest")
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+from app.db.connector import get_db  # noqa: E402
+from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch  # noqa: E402
+from app.db.models.events import EventHistory, SecurityEvent  # noqa: E402
+from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner  # noqa: E402
+from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool  # noqa: E402
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam  # noqa: E402
+from app.db.models.fn_company_data import CompanyData  # noqa: E402
+from app.db.models.fn_expert_setting import ExpertSetting  # noqa: E402
+from app.db.models.fn_feedback import Feedback  # noqa: E402
+from app.db.models.function_access import (  # noqa: E402
+    FunctionFolder,
+    FunctionItems as Function,
+    RoleFunction,
+)
+from app.db.models.user_role import Role, TokenBlacklist, User, UserRole  # noqa: E402
+from app.main import app  # noqa: E402
 
 # SQLite compatibility patches for in-memory testing.
 # 1. JSONB → rendered as JSON (SQLite has no JSONB type).
 # 2. BIGINT → rendered as INTEGER so SQLite autoincrement works correctly.
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # noqa: E402
 
 
 def _visit_JSONB(self, type_, **kw):  # noqa: N802
@@ -19,29 +43,6 @@ def _visit_BIGINT(self, type_, **kw):  # noqa: N802
 
 SQLiteTypeCompiler.visit_JSONB = _visit_JSONB  # type: ignore[method-assign]
 SQLiteTypeCompiler.visit_BIGINT = _visit_BIGINT  # type: ignore[method-assign]
-
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
-
-from app.db.connector import get_db
-from app.main import app
-from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
-from app.db.models.events import EventHistory, SecurityEvent
-from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
-from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
-from app.db.models.fn_company_data import CompanyData
-from app.db.models.fn_expert_setting import ExpertSetting
-from app.db.models.fn_feedback import Feedback
-from app.db.models.function_access import (
-    FunctionItems as Function,
-    FunctionFolder,
-    RoleFunction,
-)
-from app.db.models.user_role import Role, TokenBlacklist, User, UserRole
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
