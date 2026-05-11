@@ -1,0 +1,92 @@
+.fn-feedback-submit-container {
+  padding: 14px 20px;
+  background: #f0f4f8;
+  min-height: 100%;
+}
+
+.fn-feedback-submit-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #1e293b;
+  margin-bottom: 16px !important;
+}
+
+.fn-feedback-submit-form {
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fn-feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fn-feedback-field-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1e293b;
+}
+
+.fn-feedback-required {
+  color: #ef4444;
+}
+
+.fn-feedback-stars {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.fn-feedback-star {
+  cursor: pointer;
+  font-size: 28px !important;
+  transition: color 0.1s;
+}
+
+.fn-feedback-star--filled {
+  color: #f59e0b;
+}
+
+.fn-feedback-star--empty {
+  color: #94a3b8;
+}
+
+.fn-feedback-star:hover {
+  color: #f59e0b;
+}
+
+.fn-feedback-error {
+  font-size: 12px !important;
+  color: #ef4444;
+}
+
+.fn-feedback-textarea {
+  width: 100%;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  resize: vertical;
+  color: #1e293b;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.fn-feedback-textarea:focus {
+  border-color: #6366f1;
+}
+
+.fn-feedback-submit-btn {
+  align-self: flex-start;
+  height: 32px !important;
+  font-size: 13px !important;
+  border-radius: 3px !important;
+}

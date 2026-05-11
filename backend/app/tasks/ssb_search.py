@@ -20,5 +20,5 @@ SSB_SEARCH_EXPRESSION = (
     "nvpair:.sdata.win@18372.4.event_id=1102 OR "  # 安全日誌被清除
     # FortiGate 防火牆
     "nvpair:.sdata.forti.action=deny OR "  # 拒絕連線
-    "nvpair:.sdata.forti.level=warning"    # 警告等級
+    "nvpair:.sdata.forti.level=warning"  # 警告等級
 )

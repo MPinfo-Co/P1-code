@@ -7,6 +7,7 @@ by ``match_key``, asks Claude Sonnet to merge them against yesterday's open
 events, then upserts the result into ``tb_security_events`` and records a
 single ``tb_daily_analysis`` row for the run.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -212,9 +213,7 @@ def run_pro_task(
         da.status = "done"
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
-        logger.info(
-            "pro_task: date=%s created=%d updated=%d", today, created, updated
-        )
+        logger.info("pro_task: date=%s created=%d updated=%d", today, created, updated)
     except Exception as exc:
         da.status = "error"
         da.error_message = str(exc)

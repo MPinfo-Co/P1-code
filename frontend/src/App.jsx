@@ -16,6 +16,8 @@ import FnToolList from './pages/fn_ai_partner_tool/FnToolList'
 import FnExpertSetting from './pages/fn_expert_setting/FnExpertSetting'
 import FnAiPartnerConfigList from './pages/fn_ai_partner_config/FnAiPartnerConfigList'
 import FnAiPartnerChatPage from './pages/fn_ai_partner_chat/FnAiPartnerChatPage'
+import FnFeedbackSubmit from './pages/fn_feedback/FnFeedbackSubmit'
+import FnFeedbackList from './pages/fn_feedback/FnFeedbackList'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -115,6 +117,22 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_ai_partner_chat">
               <FnAiPartnerChatPage />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="feedback"
+          element={
+            <PermissionGuard fnKey="fn_feedback">
+              <FnFeedbackSubmit />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="feedback/list"
+          element={
+            <PermissionGuard fnKey="fn_feedback">
+              <FnFeedbackList />
             </PermissionGuard>
           }
         />

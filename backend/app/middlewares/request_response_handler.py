@@ -22,7 +22,7 @@ from app.logger_utils.log_channels import (
 )
 from app.utils.util_store import authenticate
 
-_ALLOWED_4XX: frozenset[int] = frozenset({400, 401, 403, 404, 409})
+_ALLOWED_4XX: frozenset[int] = frozenset({400, 401, 403, 404, 409, 422})
 
 
 def _resolve_logger(request: Request):

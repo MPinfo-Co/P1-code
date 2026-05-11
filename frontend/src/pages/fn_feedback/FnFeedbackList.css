@@ -1,0 +1,40 @@
+.fn-feedback-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+}
+
+.fn-feedback-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fn-feedback-filter-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.fn-feedback-apply-btn {
+  height: 24px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  min-width: 48px !important;
+}
+
+.fn-feedback-grid-wrap {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.fn-feedback-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}

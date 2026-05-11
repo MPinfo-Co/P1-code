@@ -1,4 +1,5 @@
 """APScheduler integration — owns the BackgroundScheduler and runtime config cache."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -116,7 +117,9 @@ def _sonnet_job() -> None:
 
     try:
         run_pro_task(
-            anthropic_client_factory=lambda: Anthropic(api_key=settings.anthropic_api_key),
+            anthropic_client_factory=lambda: Anthropic(
+                api_key=settings.anthropic_api_key
+            ),
             db_factory=SessionLocal,
         )
     except Exception:
