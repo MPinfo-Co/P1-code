@@ -1,4 +1,5 @@
 """Tests for haiku_task orchestrator (Task 6 — sd-209)."""
+
 from unittest.mock import MagicMock
 import json
 from app import scheduler
@@ -54,11 +55,20 @@ def test_haiku_writes_batch_and_chunk_when_enabled(db_session):
         ssb_password="p",
     )
     ssb = FakeSSB(logs=[{"id": str(i), "message": "x"} for i in range(3)])
-    ant = FakeAnthropic(events=[{
-        "star_rank": 3, "title": "Test event", "affected_summary": "host (test)",
-        "affected_detail": "...", "match_key": "win-failed-logon",
-        "log_ids": ["1"], "ioc_list": [], "mitre_tags": [],
-    }])
+    ant = FakeAnthropic(
+        events=[
+            {
+                "star_rank": 3,
+                "title": "Test event",
+                "affected_summary": "host (test)",
+                "affected_detail": "...",
+                "match_key": "win-failed-logon",
+                "log_ids": ["1"],
+                "ioc_list": [],
+                "mitre_tags": [],
+            }
+        ]
+    )
     run_haiku_task(
         ssb_client_factory=lambda **_: ssb,
         anthropic_client_factory=lambda **_: ant,

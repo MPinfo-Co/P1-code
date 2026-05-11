@@ -20,7 +20,11 @@ def test_no_celery_imports_in_repo():
     repo = pathlib.Path(__file__).resolve().parents[1]
     bad = []
     for py in repo.rglob("*.py"):
-        if ".venv" in py.parts or "old_task" in py.parts or py == pathlib.Path(__file__).resolve():
+        if (
+            ".venv" in py.parts
+            or "old_task" in py.parts
+            or py == pathlib.Path(__file__).resolve()
+        ):
             continue
         text = py.read_text(encoding="utf-8", errors="ignore")
         if "import celery" in text or "from celery" in text:

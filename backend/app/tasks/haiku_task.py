@@ -5,6 +5,7 @@ Public entry: run_haiku_task(*, ssb_client_factory, anthropic_client_factory, db
 The factory parameters keep the orchestrator unit-testable with fakes; production
 wiring is done by app.scheduler._haiku_job.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -56,7 +57,7 @@ def run_haiku_task(
     forti, others = log_preaggregator.preaggregate(raw_logs)
     items = forti + others
     chunk_size = settings.haiku_chunk_size
-    chunks = [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+    chunks = [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
 
     db = db_factory()
     batch = LogBatch(

@@ -4,6 +4,7 @@
 Public entry: aggregate_daily(grouped_events, previous_events, today, *, client=None)
               -> list[dict]
 """
+
 from __future__ import annotations
 import json
 from anthropic import Anthropic
