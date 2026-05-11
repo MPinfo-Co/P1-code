@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     haiku_chunk_size: int = Field(100, alias="HAIKU_CHUNK_SIZE")
     haiku_max_retry: int = Field(8, alias="HAIKU_MAX_RETRY")
 
+    # Sonnet company data injection limit (characters; acts as token budget proxy)
+    sonnet_company_data_max_tokens: int = Field(
+        50000, alias="SONNET_COMPANY_DATA_MAX_TOKENS"
+    )
+
     # Settings sync cadence (Sonnet's HH:MM comes from DB; this controls how often we re-read)
     expert_settings_reload_minutes: int = Field(
         60, alias="EXPERT_SETTINGS_RELOAD_MINUTES"

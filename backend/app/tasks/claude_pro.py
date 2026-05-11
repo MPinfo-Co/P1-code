@@ -1,14 +1,19 @@
 # app/tasks/claude_pro.py
 """Sonnet daily aggregation of chunk-level events into final security_events.
 
-Public entry: aggregate_daily(grouped_events, previous_events, today, *, client=None)
+Public entry: aggregate_daily(grouped_events, previous_events, today, *, client=None, db=None)
               -> list[dict]
 """
 
 from __future__ import annotations
 import json
 from anthropic import Anthropic
+from sqlalchemy.orm import Session
+
 from app.config.settings import settings
+from app.logger_utils.log_channels import get_system_logger
+
+logger = get_system_logger()
 
 MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 16384
@@ -72,6 +77,77 @@ USER_PROMPT_TEMPLATE = """今天日期：{today}
   "continued_from_match_key": "昨天的 match_key（若為延續事件），否則 null"
 }}"""
 
+COMPANY_DATA_SECTION_TEMPLATE = """
+【公司背景資料】（共 {count} 筆，分析時可參考並在【分析依據】段落引用）
+
+{entries}
+【引用規則】
+- 若候選事件命中其中描述的正常行為 → 判定為非事件，從輸出排除（不寫入 tb_security_events）
+- 若參考了某筆公司資料 → affected_detail 末尾加【分析依據】段落，格式：
+  「參考公司資料『{data_name_placeholder}』：{related_content_placeholder}」
+- 一次分析可引用多筆公司資料；未引用任何公司資料時，整段不出現（不留空段落）"""
+
+
+def _load_company_data(db: Session) -> list[dict]:
+    """Load all company data rows ordered by updated_at DESC.
+
+    Args:
+        db: Active SQLAlchemy session.
+
+    Returns:
+        List of dicts with keys ``name``, ``content``, ``updated_at``.
+    """
+    from app.db.models.fn_company_data import CompanyData
+
+    rows = db.query(CompanyData).order_by(CompanyData.updated_at.desc()).all()
+    return [{"name": r.name, "content": r.content} for r in rows]
+
+
+def _build_company_data_prompt(company_data: list[dict]) -> str:
+    """Build the company data injection string for Sonnet system prompt.
+
+    Truncates to ``SONNET_COMPANY_DATA_MAX_TOKENS`` characters if needed
+    (按 updated_at DESC 截斷至上限).
+
+    Args:
+        company_data: List of dicts with ``name`` and ``content``.
+
+    Returns:
+        Formatted company data section to append to the system prompt,
+        or empty string if ``company_data`` is empty.
+    """
+    if not company_data:
+        return ""
+
+    max_chars = settings.sonnet_company_data_max_tokens
+    entries_parts: list[str] = []
+    total_chars = 0
+    truncated = False
+
+    for i, row in enumerate(company_data, start=1):
+        entry = f"[資料 {i}] {row['name']}\n{row['content']}\n\n"
+        if total_chars + len(entry) > max_chars:
+            truncated = True
+            break
+        entries_parts.append(entry)
+        total_chars += len(entry)
+
+    entries_text = "".join(entries_parts)
+    section = (
+        f"\n【公司背景資料】（共 {len(company_data)} 筆，分析時可參考並在【分析依據】段落引用）\n\n"
+        f"{entries_text}"
+        "【引用規則】\n"
+        "- 若候選事件命中其中描述的正常行為 → 判定為非事件，從輸出排除（不寫入 tb_security_events）\n"
+        "- 若參考了某筆公司資料 → affected_detail 末尾加【分析依據】段落，格式：\n"
+        "  「參考公司資料『{資料名稱}』：{相關段落或重述}」\n"
+        "- 一次分析可引用多筆公司資料；未引用任何公司資料時，整段不出現（不留空段落）"
+    )
+
+    if truncated:
+        section += "\n（部分公司資料因長度未列入）"
+
+    return section
+
 
 def aggregate_daily(
     *,
@@ -79,21 +155,43 @@ def aggregate_daily(
     previous_events: list[dict],
     today: str,
     client: Anthropic | None = None,
+    db: Session | None = None,
 ) -> list[dict]:
     """Aggregate chunk-level events into a de-duplicated daily security event list.
+
+    When ``db`` is provided, company data is loaded from ``tb_company_data``
+    and injected into the Sonnet system prompt before the API call.
+    If ``tb_company_data`` is empty, behaviour is identical to the original.
 
     Args:
         grouped_events: Events grouped by match_key from the Haiku pass.
         previous_events: Yesterday's confirmed events for continuity detection.
         today: Date string in YYYY-MM-DD format.
         client: Optional Anthropic client; a new one is created if not provided.
+        db: Optional SQLAlchemy session for loading company data.
 
     Returns:
         List of final security event dicts.
     """
     if not grouped_events:
         return []
+
     ant = client or Anthropic(api_key=settings.anthropic_api_key)
+
+    # Build system prompt — inject company data if db session provided
+    system_prompt = SYSTEM_PROMPT
+    if db is not None:
+        company_data = _load_company_data(db)
+        company_data_section = _build_company_data_prompt(company_data)
+        if company_data_section:
+            system_prompt = SYSTEM_PROMPT + company_data_section
+            logger.info(
+                "aggregate_daily: injecting %d company data rows into system prompt",
+                len(company_data),
+            )
+        else:
+            logger.info("aggregate_daily: tb_company_data is empty, skipping injection")
+
     prompt = USER_PROMPT_TEMPLATE.format(
         today=today,
         grouped_events_json=json.dumps(grouped_events, ensure_ascii=False),
@@ -102,7 +200,7 @@ def aggregate_daily(
     msg = ant.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
-        system=SYSTEM_PROMPT,
+        system=system_prompt,
         messages=[{"role": "user", "content": prompt}],
     )
     return json.loads(msg.content[0].text)

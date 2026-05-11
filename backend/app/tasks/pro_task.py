@@ -200,6 +200,7 @@ def run_pro_task(
             previous_events=prev,
             today=today.isoformat(),
             client=ant,
+            db=db,
         )
 
         created = updated = 0
@@ -215,8 +216,9 @@ def run_pro_task(
         db.commit()
         logger.info("pro_task: date=%s created=%d updated=%d", today, created, updated)
     except Exception as exc:
-        da.status = "error"
+        db.rollback()
+        da.status = "failed"
         da.error_message = str(exc)
+        da.completed_at = datetime.now(timezone.utc)
         db.commit()
-        logger.exception("pro_task: failed")
-        raise
+        logger.exception("pro_task: failed — %s", exc)
