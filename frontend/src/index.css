@@ -8,3 +8,9 @@ body {
   margin: 0;
   padding: 0;
 }
+
+.MuiListItemButton-root {
+  min-height: 0 !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
