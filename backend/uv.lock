@@ -126,6 +126,7 @@ dependencies = [
     { name = "pytest-cov" },
     { name = "python-dotenv" },
     { name = "python-jose" },
+    { name = "python-multipart" },
     { name = "rsa" },
     { name = "ruff" },
     { name = "six" },
@@ -170,6 +171,7 @@ requires-dist = [
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "python-dotenv", specifier = "==1.2.2" },
     { name = "python-jose", specifier = "==3.5.0" },
+    { name = "python-multipart", specifier = ">=0.0.28" },
     { name = "rsa", specifier = "==4.9.1" },
     { name = "ruff", specifier = "==0.15.8" },
     { name = "six", specifier = "==1.17.0" },
@@ -935,6 +937,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c6/77/3a1c9039db7124eb039772b935f2244fbb73fc8ee65b9acf2375da1c07bf/python_jose-3.5.0.tar.gz", hash = "sha256:fb4eaa44dbeb1c26dcc69e4bd7ec54a1cb8dd64d3b4d81ef08d90ff453f2b01b", size = 92726, upload-time = "2025-05-28T17:31:54.288Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/c3/0bd11992072e6a1c513b16500a5d07f91a24017c5909b02c72c62d7ad024/python_jose-3.5.0-py2.py3-none-any.whl", hash = "sha256:abd1202f23d34dfad2c3d28cb8617b90acf34132c7afd60abd0b0b7d3cb55771", size = 34624, upload-time = "2025-05-28T17:31:52.802Z" },
+]
+
+[[package]]
+name = "python-multipart"
+version = "0.0.28"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/54/a85eb421fbdd5007bc5af39d0f4ed9fa609e0fedbfdc2adcf0b34526870e/python_multipart-0.0.28.tar.gz", hash = "sha256:8550da197eac0f7ab748961fc9509b999fa2662ea25cef857f05249f6893c0f8", size = 45314, upload-time = "2026-05-10T11:05:16.596Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/a2/43bbc5860b5034e2af4ef99a0e04d726ff329c43e192ef3abaa8d7ecfce5/python_multipart-0.0.28-py3-none-any.whl", hash = "sha256:10faac07eb966c3f48dc415f9dee46c04cb10d58d30a35677db8027c825ed9b6", size = 29438, upload-time = "2026-05-10T11:05:15.052Z" },
 ]
 
 [[package]]

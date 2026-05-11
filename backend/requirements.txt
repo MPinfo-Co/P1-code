@@ -32,7 +32,6 @@ starlette==1.0.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.42.0
-celery[redis]==5.4.0
 anthropic>=0.50.0
 httpx==0.28.1
 pytest-cov==7.1.0

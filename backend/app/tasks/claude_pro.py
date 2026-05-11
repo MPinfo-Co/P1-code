@@ -1,22 +1,19 @@
+# app/tasks/claude_pro.py
+"""Sonnet daily aggregation of chunk-level events into final security_events.
+
+Public entry: aggregate_daily(grouped_events, previous_events, today, *, client=None)
+              -> list[dict]
+"""
+from __future__ import annotations
 import json
-import logging
-
 from anthropic import Anthropic
+from app.config.settings import settings
 
-from app.core.config import settings
+MODEL = "claude-sonnet-4-6"
+MAX_TOKENS = 16384
 
-logger = logging.getLogger(__name__)
-
-_client: Anthropic | None = None
-
-
-def _get_client() -> Anthropic:
-    global _client
-    if _client is None:
-        _client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-    return _client
-
-
+# Lifted verbatim from app/tasks/old_task/claude_pro.py:20-51 (load-bearing
+# domain prompt — defines merge rules, output format, affected_detail tags).
 SYSTEM_PROMPT = """你是資深資安分析師。根據一整天的 AI 分析結果，產出整合去重後的最終事件清單。
 
 ## 事件合併規則（重要）
@@ -50,6 +47,7 @@ SYSTEM_PROMPT = """你是資深資安分析師。根據一整天的 AI 分析結
    - 【風險分析】必填。說明嚴重性、可能後果、為什麼需要關注
    - 【攻擊來源】選填。有明確來源 IP 或主機時才填"""
 
+# Lifted verbatim from app/tasks/old_task/claude_pro.py:53-74.
 USER_PROMPT_TEMPLATE = """今天日期：{today}
 
 今天偵測到的事件候選（依 match_key 分群，每群代表同類事件的所有偵測）：
@@ -75,64 +73,35 @@ USER_PROMPT_TEMPLATE = """今天日期：{today}
 
 
 def aggregate_daily(
+    *,
     grouped_events: dict[str, list[dict]],
     previous_events: list[dict],
     today: str,
+    client: Anthropic | None = None,
 ) -> list[dict]:
+    """Aggregate chunk-level events into a de-duplicated daily security event list.
+
+    Args:
+        grouped_events: Events grouped by match_key from the Haiku pass.
+        previous_events: Yesterday's confirmed events for continuity detection.
+        today: Date string in YYYY-MM-DD format.
+        client: Optional Anthropic client; a new one is created if not provided.
+
+    Returns:
+        List of final security event dicts.
+    """
+    if not grouped_events:
+        return []
+    ant = client or Anthropic(api_key=settings.anthropic_api_key)
     prompt = USER_PROMPT_TEMPLATE.format(
         today=today,
-        grouped_events_json=json.dumps(grouped_events, ensure_ascii=False, indent=2),
+        grouped_events_json=json.dumps(grouped_events, ensure_ascii=False),
         previous_events_json=json.dumps(previous_events, ensure_ascii=False),
     )
-
-    client = _get_client()
-    import re
-    import time as _time
-
-    for attempt in range(3):
-        if attempt > 0:
-            logger.warning(f"Sonnet retry {attempt + 1}/3...")
-            _time.sleep(65)
-
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=16384,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1]).strip()
-
-        # 修復常見 JSON 問題：trailing commas
-        text = re.sub(r",\s*([}\]])", r"\1", text)
-
-        try:
-            events = json.loads(text)
-        except json.JSONDecodeError:
-            # 嘗試找到 JSON 陣列的範圍
-            start = text.find("[")
-            end = text.rfind("]")
-            if start != -1 and end != -1:
-                text = text[start : end + 1]
-                text = re.sub(r",\s*([}\]])", r"\1", text)
-                try:
-                    events = json.loads(text)
-                except json.JSONDecodeError:
-                    logger.warning(
-                        f"Sonnet attempt {attempt + 1} returned invalid JSON"
-                    )
-                    continue
-            else:
-                logger.warning(f"Sonnet attempt {attempt + 1} returned invalid JSON")
-                continue
-
-        if not isinstance(events, list):
-            logger.warning(f"Sonnet attempt {attempt + 1} returned non-array")
-            continue
-
-        return events
-
-    raise ValueError("Sonnet failed to produce valid JSON after 3 attempts")
+    msg = ant.messages.create(
+        model=MODEL,
+        max_tokens=MAX_TOKENS,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return json.loads(msg.content[0].text)
