@@ -11,7 +11,7 @@ frontend/
 ├── eslint.config.js                  # Flat ESLint config (TS + React hooks/refresh)
 ├── index.html                        # Vite HTML entry point
 ├── package-lock.json
-├── package.json                      # Deps: React 19, MUI 7, Zustand, TanStack Query, Vite 8
+├── package.json                      # Deps: React 19, MUI 7, MUI X DataGrid 8, Zustand 5, TanStack Query 5, react-router-dom 7, Vite 8
 ├── tsconfig.json                     # TypeScript compiler config
 ├── vite.config.js                    # Vite + React plugin, /api → :8000 proxy, @ alias
 │
@@ -42,43 +42,62 @@ frontend/
     │   └── IssuesContext.jsx         # In-memory issues state + updateIssue() (mock data)
     │
     ├── data/                         # ── Static / mock seed data ──
-    │   ├── aiPartners.ts
     │   ├── issues.js
     │   ├── knowledgeBase.ts
     │   └── users.ts
     │
     ├── pages/
-    │   ├── NotFound.css / .tsx       # 404 page
-    │   ├── AiPartner/                # ── fn_partner feature ──
-    │   │   ├── AiPartner.css / .tsx          # Partner cards / landing
-    │   │   ├── IssueDetail.css / .tsx        # Single issue view + history
-    │   │   └── IssueList.css / .tsx          # Issues table for a partner
-    │   ├── fn_role/                  # ── Role management ──
-    │   │   ├── FnRoleForm.css / .tsx
-    │   │   └── FnRoleList.css / .tsx
-    │   ├── fn_user/                  # ── User management ──
+    │   ├── NotFound.css / .tsx              # 404 page
+    │   ├── Home/
+    │   │   └── Home.css / .tsx              # Dashboard / landing after login
+    │   ├── Login/
+    │   │   └── Login.css / .tsx             # Email/password login form
+    │   ├── KnowledgeBase/                   # ── KB feature (tabbed) ──
+    │   │   ├── AccessTab.css / .tsx                 # Permissions tab
+    │   │   ├── DocTab.css / .tsx                    # Documents tab
+    │   │   ├── KnowledgeBase.css / .tsx             # Tab container
+    │   │   └── TableTab.css / .tsx                  # Tables tab
+    │   ├── fn_user/                         # ── User management ──
     │   │   ├── FnUserForm.css / .tsx
     │   │   └── FnUserList.css / .tsx
-    │   ├── Home/
-    │   │   └── Home.css / .tsx               # Dashboard / landing after login
-    │   ├── KnowledgeBase/            # ── KB feature (tabbed) ──
-    │   │   ├── AccessTab.css / .tsx          # Permissions tab
-    │   │   ├── DocTab.css / .tsx             # Documents tab
-    │   │   ├── KnowledgeBase.css / .tsx      # Tab container
-    │   │   └── TableTab.css / .tsx           # Tables tab
-    │   ├── Login/
-    │   │   └── Login.css / .tsx              # Email/password login form
-    │   └── Settings/                 # ── fn_ai_config + account/role admin ──
-    │       ├── Account.css / .tsx
-    │       ├── AiConfig.css / .tsx
-    │       └── Role.css / .tsx
+    │   ├── fn_role/                         # ── Role management ──
+    │   │   ├── FnRoleForm.css / .tsx
+    │   │   └── FnRoleList.css / .tsx
+    │   ├── fn_company_data/                 # ── Company data management ──
+    │   │   ├── FnCompanyDataForm.tsx
+    │   │   └── FnCompanyDataList.css / .tsx
+    │   ├── fn_expert/                       # ── Expert (issue review) feature ──
+    │   │   ├── IssueDetail.css / .tsx                # Single issue view + history
+    │   │   └── IssueList.css / .tsx                  # Issues table
+    │   ├── fn_expert_setting/               # ── Expert scheduler / SSB config ──
+    │   │   └── FnExpertSetting.tsx
+    │   ├── fn_ai_partner_tool/              # ── AI partner tool registry ──
+    │   │   ├── FnToolForm.css / .tsx
+    │   │   └── FnToolList.css / .tsx
+    │   ├── fn_ai_partner_config/            # ── AI partner config / personas ──
+    │   │   ├── FnAiPartnerConfigForm.css / .tsx
+    │   │   └── FnAiPartnerConfigList.css / .tsx
+    │   ├── fn_ai_partner_chat/              # ── AI partner chat UI ──
+    │   │   ├── FnAiPartnerChat.tsx
+    │   │   ├── FnAiPartnerChatList.tsx
+    │   │   └── FnAiPartnerChatPage.tsx
+    │   └── fn_feedback/                     # ── User feedback collection ──
+    │       ├── FnFeedbackList.css / .tsx
+    │       └── FnFeedbackSubmit.css / .tsx
     │
     ├── queries/                      # ── TanStack Query hooks (server state) ──
-    │   ├── useNavigationQuery.js     # GET nav folders/items for sidebar
-    │   ├── useRoleOptionsQuery.ts    # Role dropdown options
-    │   ├── useRolesQuery.ts          # Roles list/CRUD
-    │   ├── useUserOptionsQuery.ts    # User dropdown options
-    │   └── useUsersQuery.ts          # Users list/CRUD
+    │   ├── useAiPartnerChatQuery.ts          # Chat sessions/messages
+    │   ├── useAiPartnerConfigQuery.ts        # AI partner config CRUD
+    │   ├── useCompanyDataQuery.ts            # Company data CRUD
+    │   ├── useEventsQuery.ts                 # Event / activity feed
+    │   ├── useExpertSettingQuery.ts          # Expert scheduler settings
+    │   ├── useFeedbackQuery.ts               # Feedback submit/list
+    │   ├── useNavigationQuery.js             # GET nav folders/items for sidebar
+    │   ├── useRoleOptionsQuery.ts            # Role dropdown options
+    │   ├── useRolesQuery.ts                  # Roles list/CRUD
+    │   ├── useToolsQuery.ts                  # AI partner tools CRUD
+    │   ├── useUserOptionsQuery.ts            # User dropdown options
+    │   └── useUsersQuery.ts                  # Users list/CRUD
     │
     └── stores/
         └── authStore.ts              # Zustand: token + user, login/logout/fetchMe
@@ -90,6 +109,7 @@ frontend/
 - When applying create or update, re-render page for new data to display
 - Route path must be function_code with `fn_` prefix removed (e.g. fn_user → `user`, fn_expert_setting → `expert_setting`). Do NOT use the backend API path (kebab-case) as the frontend route path.
 - Sidebar generates nav links via `item.function_code.replace(/^fn_/, '')` — do not hardcode paths
+- Every page route must be wrapped in `<PermissionGuard fnKey="fn_xxx">` (see App.jsx)
 
 ## Commands
 - `npm run dev` — start dev server

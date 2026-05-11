@@ -1,5 +1,5 @@
 // src/pages/fn_user/FnUserList.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
@@ -18,11 +18,12 @@ import DialogActions from '@mui/material/DialogActions'
 import { useUsersQuery, useDeleteUser } from '@/queries/useUsersQuery'
 import type { UserRow } from '@/queries/useUsersQuery'
 import { useRoleOptionsQuery } from '@/queries/useRoleOptionsQuery'
+import Pagination from '@/components/ui/Pagination'
 import FnUserForm from './FnUserForm'
 import './FnUserList.css'
 
 interface AppliedFilter {
-  role_id?: number
+  roleFilter?: number
   keyword?: string
 }
 
@@ -30,6 +31,8 @@ export default function FnUserList() {
   const [filterRole, setFilterRole] = useState<string>('all')
   const [filterKeyword, setFilterKeyword] = useState('')
   const [appliedFilter, setAppliedFilter] = useState<AppliedFilter>({})
+  const [page, setPage] = useState(1)
+  const pageSize = 10
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<UserRow | null>(null)
@@ -38,24 +41,37 @@ export default function FnUserList() {
   const [deletingRow, setDeletingRow] = useState<UserRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: rawUsers = [], isLoading, error } = useUsersQuery(appliedFilter)
+  const { data, isLoading, error } = useUsersQuery({
+    page,
+    pageSize,
+    ...appliedFilter,
+  })
   const { data: roleOptions = [] } = useRoleOptionsQuery()
 
+  const rawUsers = data?.items ?? []
   const users = rawUsers.map((u) => ({
     ...u,
-    roles: u.role_ids
+    roles: (u.role_ids ?? [])
       .map((rid) => roleOptions.find((r) => r.id === rid))
       .filter(Boolean) as import('@/queries/useUsersQuery').RoleOption[],
   }))
   const deleteUser = useDeleteUser()
 
+  // Clamp page if total_pages decreased after mutation
+  useEffect(() => {
+    if (data && data.total_pages > 0 && page > data.total_pages) {
+      setPage(data.total_pages)
+    }
+  }, [data, page])
+
   function handleApply() {
     const filter: AppliedFilter = {}
     if (filterRole !== 'all') {
       const found = roleOptions.find((r) => r.name === filterRole)
-      if (found) filter.role_id = found.id
+      if (found) filter.roleFilter = found.id
     }
     if (filterKeyword.trim()) filter.keyword = filterKeyword.trim()
+    setPage(1)
     setAppliedFilter(filter)
   }
 
@@ -205,23 +221,28 @@ export default function FnUserList() {
               <CircularProgress />
             </Box>
           ) : (
-            <DataGrid
-              rows={users}
-              columns={columns}
-              getRowId={(row) => row.email}
-              pageSizeOptions={[10, 25]}
-              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-              disableRowSelectionOnClick
-              rowHeight={36}
-              columnHeaderHeight={36}
-              sx={{
-                border: 'none',
-                '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
-                '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
-                '& .MuiDataGrid-footerContainer': { minHeight: 36, height: 36, overflow: 'hidden' },
-                '& .MuiTablePagination-toolbar': { minHeight: 36, height: 36, padding: '0 8px' },
-              }}
-            />
+            <>
+              <DataGrid
+                rows={users}
+                columns={columns}
+                getRowId={(row) => row.email}
+                hideFooter
+                disableRowSelectionOnClick
+                rowHeight={36}
+                columnHeaderHeight={36}
+                sx={{
+                  border: 'none',
+                  '& .MuiDataGrid-columnHeaders': { bgcolor: '#f1f5f9' },
+                  '& .MuiDataGrid-cell': { display: 'flex', alignItems: 'center' },
+                }}
+              />
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={data?.total ?? 0}
+                onPageChange={setPage}
+              />
+            </>
           )}
         </Box>
       )}

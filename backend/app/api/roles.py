@@ -1,5 +1,7 @@
 """/api/roles router — role management (fn_role)."""
 
+from math import ceil
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -11,10 +13,10 @@ from app.api.schema.roles import (
     RoleDelOut,
     RoleFunctionItem,
     RoleItem,
-    RoleListOut,
     RoleUpdateRequest,
     RoleUpdateOut,
 )
+from app.api.schema.pagination import PaginatedRoleResponse
 from app.db.connector import get_db
 from app.db.models.fn_ai_partner_chat import RoleAiPartner
 from app.db.models.function_access import FunctionItems, RoleFunction
@@ -50,12 +52,14 @@ def _has_fn_role_permission(user_id: int, db: Session) -> bool:
     )
 
 
-@router.get("", response_model=RoleListOut)
+@router.get("", response_model=PaginatedRoleResponse)
 def list_roles(
     keyword: str | None = Query(None, description="Filter by role name (ILIKE)."),
+    page: int = Query(1, ge=1, description="1-based page number."),
+    page_size: int = Query(10, ge=1, le=100, description="Number of records per page."),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
-) -> RoleListOut:
+) -> PaginatedRoleResponse:
     """List roles, optionally filtered by keyword. Requires fn_role permission."""
     if not _has_fn_role_permission(auth.user_id, db):
         raise HTTPException(
@@ -66,10 +70,14 @@ def list_roles(
     query = db.query(Role)
     if keyword:
         query = query.filter(Role.name.ilike(f"%{keyword}%"))
-    roles = query.order_by(Role.created_at.asc()).all()
+    query = query.order_by(Role.created_at.asc())
+
+    total = query.count()
+    total_pages = max(1, ceil(total / page_size))
+    role_page = query.offset((page - 1) * page_size).limit(page_size).all()
 
     items = []
-    for role in roles:
+    for role in role_page:
         # Get members
         user_rows = (
             db.query(User)
@@ -106,7 +114,13 @@ def list_roles(
                 partner_ids=partner_ids,
             )
         )
-    return RoleListOut(data=items)
+    return PaginatedRoleResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.post("", response_model=RoleAddOut, status_code=status.HTTP_201_CREATED)

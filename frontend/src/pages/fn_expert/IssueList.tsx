@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -6,19 +6,19 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
-import Pagination from '@mui/material/Pagination'
 import Chip from '@mui/material/Chip'
 import Popover from '@mui/material/Popover'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import Pagination from '@/components/ui/Pagination'
+import { useEventsQuery } from '@/queries/useEventsQuery'
+import type { EventRow } from '@/queries/useEventsQuery'
 import './IssueList.css'
 
 const STAR_COLOR: Record<number, string> = {
@@ -61,19 +61,6 @@ const STATUS_ICON: Record<string, React.ReactElement> = {
       <rect x="14" y="4" width="4" height="16" />
     </svg>
   ),
-}
-
-interface EventRow {
-  id: number | string
-  title: string
-  star_rank: number
-  event_date: string
-  date_end?: string
-  detection_count?: number
-  affected_summary: string
-  affected_detail?: string
-  current_status: string
-  assignee_user_id?: number | null
 }
 
 interface AppliedFilters {
@@ -140,43 +127,27 @@ export default function IssueList() {
   const [page, setPage] = useState(1)
   const pageSize = 10
 
-  const [rows, setRows] = useState<EventRow[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null)
   const [popoverContent, setPopoverContent] = useState('')
 
-  const fetchEvents = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
-      if (applied.status === '_default') params.set('status', 'pending,investigating')
-      else if (applied.status !== 'all') params.set('status', applied.status)
-      if (applied.keyword) params.set('keyword', applied.keyword)
-      if (applied.start) params.set('date_from', applied.start)
-      if (applied.end) params.set('date_to', applied.end)
+  const eventsStatus =
+    applied.status === '_default'
+      ? 'pending,investigating'
+      : applied.status === 'all'
+        ? undefined
+        : applied.status
 
-      const token = localStorage.getItem('mp-box-token')
-      const res = await fetch(`/api/events?${params}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setRows(data.items)
-      setTotal(data.total)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [applied, page])
+  const { data, isLoading, error } = useEventsQuery({
+    page,
+    pageSize,
+    status: eventsStatus,
+    dateStart: applied.start || undefined,
+    dateEnd: applied.end || undefined,
+    keyword: applied.keyword || undefined,
+  })
 
-  useEffect(() => {
-    fetchEvents()
-  }, [fetchEvents])
+  const rows: EventRow[] = data?.items ?? []
+  const totalPages = data?.total_pages ?? 1
 
   function applyFilters() {
     setPage(1)
@@ -203,8 +174,6 @@ export default function IssueList() {
     setPopoverContent(row.affected_detail || row.affected_summary)
   }
 
-  const totalPages = Math.ceil(total / pageSize)
-
   return (
     <Box className="issue-list-root">
       <Box className="issue-list-header">
@@ -214,21 +183,22 @@ export default function IssueList() {
       </Box>
 
       <Box className="issue-list-filter-bar">
-        <FormControl size="small" className="issue-list-filter-status">
-          <InputLabel>處理狀態</InputLabel>
-          <Select
-            value={filterStatus}
-            label="處理狀態"
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <MenuItem value="all">全部</MenuItem>
-            {Object.entries(STATUS_LABEL).map(([val, label]) => (
-              <MenuItem key={val} value={val}>
-                {label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Typography className="issue-list-filter-label">處理狀態:</Typography>
+        <Select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          size="small"
+          displayEmpty
+          className="issue-list-filter-status"
+          sx={{ height: 24, fontSize: 13, '& .MuiSelect-select': { py: '2px' } }}
+        >
+          <MenuItem value="all">全部</MenuItem>
+          {Object.entries(STATUS_LABEL).map(([val, label]) => (
+            <MenuItem key={val} value={val}>
+              {label}
+            </MenuItem>
+          ))}
+        </Select>
         <Typography className="issue-list-filter-label">發生日期:</Typography>
         <TextField
           size="small"
@@ -237,6 +207,10 @@ export default function IssueList() {
           onChange={(e) => setFilterStart(e.target.value)}
           InputLabelProps={{ shrink: true }}
           className="issue-list-date"
+          sx={{
+            '& .MuiInputBase-root': { height: 24 },
+            '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
+          }}
         />
         <Typography className="issue-list-filter-sep">至</Typography>
         <TextField
@@ -246,6 +220,10 @@ export default function IssueList() {
           onChange={(e) => setFilterEnd(e.target.value)}
           InputLabelProps={{ shrink: true }}
           className="issue-list-date"
+          sx={{
+            '& .MuiInputBase-root': { height: 24 },
+            '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
+          }}
         />
         <Typography className="issue-list-filter-label">關鍵字:</Typography>
         <TextField
@@ -254,23 +232,32 @@ export default function IssueList() {
           value={filterKeyword}
           onChange={(e) => setFilterKeyword(e.target.value)}
           className="issue-list-keyword"
+          sx={{
+            '& .MuiInputBase-root': { height: 24 },
+            '& .MuiInputBase-input': { py: '2px', fontSize: 13 },
+          }}
         />
-        <Button variant="outlined" onClick={applyFilters} className="issue-list-apply-btn">
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={applyFilters}
+          className="issue-list-apply-btn"
+        >
           套用
         </Button>
-        <Button variant="text" onClick={resetFilters} className="issue-list-reset-btn">
+        <Button variant="text" size="small" onClick={resetFilters} className="issue-list-reset-btn">
           重設
         </Button>
       </Box>
 
       {error && (
         <Alert severity="error" className="issue-list-error">
-          載入失敗：{error}
+          載入失敗：{(error as Error).message}
         </Alert>
       )}
 
       <Box className="issue-list-table-wrap">
-        {loading && (
+        {isLoading && (
           <Box className="issue-list-loading">
             <CircularProgress size={32} />
           </Box>
@@ -296,7 +283,7 @@ export default function IssueList() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.length === 0 && !loading ? (
+              {rows.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="issue-list-empty-cell">
                     尚無安全事件
@@ -405,23 +392,13 @@ export default function IssueList() {
           </Table>
         </TableContainer>
 
-        {totalPages > 1 && (
-          <Box className="issue-list-pagination-wrap">
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(_, v) => setPage(v)}
-              shape="rounded"
-              sx={{
-                '& .MuiPaginationItem-root': { fontSize: 14, fontWeight: 500 },
-                '& .Mui-selected': {
-                  bgcolor: '#2e3f6e !important',
-                  color: 'white',
-                },
-              }}
-            />
-          </Box>
-        )}
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       </Box>
 
       <Popover
