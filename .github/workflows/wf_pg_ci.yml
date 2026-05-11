@@ -6,8 +6,8 @@ on:
       - 'pg-*'
 
 jobs:
-  backend-ci:
-    name: Backend CI（Ruff + Pytest）
+  ruff-check:
+    name: Backend Lint（Ruff）
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,6 +30,24 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
 
+  pytest:
+    name: Backend Test（Pytest）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Pytest with coverage
         run: |
           set +e
@@ -50,7 +68,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
