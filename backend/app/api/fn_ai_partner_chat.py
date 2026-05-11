@@ -431,10 +431,10 @@ def send_message(
             tools=tool_defs or None,
             tool_configs=tool_configs or None,
         )
-    except (AgentMaxIterationError, LLMClientError) as exc:  # fmt: skip
+    except (AgentMaxIterationError, LLMClientError):  # fmt: skip
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail="AI 服務暫時無法使用",
         )
     except Exception:
         raise HTTPException(
@@ -545,10 +545,10 @@ def new_conversation(
             tools=greeting_tools,
             tool_configs=tool_configs or None,
         )
-    except (AgentMaxIterationError, LLMClientError) as exc:  # fmt: skip
+    except (AgentMaxIterationError, LLMClientError):  # fmt: skip
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail="AI 服務暫時無法使用",
         )
     except Exception:
         raise HTTPException(
