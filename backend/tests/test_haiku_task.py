@@ -1,8 +1,6 @@
 """Tests for haiku_task orchestrator (Task 6 — sd-209)."""
-from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 import json
-import pytest
 from app import scheduler
 from app.tasks.haiku_task import run_haiku_task
 from app.db.models.analysis import LogBatch, ChunkResult
