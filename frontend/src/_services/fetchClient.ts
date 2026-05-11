@@ -6,24 +6,13 @@
  *   - 排除登入 API 本身（POST /auth/login）
  *
  * 攔截行為：
- *   1. 透過 uiStore 設定全域通知訊息「登入已過期，請重新登入」
- *   2. 約 2 秒後：清除 token → 導向 /login?expired=1
+ *   立即清除 token → 導向 /login?expired=1（登入頁顯示過期提示）
  */
 
 import useAuthStore from '@/stores/authStore'
-import useUiStore from '@/stores/uiStore'
 
 // 避免重複觸發（例如頁面上同時有多個 API 請求都 401）
 let isHandlingExpiry = false
-
-const EXPIRY_MESSAGE = '登入已過期，請重新登入'
-
-/**
- * 透過 uiStore 通知 App 層顯示「登入已過期」提示。
- */
-function notifyAuthExpired() {
-  useUiStore.getState().setGlobalNotice(EXPIRY_MESSAGE)
-}
 
 /**
  * 執行登入失效後的清理與跳轉
@@ -32,17 +21,11 @@ function handleAuthExpiry() {
   if (isHandlingExpiry) return
   isHandlingExpiry = true
 
-  notifyAuthExpired()
-
-  setTimeout(() => {
-    // 直接清除本地 token，不呼叫後端 logout API（避免再觸發 401）
-    localStorage.removeItem('mp-box-token')
-    localStorage.removeItem('mp-box-user')
-    useAuthStore.setState({ token: null, user: null })
-    useUiStore.getState().clearGlobalNotice()
-    isHandlingExpiry = false
-    window.location.href = '/login?expired=1'
-  }, 2000)
+  // 直接清除本地 token，不呼叫後端 logout API（避免再觸發 401）
+  localStorage.removeItem('mp-box-token')
+  localStorage.removeItem('mp-box-user')
+  useAuthStore.setState({ token: null, user: null })
+  window.location.href = '/login?expired=1'
 }
 
 /**

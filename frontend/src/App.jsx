@@ -1,10 +1,8 @@
 // src/App.jsx
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Snackbar, Alert } from '@mui/material'
 import { useAuth } from './stores/authStore'
 import useAuthStore from './stores/authStore'
-import useUiStore from './stores/uiStore'
 import { IssuesProvider } from './contexts/IssuesContext'
 import Layout from './components/Layout/Layout'
 import Login from './pages/Login/Login'
@@ -144,27 +142,10 @@ function AppRoutes() {
   )
 }
 
-function GlobalNotice() {
-  const { globalNotice, clearGlobalNotice } = useUiStore()
-  return (
-    <Snackbar
-      open={!!globalNotice}
-      autoHideDuration={2000}
-      onClose={clearGlobalNotice}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-    >
-      <Alert severity="warning" onClose={clearGlobalNotice} sx={{ width: '100%' }}>
-        {globalNotice}
-      </Alert>
-    </Snackbar>
-  )
-}
-
 export default function App() {
   return (
     <BrowserRouter>
       <IssuesProvider>
-        <GlobalNotice />
         <AppRoutes />
       </IssuesProvider>
     </BrowserRouter>
