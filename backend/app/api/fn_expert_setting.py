@@ -15,7 +15,6 @@ from app.api.schema.fn_expert_setting import (
     ExpertSettingSaveRequest,
     SsbTestRequest,
 )
-from app.config.settings import settings
 from app.db.connector import get_db
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.function_access import FunctionItems, RoleFunction

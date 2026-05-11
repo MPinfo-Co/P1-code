@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     ssb_username: str | None = Field(None, alias="SSB_USERNAME")
     ssb_password: str | None = Field(None, alias="SSB_PASSWORD")
     ssb_logspace: str = Field("ALL", alias="SSB_LOGSPACE")
-    analysis_mode: str = Field("full", alias="ANALYSIS_MODE")  # "full" or "windows_only"
+    analysis_mode: str = Field(
+        "full", alias="ANALYSIS_MODE"
+    )  # "full" or "windows_only"
 
     # Haiku scheduling (interval-only; runtime guard checks is_enabled before fetch)
     haiku_interval_minutes: int = Field(10, alias="HAIKU_INTERVAL_MINUTES")
@@ -38,7 +40,9 @@ class Settings(BaseSettings):
     haiku_max_retry: int = Field(8, alias="HAIKU_MAX_RETRY")
 
     # Settings sync cadence (Sonnet's HH:MM comes from DB; this controls how often we re-read)
-    expert_settings_reload_minutes: int = Field(60, alias="EXPERT_SETTINGS_RELOAD_MINUTES")
+    expert_settings_reload_minutes: int = Field(
+        60, alias="EXPERT_SETTINGS_RELOAD_MINUTES"
+    )
 
 
 settings = Settings()

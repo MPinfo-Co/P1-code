@@ -6,6 +6,7 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks'
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined'
+import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined'
 
 export const ICON_MAP = {
   // folders
@@ -21,4 +22,5 @@ export const ICON_MAP = {
   fn_expert_setting: <SecurityOutlinedIcon fontSize="small" />,
   fn_ai_partner_config: <SmartToyOutlinedIcon fontSize="small" />,
   fn_ai_partner_chat: <ChatOutlinedIcon fontSize="small" />,
+  fn_feedback: <FeedbackOutlinedIcon fontSize="small" />,
 }

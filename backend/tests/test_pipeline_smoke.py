@@ -4,6 +4,7 @@ Mocks the SSB client and Anthropic API so no network calls are made. Verifies
 that LogBatch + ChunkResult rows from the Haiku run are picked up by the Pro
 task and folded into a DailyAnalysis row plus a single SecurityEvent.
 """
+
 from __future__ import annotations
 
 import json
@@ -84,6 +85,5 @@ def test_smoke_haiku_then_pro(db_session):
     assert db_session.query(ChunkResult).count() >= 1
     assert db_session.query(DailyAnalysis).count() == 1
     assert (
-        db_session.query(SecurityEvent).filter_by(match_key="win-bf-admin").count()
-        == 1
+        db_session.query(SecurityEvent).filter_by(match_key="win-bf-admin").count() == 1
     )

@@ -18,6 +18,7 @@ from app.api.events import router as events_router
 from app.api.fn_ai_partner_config import router as fn_ai_partner_config_router
 from app.api.fn_expert_setting import router as fn_expert_setting_router
 from app.api.fn_ai_partner_tool import router as fn_ai_partner_tool_router
+from app.api.fn_feedback import router as fn_feedback_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.navigation import router as navigation_router
@@ -81,6 +82,7 @@ def create_app():
     server.include_router(fn_ai_partner_config_router)
     server.include_router(fn_expert_setting_router)
     server.include_router(fn_ai_partner_tool_router)
+    server.include_router(fn_feedback_router)
     server.include_router(health_router)
     server.include_router(ingest_router)
     server.include_router(user_router)

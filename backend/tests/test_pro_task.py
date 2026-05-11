@@ -1,4 +1,5 @@
 """Tests for pro_task orchestrator (Task 7 — sd-209, TDD T4)."""
+
 from __future__ import annotations
 
 import json

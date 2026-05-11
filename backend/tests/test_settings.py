@@ -1,4 +1,5 @@
 """Tests for app/config/settings.py — new SSB + Anthropic fields."""
+
 from app.config.settings import Settings
 
 _SSB_FIELDS = [
@@ -37,6 +38,6 @@ def test_settings_has_anthropic_and_ssb_fields(monkeypatch, tmp_path):
     assert s.haiku_interval_minutes == 10
     assert s.haiku_chunk_size == 100
     assert s.haiku_max_retry == 8
-    assert s.ssb_logspace == "ALL"          # default
-    assert s.analysis_mode == "full"        # default
+    assert s.ssb_logspace == "ALL"  # default
+    assert s.analysis_mode == "full"  # default
     assert s.expert_settings_reload_minutes == 60  # default
