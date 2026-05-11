@@ -31,6 +31,15 @@ const theme = createTheme({
         },
       },
     },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          minHeight: 0,
+          paddingTop: 2,
+          paddingBottom: 2,
+        },
+      },
+    },
     MuiDataGrid: {
       styleOverrides: {
         columnHeader: {
