@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from app import scheduler
 from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
@@ -23,6 +21,7 @@ from app.tasks import claude_pro
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _seed_chunks(db, today: date, events: list[dict]) -> None:
     """Seed one done LogBatch + one done ChunkResult for the given day."""
@@ -74,6 +73,7 @@ def _enable_scheduler():
 # T1 — Normal-behaviour event excluded when company data matches
 # ---------------------------------------------------------------------------
 
+
 def test_t1_normal_behaviour_event_not_written(db_session):
     """對應 T1
 
@@ -83,21 +83,31 @@ def test_t1_normal_behaviour_event_not_written(db_session):
     _enable_scheduler()
     today = date.today()
 
-    _seed_company_data(db_session, [
-        {"name": "IT 維運規範", "content": "每日備份帳號 backup_svc 在凌晨 02:00 登入屬正常行為。"},
-    ])
-    _seed_chunks(db_session, today, [
-        {
-            "star_rank": 3,
-            "title": "backup_svc 凌晨登入",
-            "affected_summary": "backup_svc (host01)",
-            "affected_detail": "【異常發現】backup_svc 於 02:00 登入\n【風險分析】可能為可疑活動",
-            "match_key": "win-backup-svc",
-            "log_ids": ["1"],
-            "ioc_list": [],
-            "mitre_tags": [],
-        }
-    ])
+    _seed_company_data(
+        db_session,
+        [
+            {
+                "name": "IT 維運規範",
+                "content": "每日備份帳號 backup_svc 在凌晨 02:00 登入屬正常行為。",
+            },
+        ],
+    )
+    _seed_chunks(
+        db_session,
+        today,
+        [
+            {
+                "star_rank": 3,
+                "title": "backup_svc 凌晨登入",
+                "affected_summary": "backup_svc (host01)",
+                "affected_detail": "【異常發現】backup_svc 於 02:00 登入\n【風險分析】可能為可疑活動",
+                "match_key": "win-backup-svc",
+                "log_ids": ["1"],
+                "ioc_list": [],
+                "mitre_tags": [],
+            }
+        ],
+    )
 
     # Sonnet judges this as normal behaviour → returns empty list
     ant = _fake_anthropic([])
@@ -118,6 +128,7 @@ def test_t1_normal_behaviour_event_not_written(db_session):
 # T2 — suggests reflects company data's disposal convention
 # ---------------------------------------------------------------------------
 
+
 def test_t2_suggests_reflects_company_data_convention(db_session):
     """對應 T2
 
@@ -127,21 +138,31 @@ def test_t2_suggests_reflects_company_data_convention(db_session):
     _enable_scheduler()
     today = date.today()
 
-    _seed_company_data(db_session, [
-        {"name": "資安應變手冊", "content": "外部 IP 掃描事件應聯絡資訊組 A，並封鎖來源 IP。"},
-    ])
-    _seed_chunks(db_session, today, [
-        {
-            "star_rank": 4,
-            "title": "外部 IP 掃描",
-            "affected_summary": "防火牆 (外部來源)",
-            "affected_detail": "【異常發現】偵測到外部 IP 掃描\n【風險分析】高風險\n【攻擊來源】1.2.3.4",
-            "match_key": "deny_external_1.2.3",
-            "log_ids": ["2"],
-            "ioc_list": ["1.2.3.4"],
-            "mitre_tags": ["T1046"],
-        }
-    ])
+    _seed_company_data(
+        db_session,
+        [
+            {
+                "name": "資安應變手冊",
+                "content": "外部 IP 掃描事件應聯絡資訊組 A，並封鎖來源 IP。",
+            },
+        ],
+    )
+    _seed_chunks(
+        db_session,
+        today,
+        [
+            {
+                "star_rank": 4,
+                "title": "外部 IP 掃描",
+                "affected_summary": "防火牆 (外部來源)",
+                "affected_detail": "【異常發現】偵測到外部 IP 掃描\n【風險分析】高風險\n【攻擊來源】1.2.3.4",
+                "match_key": "deny_external_1.2.3",
+                "log_ids": ["2"],
+                "ioc_list": ["1.2.3.4"],
+                "mitre_tags": ["T1046"],
+            }
+        ],
+    )
 
     sonnet_output = [
         {
@@ -166,7 +187,9 @@ def test_t2_suggests_reflects_company_data_convention(db_session):
         db_factory=lambda: db_session,
     )
 
-    ev = db_session.query(SecurityEvent).filter_by(match_key="deny_external_1.2.3").one()
+    ev = (
+        db_session.query(SecurityEvent).filter_by(match_key="deny_external_1.2.3").one()
+    )
     assert ev.suggests is not None
     assert any("資訊組 A" in s for s in ev.suggests)
 
@@ -174,6 +197,7 @@ def test_t2_suggests_reflects_company_data_convention(db_session):
 # ---------------------------------------------------------------------------
 # T3 — affected_detail末尾包含【分析依據】段落
 # ---------------------------------------------------------------------------
+
 
 def test_t3_affected_detail_has_analysis_basis(db_session):
     """對應 T3
@@ -184,21 +208,31 @@ def test_t3_affected_detail_has_analysis_basis(db_session):
     _enable_scheduler()
     today = date.today()
 
-    _seed_company_data(db_session, [
-        {"name": "設備清冊", "content": "IP 10.0.0.5 為研發部測試伺服器，偶發異常流量屬預期行為。"},
-    ])
-    _seed_chunks(db_session, today, [
-        {
-            "star_rank": 3,
-            "title": "10.0.0.5 異常流量",
-            "affected_summary": "10.0.0.5 (研發部)",
-            "affected_detail": "【異常發現】10.0.0.5 發送異常流量\n【風險分析】中風險",
-            "match_key": "deny_internal_10.0.0.5",
-            "log_ids": ["3"],
-            "ioc_list": [],
-            "mitre_tags": [],
-        }
-    ])
+    _seed_company_data(
+        db_session,
+        [
+            {
+                "name": "設備清冊",
+                "content": "IP 10.0.0.5 為研發部測試伺服器，偶發異常流量屬預期行為。",
+            },
+        ],
+    )
+    _seed_chunks(
+        db_session,
+        today,
+        [
+            {
+                "star_rank": 3,
+                "title": "10.0.0.5 異常流量",
+                "affected_summary": "10.0.0.5 (研發部)",
+                "affected_detail": "【異常發現】10.0.0.5 發送異常流量\n【風險分析】中風險",
+                "match_key": "deny_internal_10.0.0.5",
+                "log_ids": ["3"],
+                "ioc_list": [],
+                "mitre_tags": [],
+            }
+        ],
+    )
 
     detail_with_basis = (
         "【異常發現】10.0.0.5 發送異常流量\n"
@@ -228,9 +262,11 @@ def test_t3_affected_detail_has_analysis_basis(db_session):
         db_factory=lambda: db_session,
     )
 
-    ev = db_session.query(SecurityEvent).filter_by(
-        match_key="deny_internal_10.0.0.5"
-    ).one()
+    ev = (
+        db_session.query(SecurityEvent)
+        .filter_by(match_key="deny_internal_10.0.0.5")
+        .one()
+    )
     assert "【分析依據】" in ev.affected_detail
     assert "設備清冊" in ev.affected_detail
 
@@ -238,6 +274,7 @@ def test_t3_affected_detail_has_analysis_basis(db_session):
 # ---------------------------------------------------------------------------
 # T4 — tb_company_data 為空時行為與既有相同
 # ---------------------------------------------------------------------------
+
 
 def test_t4_empty_company_data_behaves_as_before(db_session):
     """對應 T4
@@ -249,18 +286,22 @@ def test_t4_empty_company_data_behaves_as_before(db_session):
     today = date.today()
 
     # No company data seeded
-    _seed_chunks(db_session, today, [
-        {
-            "star_rank": 3,
-            "title": "Port scan",
-            "affected_summary": "firewall",
-            "affected_detail": "【異常發現】端口掃描\n【風險分析】中風險",
-            "match_key": "deny_external_5.6.7",
-            "log_ids": ["4"],
-            "ioc_list": [],
-            "mitre_tags": [],
-        }
-    ])
+    _seed_chunks(
+        db_session,
+        today,
+        [
+            {
+                "star_rank": 3,
+                "title": "Port scan",
+                "affected_summary": "firewall",
+                "affected_detail": "【異常發現】端口掃描\n【風險分析】中風險",
+                "match_key": "deny_external_5.6.7",
+                "log_ids": ["4"],
+                "ioc_list": [],
+                "mitre_tags": [],
+            }
+        ],
+    )
 
     affected_no_basis = "【異常發現】端口掃描\n【風險分析】中風險"
     sonnet_output = [
@@ -286,7 +327,9 @@ def test_t4_empty_company_data_behaves_as_before(db_session):
         db_factory=lambda: db_session,
     )
 
-    ev = db_session.query(SecurityEvent).filter_by(match_key="deny_external_5.6.7").one()
+    ev = (
+        db_session.query(SecurityEvent).filter_by(match_key="deny_external_5.6.7").one()
+    )
     assert "【分析依據】" not in (ev.affected_detail or "")
     da = db_session.query(DailyAnalysis).filter_by(analysis_date=today).one()
     assert da.status == "done"
@@ -295,6 +338,7 @@ def test_t4_empty_company_data_behaves_as_before(db_session):
 # ---------------------------------------------------------------------------
 # T5 — 公司資料存在但未命中時，行為與空時相同
 # ---------------------------------------------------------------------------
+
 
 def test_t5_company_data_not_matched_no_analysis_basis(db_session):
     """對應 T5
@@ -305,21 +349,31 @@ def test_t5_company_data_not_matched_no_analysis_basis(db_session):
     _enable_scheduler()
     today = date.today()
 
-    _seed_company_data(db_session, [
-        {"name": "其他規範", "content": "辦公室印表機 IP 192.168.1.100 的流量屬正常。"},
-    ])
-    _seed_chunks(db_session, today, [
-        {
-            "star_rank": 4,
-            "title": "暴力破解攻擊",
-            "affected_summary": "主機 host02",
-            "affected_detail": "【異常發現】多次登入失敗\n【風險分析】高風險",
-            "match_key": "win-brute-admin",
-            "log_ids": ["5"],
-            "ioc_list": [],
-            "mitre_tags": ["T1110"],
-        }
-    ])
+    _seed_company_data(
+        db_session,
+        [
+            {
+                "name": "其他規範",
+                "content": "辦公室印表機 IP 192.168.1.100 的流量屬正常。",
+            },
+        ],
+    )
+    _seed_chunks(
+        db_session,
+        today,
+        [
+            {
+                "star_rank": 4,
+                "title": "暴力破解攻擊",
+                "affected_summary": "主機 host02",
+                "affected_detail": "【異常發現】多次登入失敗\n【風險分析】高風險",
+                "match_key": "win-brute-admin",
+                "log_ids": ["5"],
+                "ioc_list": [],
+                "mitre_tags": ["T1110"],
+            }
+        ],
+    )
 
     # Sonnet does not reference company data — no 【分析依據】
     affected_no_basis = "【異常發現】多次登入失敗\n【風險分析】高風險"
@@ -354,6 +408,7 @@ def test_t5_company_data_not_matched_no_analysis_basis(db_session):
 # T10 — 異常時寫入 status=failed，不污染 tb_security_events
 # ---------------------------------------------------------------------------
 
+
 def test_t10_exception_writes_failed_status_no_events(db_session):
     """對應 T10
 
@@ -364,21 +419,28 @@ def test_t10_exception_writes_failed_status_no_events(db_session):
     _enable_scheduler()
     today = date.today()
 
-    _seed_company_data(db_session, [
-        {"name": "規範", "content": "測試資料"},
-    ])
-    _seed_chunks(db_session, today, [
-        {
-            "star_rank": 3,
-            "title": "Test event",
-            "affected_summary": "host",
-            "affected_detail": "【異常發現】test",
-            "match_key": "win-test",
-            "log_ids": ["1"],
-            "ioc_list": [],
-            "mitre_tags": [],
-        }
-    ])
+    _seed_company_data(
+        db_session,
+        [
+            {"name": "規範", "content": "測試資料"},
+        ],
+    )
+    _seed_chunks(
+        db_session,
+        today,
+        [
+            {
+                "star_rank": 3,
+                "title": "Test event",
+                "affected_summary": "host",
+                "affected_detail": "【異常發現】test",
+                "match_key": "win-test",
+                "log_ids": ["1"],
+                "ioc_list": [],
+                "mitre_tags": [],
+            }
+        ],
+    )
 
     # Simulate aggregate_daily raising an exception (e.g., Anthropic API error)
     def failing_factory():
@@ -401,6 +463,7 @@ def test_t10_exception_writes_failed_status_no_events(db_session):
 # ---------------------------------------------------------------------------
 # T-EV-04 — GET /events/{id}: affected_detail without 【分析依據】
 # ---------------------------------------------------------------------------
+
 
 def test_ev04_get_event_detail_without_analysis_basis(client, engine):
     """對應 T-EV-04
@@ -445,6 +508,7 @@ def test_ev04_get_event_detail_without_analysis_basis(client, engine):
 # ---------------------------------------------------------------------------
 # T-EV-05 — GET /events/{id}: affected_detail with 【分析依據】
 # ---------------------------------------------------------------------------
+
 
 def test_ev05_get_event_detail_with_analysis_basis(client, engine):
     """對應 T-EV-05
@@ -494,6 +558,7 @@ def test_ev05_get_event_detail_with_analysis_basis(client, engine):
 # ---------------------------------------------------------------------------
 # Additional unit tests for _build_company_data_prompt
 # ---------------------------------------------------------------------------
+
 
 def test_build_company_data_prompt_empty():
     """Empty company_data returns empty string."""
