@@ -3,6 +3,7 @@
 
 Public entry: analyze_chunk(logs, *, client=None) -> list[dict]
 """
+
 from __future__ import annotations
 import json
 from anthropic import Anthropic

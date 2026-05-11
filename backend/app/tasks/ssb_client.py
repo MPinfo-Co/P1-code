@@ -2,6 +2,7 @@
 
 Decoupled from config.py — all connection parameters are passed via constructor.
 """
+
 import logging
 from datetime import datetime
 from typing import Optional

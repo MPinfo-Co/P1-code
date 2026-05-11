@@ -14,6 +14,7 @@ from app.main import app
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_feedback import Feedback
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -38,6 +39,7 @@ _SEED_TABLES = [
     Conversation.__table__,
     Message.__table__,
     RoleAiPartner.__table__,
+    Feedback.__table__,
 ]
 
 
