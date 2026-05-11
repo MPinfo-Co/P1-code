@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/stores/authStore'
 import { Box, Paper, Typography, TextField, Button, Alert } from '@mui/material'
 import './Login.css'
@@ -7,22 +7,25 @@ import './Login.css'
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const isExpired = searchParams.get('expired') === '1'
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
-    setLoading(true)
+    setIsLoading(true)
     try {
       await login(email, password)
       navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : '登入失敗')
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
@@ -33,6 +36,11 @@ export default function Login() {
           MP-Box
         </Typography>
         <Box component="form" onSubmit={handleSubmit} className="login-form">
+          {isExpired && (
+            <Alert severity="warning" data-testid="expired-notice">
+              登入已過期，請重新登入
+            </Alert>
+          )}
           <TextField
             label="Email"
             type="email"
@@ -58,9 +66,9 @@ export default function Login() {
             color="primary"
             fullWidth
             size="large"
-            disabled={loading}
+            disabled={isLoading}
           >
-            {loading ? '登入中...' : '登入系統'}
+            {isLoading ? '登入中...' : '登入系統'}
           </Button>
         </Box>
       </Paper>
