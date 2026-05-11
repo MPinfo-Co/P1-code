@@ -14,3 +14,15 @@ body {
   padding-top: 2px !important;
   padding-bottom: 2px !important;
 }
+
+/* ===== 全站按鈕通用 padding（issue-286）===== */
+/* 影響範圍：fn_home、fn_expert、fn_partner、fn_user、fn_role、fn_company_data、
+   fn_navbar、fn_ai_partner_tool、fn_ai_partner_config、fn_ai_partner_chat、
+   fn_feedback、fn_expert_setting（不含 fn_login） */
+.btn,
+.btn-sm,
+.btn-lg,
+.btn-filter,
+.MuiButton-root:not(.login-btn) {
+  padding: 0.5mm;
+}
