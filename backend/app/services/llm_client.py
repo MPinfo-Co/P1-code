@@ -71,7 +71,7 @@ def chat(
             msg = str(exc).lower()
             if "credit balance is too low" in msg:
                 raise LLMClientError("AI 服務餘額不足，請聯絡管理員補充點數")
-            raise LLMClientError("LLM 呼叫失敗：請求參數錯誤（token 超限或格式問題）")
+            raise LLMClientError(f"LLM 呼叫失敗：{exc}")
         except anthropic.AuthenticationError:
             raise LLMClientError("LLM 呼叫失敗：API Key 驗證失敗")
         except (anthropic.APIStatusError, anthropic.APIConnectionError) as exc:

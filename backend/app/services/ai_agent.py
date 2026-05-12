@@ -10,6 +10,7 @@
 """
 
 import re
+from urllib.parse import quote
 
 import httpx
 
@@ -196,7 +197,7 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
     # URL 樣板替換
     endpoint_url: str = config.get("endpoint_url", "")
     for key, value in tool_input.items():
-        endpoint_url = endpoint_url.replace(f"{{{key}}}", str(value))
+        endpoint_url = endpoint_url.replace(f"{{{key}}}", quote(str(value), safe=""))
 
     http_method: str = config.get("http_method", "GET").upper()
     auth_type: str = config.get("auth_type", "none")

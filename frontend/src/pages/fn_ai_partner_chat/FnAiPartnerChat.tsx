@@ -16,6 +16,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SendIcon from '@mui/icons-material/Send'
 import ImageIcon from '@mui/icons-material/Image'
 import CloseIcon from '@mui/icons-material/Close'
+import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
 import {
   useAiPartnerHistoryQuery,
   useNewAiPartnerChat,
@@ -39,6 +40,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [isConfirmNewOpen, setIsConfirmNewOpen] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -46,6 +48,8 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const { data: historyData, isLoading: isHistoryLoading } = useAiPartnerHistoryQuery(partner.id)
   const newChat = useNewAiPartnerChat()
   const sendMessage = useSendAiPartnerMessage()
+
+  const isLoading = isHistoryLoading || newChat.isPending
 
   // Initialize chat on history load
   useEffect(() => {
@@ -72,10 +76,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
     }
   }, [historyData, isInitialized, partner.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages or loading state change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isSending])
+  }, [messages, isSending, isLoading])
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
@@ -92,27 +96,33 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   }
 
   function handleChipClick(text: string) {
-    setInputText(text)
+    doSend(text, null)
   }
 
   async function handleSend() {
     if (!inputText.trim() && !selectedImage) return
     if (!conversationId) return
+    doSend(inputText, selectedImage)
+  }
+
+  async function doSend(text: string, image: File | null) {
+    if (!text.trim() && !image) return
+    if (!conversationId) return
 
     const userMessage: ChatMessage = {
       role: 'user',
-      content: inputText,
-      image_url: imagePreviewUrl,
+      content: text,
+      image_url: image ? imagePreviewUrl : null,
       created_at: new Date().toISOString(),
     }
 
     setMessages((prev) => [...prev, userMessage])
     setSuggestions([])
-    const textToSend = inputText
-    const imageToSend = selectedImage
+    setShowSuggestions(false)
     setInputText('')
     setSelectedImage(null)
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    // 有傳圖時保留 blob URL 供訊息顯示；無圖時才 revoke（清掉未送出的預覽）
+    if (imagePreviewUrl && !image) URL.revokeObjectURL(imagePreviewUrl)
     setImagePreviewUrl(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
     setIsSending(true)
@@ -122,8 +132,8 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
       {
         partner_id: partner.id,
         conversation_id: conversationId,
-        message: textToSend || undefined,
-        image: imageToSend,
+        message: text || undefined,
+        image: image,
       },
       {
         onSuccess: (data) => {
@@ -171,8 +181,6 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
       },
     })
   }
-
-  const isLoading = isHistoryLoading || newChat.isPending
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 40px - 28px)' }}>
@@ -234,12 +242,6 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           px: 0.5,
         }}
       >
-        {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={32} />
-          </Box>
-        )}
-
         {messages.map((msg, idx) => (
           <Box
             key={idx}
@@ -274,7 +276,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
                   }}
                 />
               )}
-              <Typography sx={{ fontSize: 14, whiteSpace: 'pre-wrap', color: 'inherit' }}>
+              <Typography sx={{ fontSize: 13, whiteSpace: 'pre-wrap', color: 'inherit' }}>
                 {msg.content}
               </Typography>
             </Box>
@@ -322,12 +324,27 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           </Alert>
         )}
 
+        {isLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={28} />
+          </Box>
+        )}
+
         <div ref={messagesEndRef} />
       </Box>
 
-      {/* Suggestions */}
-      {suggestions.length > 0 && !isSending && (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, py: 1, flexShrink: 0 }}>
+      {/* Suggestions expanded list */}
+      {suggestions.length > 0 && !isSending && showSuggestions && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 0.75,
+            pb: 0.75,
+          }}
+        >
           {suggestions.map((s, idx) => (
             <Chip
               key={idx}
@@ -419,6 +436,19 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           />
         </Box>
 
+        {suggestions.length > 0 && !isSending && (
+          <IconButton
+            size="small"
+            onClick={() => setShowSuggestions((v) => !v)}
+            sx={{
+              color: showSuggestions ? '#6366f1' : '#94a3b8',
+              bgcolor: showSuggestions ? '#f0f0ff' : 'transparent',
+              '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' },
+            }}
+          >
+            <TipsAndUpdatesOutlinedIcon fontSize="small" />
+          </IconButton>
+        )}
         <IconButton
           onClick={handleSend}
           disabled={(!inputText.trim() && !selectedImage) || isSending || !isInitialized}
