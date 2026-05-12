@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     aes_key: str = Field("default-aes-256-key-32bytes12345678", alias="AES_KEY")
     anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field("claude-sonnet-4-6", alias="ANTHROPIC_MODEL")
+    anthropic_fast_model: str = Field(
+        "claude-haiku-4-5-20251001", alias="ANTHROPIC_FAST_MODEL"
+    )
 
     # Anthropic (single key shared by Haiku + Sonnet jobs)
     anthropic_api_key: str | None = Field(None, alias="ANTHROPIC_API_KEY")

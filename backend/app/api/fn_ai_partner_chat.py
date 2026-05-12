@@ -1,5 +1,6 @@
 """/api/ai-partner-chat router — AI 夥伴對話 (fn_ai_partner_chat)."""
 
+import re
 import uuid
 from typing import Optional
 
@@ -40,6 +41,8 @@ from app.logger_utils import get_system_logger
 from app.services import ai_agent
 from app.services.ai_agent import AgentMaxIterationError
 from app.services.llm_client import LLMClientError
+from app.services.llm_client import chat as llm_chat
+from app.utils.crypto import decrypt
 from app.utils.util_store import AuthContext, authenticate
 
 router = APIRouter(prefix="/ai-partner-chat", tags=["fn_ai_partner_chat"])
@@ -163,10 +166,19 @@ def _build_tool_definitions(
             if p.is_required:
                 required_params.append(p.param_name)
 
+        # 從 endpoint_url 解析 {param} 佔位符，補足 body params 未涵蓋的參數
+        for url_param in re.findall(r"\{(\w+)\}", tool.endpoint_url or ""):
+            if url_param not in properties:
+                properties[url_param] = {"type": "string", "description": url_param}
+                required_params.append(url_param)
+
+        # Anthropic tool names must match ^[a-zA-Z0-9_-]{1,64}$; use tool_{id} as safe name
+        safe_name = f"tool_{tool.id}"
+
         tool_defs.append(
             {
-                "name": tool.name,
-                "description": tool.description or "",
+                "name": safe_name,
+                "description": tool.description or tool.name,
                 "input_schema": {
                     "type": "object",
                     "properties": properties,
@@ -178,12 +190,14 @@ def _build_tool_definitions(
         # Execution config
         tool_configs.append(
             {
-                "name": tool.name,
+                "name": safe_name,
                 "endpoint_url": tool.endpoint_url,
                 "http_method": tool.http_method,
                 "auth_type": tool.auth_type,
                 "auth_header_name": tool.auth_header_name,
-                "credential": tool.credential_enc or "",
+                "credential": decrypt(tool.credential_enc)
+                if tool.credential_enc
+                else "",
             }
         )
 
@@ -209,14 +223,74 @@ def _build_context_messages(conversation_id: str, db: Session) -> list[dict]:
 # ── Suggestions parsing ───────────────────────────────────────────────────────
 
 
-def _parse_suggestions(tool_calls: list[dict]) -> list[str]:
-    """從 tool_use 結果解析 suggestions（字串陣列）。"""
-    for tc in tool_calls:
-        inp = tc.get("input", {})
-        if "suggestions" in inp:
-            suggestions = inp["suggestions"]
-            if isinstance(suggestions, list):
-                return [str(s) for s in suggestions]
+def _build_param_context(tool_defs: list[dict]) -> str:
+    """從工具定義清單萃取必填參數提示，供建議問題生成使用。"""
+    hints = []
+    for tool in tool_defs:
+        schema = tool.get("input_schema", {})
+        required = schema.get("required", [])
+        if required:
+            desc = tool.get("description", tool.get("name", ""))
+            hints.append(f"「{desc}」需要：{'、'.join(required)}")
+    return "；".join(hints) if hints else ""
+
+
+def _generate_suggestions(
+    tool_defs: list[dict],
+    last_user_msg: str,
+    last_ai_msg: str,
+    model: str,
+    system_prompt: str,
+) -> list[str]:
+    """在每輪對話後生成 8 條參數完整的後續建議問題。失敗時靜默回傳空陣列。"""
+    param_context = _build_param_context(tool_defs)
+    param_note = (
+        f"注意工具必填欄位：{param_context}，建議問題必須包含具體值（例如城市名稱），不能只說「查詢天氣」。"
+        if param_context
+        else ""
+    )
+
+    suggest_tool = {
+        "name": "provide_suggestions",
+        "description": "提供後續建議問題",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "suggestions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "8 條後續建議問題",
+                },
+            },
+            "required": ["suggestions"],
+        },
+    }
+
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                f"用戶問：{last_user_msg}\nAI 答：{last_ai_msg[:300]}\n\n"
+                f"請使用 provide_suggestions tool 提供 8 條自然的後續建議問題。{param_note}"
+            ),
+        }
+    ]
+
+    try:
+        result = llm_chat(
+            model=settings.anthropic_fast_model,
+            system=system_prompt,
+            messages=messages,
+            tools=[suggest_tool],
+        )
+        for tc in result.get("tool_calls", []):
+            if tc.get("name") == "provide_suggestions":
+                s = tc.get("input", {}).get("suggestions", [])
+                if isinstance(s, list):
+                    return [str(x) for x in s]
+    except Exception:
+        pass
+
     return []
 
 
@@ -385,7 +459,7 @@ def send_message(
     user_msg = Message(
         conversation_id=conversation_id,
         role="user",
-        content=user_content,
+        content=user_content if user_content else "[圖片]",
         image_url=None,  # 暫存 NULL，待 R2 整合
     )
     db.add(user_msg)
@@ -443,7 +517,15 @@ def send_message(
         )
 
     ai_content = result.get("content", "")
-    suggestions = _parse_suggestions(result.get("tool_calls", []))
+
+    # 生成參數完整的後續建議問題
+    suggestions = _generate_suggestions(
+        tool_defs=tool_defs,
+        last_user_msg=user_content,
+        last_ai_msg=ai_content,
+        model=model,
+        system_prompt=system_prompt,
+    )
 
     # 寫入 AI 回覆
     ai_msg = Message(
@@ -454,15 +536,17 @@ def send_message(
     )
     db.add(ai_msg)
 
-    # 更新 latest_suggestions
-    conversation.latest_suggestions = suggestions if suggestions else None
+    # 更新 latest_suggestions（有新 suggestions 才覆寫，否則保留舊值）
+    if suggestions:
+        conversation.latest_suggestions = suggestions
 
     db.commit()
     system_logger.info(
         f"User {auth.user_id} sent message to partner {partner_id}, conv {conversation_id}"
     )
 
-    return SendOut(data=SendData(content=ai_content, suggestions=suggestions))
+    response_suggestions = suggestions or (conversation.latest_suggestions or [])
+    return SendOut(data=SendData(content=ai_content, suggestions=response_suggestions))
 
 
 # ── POST /api/ai-partner-chat/new ────────────────────────────────────────────
@@ -505,58 +589,58 @@ def new_conversation(
         .first()
     )
     system_prompt = _build_system_prompt(partner)
-    model = settings.anthropic_model
 
-    # 組裝工具定義（含 suggestions tool）
-    tool_defs, tool_configs = _build_tool_definitions(payload.partner_id, db)
+    # 取得工具必填參數資訊供建議問題生成使用
+    tool_defs_for_greeting, _ = _build_tool_definitions(payload.partner_id, db)
+    param_context = _build_param_context(tool_defs_for_greeting)
+    param_note = (
+        f"建議問題必須包含工具所需的具體值（{param_context}）。"
+        if param_context
+        else ""
+    )
 
-    # 加入一個內建 suggestions tool 以取得初始 suggestions
+    # 直接呼叫一次 LLM 產生開場問候，從 tool_use response 取 greeting + suggestions
     greeting_tool = {
         "name": "provide_greeting_and_suggestions",
         "description": "提供開場問候與初始建議問題",
         "input_schema": {
             "type": "object",
             "properties": {
-                "greeting": {"type": "string", "description": "AI 開場問候訊息"},
+                "greeting": {
+                    "type": "string",
+                    "description": "AI 開場問候（三五行以內）",
+                },
                 "suggestions": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "初始建議問題陣列（3-5 條）",
+                    "description": "初始建議問題陣列（8 條）",
                 },
             },
             "required": ["greeting", "suggestions"],
         },
     }
-    greeting_tools = [greeting_tool] + tool_defs
 
-    # 產生開場問候的 prompt
     greeting_messages = [
         {
             "role": "user",
-            "content": "請使用 provide_greeting_and_suggestions tool 提供開場問候（含自我介紹、可協助項目、互動提示範例）與初始建議問題。",
+            "content": f"請使用 provide_greeting_and_suggestions tool。問候三五行以內：一句自介＋兩項你能協助的事，並提供 8 條建議問題。{param_note}",
         }
     ]
 
     try:
-        result = ai_agent.run(
-            model=model,
+        result = llm_chat(
+            model=settings.anthropic_fast_model,
             system=system_prompt,
             messages=greeting_messages,
-            tools=greeting_tools,
-            tool_configs=tool_configs or None,
+            tools=[greeting_tool],
         )
-    except (AgentMaxIterationError, LLMClientError) as exc:  # fmt: skip
+    except LLMClientError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         )
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI 服務暫時無法使用",
-        )
 
-    # 解析問候與 suggestions
+    # 從 tool_use input 直接取得 greeting + suggestions
     greeting_content = result.get("content", "")
     suggestions: list[str] = []
     for tc in result.get("tool_calls", []):
