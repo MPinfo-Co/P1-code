@@ -125,7 +125,6 @@ export default function FnAiPartnerConfigList() {
           <Button
             size="small"
             variant="outlined"
-            color="error"
             className="fn-ai-partner-config-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
@@ -163,12 +162,12 @@ export default function FnAiPartnerConfigList() {
           套用
         </Button>
         <Button
-          variant="contained"
+          variant="outlined"
           size="small"
           onClick={handleAddClick}
           className="fn-ai-partner-config-add-btn"
         >
-          ＋ 新增夥伴
+          新增
         </Button>
       </Box>
 
@@ -238,7 +237,6 @@ export default function FnAiPartnerConfigList() {
           <Button
             onClick={handleDeleteConfirm}
             variant="contained"
-            color="error"
             disabled={deletePartner.isPending}
           >
             {deletePartner.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}

@@ -104,7 +104,6 @@ export default function FnToolList() {
           <Button
             size="small"
             variant="outlined"
-            color="error"
             className="fn-tool-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
@@ -137,12 +136,12 @@ export default function FnToolList() {
           套用
         </Button>
         <Button
-          variant="contained"
+          variant="outlined"
           size="small"
           onClick={handleAddClick}
           className="fn-tool-add-btn"
         >
-          ＋ 新增工具
+          新增
         </Button>
       </Box>
 
@@ -209,12 +208,7 @@ export default function FnToolList() {
           >
             取消
           </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            variant="contained"
-            color="error"
-            disabled={deleteTool.isPending}
-          >
+          <Button onClick={handleDeleteConfirm} variant="contained" disabled={deleteTool.isPending}>
             {deleteTool.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}
           </Button>
         </DialogActions>
