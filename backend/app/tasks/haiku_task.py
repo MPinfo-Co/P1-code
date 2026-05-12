@@ -40,7 +40,12 @@ def run_haiku_task(
         return
 
     # TC-04: 連線資訊未設定時記錄失敗並提早結束，不丟未捕捉例外
-    if not rt.ssb_host or not rt.ssb_logspace or not rt.ssb_username or not rt.ssb_password:
+    if (
+        not rt.ssb_host
+        or not rt.ssb_logspace
+        or not rt.ssb_username
+        or not rt.ssb_password
+    ):
         db = db_factory()
         time_to = datetime.utcnow()
         time_from = time_to - timedelta(minutes=settings.haiku_interval_minutes)

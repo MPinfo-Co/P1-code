@@ -8,7 +8,7 @@ TC-05: settings_sync 重新載入後，後續排程使用新 host 拼裝 URL。
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -48,7 +48,9 @@ def test_ssb_client_base_url_matches_test_api_rule(db_session):
     )
 
     ant = MagicMock()
-    ant.messages.create.return_value = MagicMock(content=[MagicMock(text=json.dumps([]))])
+    ant.messages.create.return_value = MagicMock(
+        content=[MagicMock(text=json.dumps([]))]
+    )
 
     run_haiku_task(
         ssb_client_factory=fake_ssb_factory,
@@ -80,7 +82,9 @@ def test_ssb_client_base_url_with_non_standard_port(db_session):
     )
 
     ant = MagicMock()
-    ant.messages.create.return_value = MagicMock(content=[MagicMock(text=json.dumps([]))])
+    ant.messages.create.return_value = MagicMock(
+        content=[MagicMock(text=json.dumps([]))]
+    )
 
     run_haiku_task(
         ssb_client_factory=fake_ssb_factory,
@@ -125,7 +129,9 @@ def test_haiku_task_marks_failed_when_ssb_host_is_none(db_session):
         db_factory=lambda: db_session,
     )
 
-    assert len(ssb_called) == 0, "SSBClient should not be instantiated when host is None"
+    assert len(ssb_called) == 0, (
+        "SSBClient should not be instantiated when host is None"
+    )
 
     batches = db_session.query(LogBatch).all()
     assert len(batches) == 1
@@ -194,7 +200,9 @@ def reset_runtime():
     scheduler._runtime = scheduler.RuntimeSettings()
 
 
-def test_settings_sync_updates_ssb_host_in_runtime(db_session, reset_runtime, monkeypatch):
+def test_settings_sync_updates_ssb_host_in_runtime(
+    db_session, reset_runtime, monkeypatch
+):
     """對應 TC-05
 
     tb_expert_settings 修改 ssb_host 並呼叫 _sync_settings 後，

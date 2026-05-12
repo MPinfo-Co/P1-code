@@ -54,6 +54,12 @@ def test_settings_ssb_env_vars_removed(monkeypatch, tmp_path):
     )
     s = Settings(_env_file=str(env_file))
     # Settings no longer has ssb_host / ssb_username / ssb_password attributes
-    assert not hasattr(s, "ssb_host"), "ssb_host should be removed from Settings (issue-290)"
-    assert not hasattr(s, "ssb_username"), "ssb_username should be removed from Settings (issue-290)"
-    assert not hasattr(s, "ssb_password"), "ssb_password should be removed from Settings (issue-290)"
+    assert not hasattr(s, "ssb_host"), (
+        "ssb_host should be removed from Settings (issue-290)"
+    )
+    assert not hasattr(s, "ssb_username"), (
+        "ssb_username should be removed from Settings (issue-290)"
+    )
+    assert not hasattr(s, "ssb_password"), (
+        "ssb_password should be removed from Settings (issue-290)"
+    )
