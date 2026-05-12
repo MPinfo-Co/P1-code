@@ -128,9 +128,4 @@ def run_haiku_task(
     batch.status = "done"
     db.commit()
     logger.info(
-        "haiku_task: batch_id=%s records=%d chunks=%d/%d",
-        batch.id,
-        batch.records_fetched,
-        batch.chunks_done,
-        batch.chunks_total,
-    )
+        f"haiku_task: batch_id={batch.id} records={batch.records_fetched} chunks={batch.chunks_done}/{batch.chunks_total}")
