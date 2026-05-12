@@ -31,7 +31,9 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
 
     Args:
         db: Active SQLAlchemy session.
-        today: Date used to filter ``LogBatch.time_from``.
+        today: Date used to filter ``LogBatch.time_to`` (batch 結束時間落在 today
+            才收進；以結束時間歸屬可避免跨日 batch（如 23:55–00:05 開始於昨天）
+            被永遠漏掉）。
 
     Returns:
         Mapping from ``match_key`` to the list of raw events sharing it.
@@ -41,7 +43,7 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
         db.query(ChunkResult)
         .join(LogBatch, ChunkResult.batch_id == LogBatch.id)
         .filter(
-            func.date(LogBatch.time_from) == today,
+            func.date(LogBatch.time_to) == today,
             ChunkResult.status == "done",
         )
         .all()
