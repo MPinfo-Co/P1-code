@@ -52,6 +52,7 @@ def _sync_settings() -> None:
         if row is None:
             logger.info("tb_expert_settings has no id=1 row; scheduler stays disabled")
             return
+        logger.info(f"Schedule settings: enable: f{row.is_enabled}, schedule_time: {row.schedule_time}, ssb_host: {row.ssb_host}, ssb_port: {row.ssb_port}, ssb_logspace: {row.ssb_logspace}")
         new_rt = RuntimeSettings(
             is_enabled=bool(row.is_enabled),
             schedule_time=row.schedule_time,
