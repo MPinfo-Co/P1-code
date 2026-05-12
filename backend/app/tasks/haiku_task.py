@@ -84,6 +84,7 @@ def run_haiku_task(
     items = forti + others
     chunk_size = settings.haiku_chunk_size
     chunks = [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
+    logger.info(f"Retrieving {str(len(chunks))} chunks")
 
     db = db_factory()
     batch = LogBatch(

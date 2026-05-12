@@ -103,6 +103,9 @@ def aggregate_daily(
         model=MODEL,
         max_tokens=MAX_TOKENS,
         system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": "["},
+        ],
     )
-    return json.loads(msg.content[0].text)
+    return json.loads("[" + msg.content[0].text)
