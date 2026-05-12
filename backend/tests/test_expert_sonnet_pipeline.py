@@ -6,7 +6,6 @@ and T-EV-04, T-EV-05 (GET /events/{id} affected_detail content).
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -57,11 +56,17 @@ def _seed_company_data(db, rows: list[dict]) -> None:
 
 
 def _fake_anthropic(events: list[dict]) -> MagicMock:
-    """Return an Anthropic client mock returning the given events."""
+    """Return an Anthropic client mock returning the given events as a tool_use block.
+
+    對齊 main 上 #211 改造後的 claude_pro.aggregate_daily：Sonnet 改用
+    `emit_daily_events` tool call 回傳事件清單，不再走 JSON 文字輸出。
+    """
     ant = MagicMock()
-    ant.messages.create.return_value = MagicMock(
-        content=[MagicMock(text=json.dumps(events))]
-    )
+    block = MagicMock()
+    block.type = "tool_use"
+    block.name = "emit_daily_events"
+    block.input = {"events": events}
+    ant.messages.create.return_value = MagicMock(content=[block])
     return ant
 
 

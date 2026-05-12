@@ -1,36 +1,39 @@
 import os
 
-# Must be set before any app module is imported, as settings are loaded at import time.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest")
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
-from sqlalchemy.pool import StaticPool  # noqa: E402
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from fastapi.testclient import TestClient
 
-from app.db.connector import get_db  # noqa: E402
-from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch  # noqa: E402
-from app.db.models.events import EventHistory, SecurityEvent  # noqa: E402
-from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner  # noqa: E402
-from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool  # noqa: E402
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam  # noqa: E402
-from app.db.models.fn_company_data import CompanyData  # noqa: E402
-from app.db.models.fn_expert_setting import ExpertSetting  # noqa: E402
-from app.db.models.fn_feedback import Feedback  # noqa: E402
-from app.db.models.function_access import (  # noqa: E402
-    FunctionFolder,
+from app.db.connector import get_db
+from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
+from app.db.models.events import EventHistory, SecurityEvent
+from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
+from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_company_data import CompanyData
+from app.db.models.fn_expert_setting import ExpertSetting
+from app.db.models.fn_feedback import Feedback
+from app.db.models.function_access import (
     FunctionItems as Function,
+    FunctionFolder,
     RoleFunction,
 )
-from app.db.models.user_role import Role, TokenBlacklist, User, UserRole  # noqa: E402
-from app.main import app  # noqa: E402
+from app.db.models.user_role import Role, TokenBlacklist, User, UserRole
+from app.main import app
 
-# SQLite compatibility patches for in-memory testing.
-# 1. JSONB → rendered as JSON (SQLite has no JSONB type).
-# 2. BIGINT → rendered as INTEGER so SQLite autoincrement works correctly.
+
+# SQLite compatibility patches for in-memory testing:
+# 1. JSONB → JSON  (SQLite has no native JSONB)
+# 2. BIGINT → INTEGER  (SQLite autoincrement requires INTEGER PK)
+# 加 module-level patch 讓 client/engine fixture 也能建含 JSONB/BIGINT 欄位的表
+# （tb_security_events 等）。db_session fixture 另外有 dynamic patching 機制、
+# 兩者並行不衝突。
 
 
 def _visit_JSONB(self, type_, **kw):  # noqa: N802
@@ -62,26 +65,17 @@ _SEED_TABLES = [
     Message.__table__,
     RoleAiPartner.__table__,
     Feedback.__table__,
-    # Event / pipeline tables (needed for /events/* endpoints)
+    # events / company-data 也走 client HTTP test（T-EV-04 / T-EV-05），需在 seed 階段建表
     SecurityEvent.__table__,
     EventHistory.__table__,
-    LogBatch.__table__,
-    ChunkResult.__table__,
-    DailyAnalysis.__table__,
     CompanyData.__table__,
-    ExpertSetting.__table__,
 ]
 
-# Pipeline / analysis tables — used by db_session fixture (haiku/pro/smoke tests)
-_PIPELINE_TABLES = [
-    User.__table__,
-    SecurityEvent.__table__,
-    EventHistory.__table__,
+_TASK_TABLES = [
+    ExpertSetting.__table__,
     LogBatch.__table__,
     ChunkResult.__table__,
     DailyAnalysis.__table__,
-    CompanyData.__table__,
-    ExpertSetting.__table__,
 ]
 
 
@@ -118,20 +112,56 @@ def client(engine):
 
 @pytest.fixture(scope="function")
 def db_session():
-    """In-memory SQLite session for pipeline task tests (haiku/pro/smoke/company-data)."""
+    """In-memory SQLAlchemy session for unit tests that need direct DB access.
+
+    Creates all task-related tables (LogBatch, ChunkResult, etc.) alongside
+    the common seed tables so scheduler / task tests can exercise DB I/O.
+
+    Two compatibility patches are applied temporarily for SQLite:
+    - JSONB columns → JSON  (SQLite has no native JSONB)
+    - BigInteger PK columns → Integer  (SQLite RETURNING does not support BIGINT autoincrement)
+    """
+    from sqlalchemy import BigInteger, Integer, JSON
+    from sqlalchemy.dialects.postgresql import JSONB as _JSONB
+
+    all_tables = _SEED_TABLES + _TASK_TABLES
+
+    _patched: list[tuple] = []
+    for table in all_tables:
+        for col in table.columns:
+            if isinstance(col.type, _JSONB):
+                _patched.append((col, col.type))
+                col.type = JSON()
+            elif isinstance(col.type, BigInteger):
+                _patched.append((col, col.type))
+                col.type = Integer()
+
     _engine = create_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    for table in _PIPELINE_TABLES:
+    for table in all_tables:
         table.create(bind=_engine, checkfirst=True)
 
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
-    session = TestingSessionLocal()
+    # Restore original types so other tests / the real app are not affected
+    for col, original_type in _patched:
+        col.type = original_type
+
+    Session = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    session = Session()
     try:
         yield session
     finally:
         session.close()
-        for table in reversed(_PIPELINE_TABLES):
+        # Re-patch to allow drop
+        for col, original_type in _patched:
+            orig = original_type
+            if isinstance(orig, _JSONB):
+                col.type = JSON()
+            elif isinstance(orig, BigInteger):
+                col.type = Integer()
+        for table in reversed(all_tables):
             table.drop(bind=_engine, checkfirst=True)
+        for col, original_type in _patched:
+            col.type = original_type

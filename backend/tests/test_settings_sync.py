@@ -51,7 +51,7 @@ def test_sync_loads_is_enabled_and_decrypts_password(
     """_sync_settings must populate RuntimeSettings from the DB row and decrypt the password."""
     expert_row.is_enabled = True
     expert_row.schedule_time = "02:30"
-    expert_row.ssb_host = "192.168.10.48"
+    expert_row.ssb_host = "https://192.168.10.48"
     expert_row.ssb_port = 443
     expert_row.ssb_logspace = "ALL"
     expert_row.ssb_username = "svc"
@@ -64,7 +64,7 @@ def test_sync_loads_is_enabled_and_decrypts_password(
     rt = scheduler.get_runtime()
     assert rt.is_enabled is True
     assert rt.schedule_time == "02:30"
-    assert rt.ssb_host == "192.168.10.48"
+    assert rt.ssb_host == "https://192.168.10.48"
     assert rt.ssb_username == "svc"
     assert rt.ssb_password == "p@ss"
     assert rt.last_loaded_at is not None

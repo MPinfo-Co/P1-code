@@ -80,7 +80,7 @@ export default function Sidebar() {
             <Box key={folder.folder_code}>
               <ListItemButton
                 onClick={() => handleToggleFolder(folder.folder_code)}
-                sx={{ px: 3, py: 1.2, '&:hover': { bgcolor: '#1e293b' } }}
+                sx={{ px: 3, py: '2px', minHeight: 0, '&:hover': { bgcolor: '#1e293b' } }}
               >
                 <ListItemIcon sx={iconSx}>{ICON_MAP[folder.folder_code]}</ListItemIcon>
                 <ListItemText primary={folder.folder_label} sx={textSx} />
@@ -102,7 +102,8 @@ export default function Sidebar() {
                         <ListItemButton
                           sx={{
                             pl: 7,
-                            py: 1,
+                            py: '2px',
+                            minHeight: 0,
                             ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
                           }}
                         >

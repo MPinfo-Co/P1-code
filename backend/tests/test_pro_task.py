@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -25,8 +24,14 @@ class FakeAnthropic:
 
     def create(self, **kw):
         self.calls += 1
+        # main #211 改 claude_pro.aggregate_daily 用 emit_daily_events tool call
+        # 回傳事件清單，不再走 JSON 文字輸出。mock 對齊新 contract。
         msg = MagicMock()
-        msg.content = [MagicMock(text=json.dumps(self.events))]
+        block = MagicMock()
+        block.type = "tool_use"
+        block.name = "emit_daily_events"
+        block.input = {"events": self.events}
+        msg.content = [block]
         return msg
 
 

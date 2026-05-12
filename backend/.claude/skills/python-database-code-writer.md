@@ -4,7 +4,7 @@ description: Generate codes associate to database
 ---
 Generate code fits requirement of the project
 
-1. **Framework**: Use SqlAlchemy 2.0 ORM
+1. **Framework**: Use SqlAlchemy 2.0 ORM, use @app/api/db/connector.py `get_db` to get a session
 2. **Database Structure**: Table schemas defines in @app/db/models, table schema root `DeclarativeBase` class stored in @app/db/models/base.py, other table inherited from this file
 3. **CRUD Logic**: Coded with API routes in @app/api/
 4. **Workflow**: Operate in order, skip if not required
