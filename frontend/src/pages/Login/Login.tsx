@@ -67,6 +67,7 @@ export default function Login() {
             fullWidth
             size="large"
             disabled={isLoading}
+            className="login-btn"
           >
             {isLoading ? '登入中...' : '登入系統'}
           </Button>
