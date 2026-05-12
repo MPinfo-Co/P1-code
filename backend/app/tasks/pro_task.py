@@ -111,6 +111,16 @@ def _upsert_event(db: Session, today: date, ev: dict) -> tuple[bool, bool]:
         existing.detection_count = (existing.detection_count or 0) + ev.get(
             "detection_count", 1
         )
+        # Refresh Sonnet-produced fields so 新【分析依據】、新 suggests、重新分析的標題/風險評估
+        # 都會反映到既有 row（current_status 與 created_at 保留 DB metadata）
+        existing.star_rank = ev["star_rank"]
+        existing.title = ev["title"]
+        existing.description = ev.get("description")
+        existing.affected_summary = ev["affected_summary"]
+        existing.affected_detail = ev.get("affected_detail")
+        existing.suggests = ev.get("suggests")
+        existing.ioc_list = ev.get("ioc_list")
+        existing.mitre_tags = ev.get("mitre_tags")
         existing.updated_at = datetime.now(timezone.utc)
         return False, True
 

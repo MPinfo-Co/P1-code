@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field("claude-sonnet-4-6", alias="ANTHROPIC_MODEL")
 
-    # Anthropic (single key shared by Haiku + Sonnet jobs)
-    anthropic_api_key: str | None = Field(None, alias="ANTHROPIC_API_KEY")
-
     # SSB defaults — only used when tb_expert_settings is unconfigured (dev fallback;
     # production must populate the DB row via /api/expert/settings)
     ssb_host: str | None = Field(None, alias="SSB_HOST")

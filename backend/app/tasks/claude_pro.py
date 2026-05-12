@@ -77,16 +77,6 @@ USER_PROMPT_TEMPLATE = """今天日期：{today}
   "continued_from_match_key": "昨天的 match_key（若為延續事件），否則 null"
 }}"""
 
-COMPANY_DATA_SECTION_TEMPLATE = """
-【公司背景資料】（共 {count} 筆，分析時可參考並在【分析依據】段落引用）
-
-{entries}
-【引用規則】
-- 若候選事件命中其中描述的正常行為 → 判定為非事件，從輸出排除（不寫入 tb_security_events）
-- 若參考了某筆公司資料 → affected_detail 末尾加【分析依據】段落，格式：
-  「參考公司資料『{data_name_placeholder}』：{related_content_placeholder}」
-- 一次分析可引用多筆公司資料；未引用任何公司資料時，整段不出現（不留空段落）"""
-
 
 def _load_company_data(db: Session) -> list[dict]:
     """Load all company data rows ordered by updated_at DESC.
@@ -133,8 +123,18 @@ def _build_company_data_prompt(company_data: list[dict]) -> str:
         total_chars += len(entry)
 
     entries_text = "".join(entries_parts)
-    section = (
-        f"\n【公司背景資料】（共 {len(company_data)} 筆，分析時可參考並在【分析依據】段落引用）\n\n"
+    included = len(entries_parts)
+    total = len(company_data)
+    if truncated:
+        header = (
+            f"\n【公司背景資料】（共 {total} 筆，列入 {included} 筆；其餘因長度未列入，"
+            f"分析時可參考並在【分析依據】段落引用）\n\n"
+        )
+    else:
+        header = f"\n【公司背景資料】（共 {total} 筆，分析時可參考並在【分析依據】段落引用）\n\n"
+
+    return (
+        f"{header}"
         f"{entries_text}"
         "【引用規則】\n"
         "- 若候選事件命中其中描述的正常行為 → 判定為非事件，從輸出排除（不寫入 tb_security_events）\n"
@@ -142,11 +142,6 @@ def _build_company_data_prompt(company_data: list[dict]) -> str:
         "  「參考公司資料『{資料名稱}』：{相關段落或重述}」\n"
         "- 一次分析可引用多筆公司資料；未引用任何公司資料時，整段不出現（不留空段落）"
     )
-
-    if truncated:
-        section += "\n（部分公司資料因長度未列入）"
-
-    return section
 
 
 def aggregate_daily(

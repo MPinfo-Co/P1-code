@@ -574,15 +574,16 @@ def test_build_company_data_prompt_with_data():
     ]
     result = claude_pro._build_company_data_prompt(rows)
     assert "【公司背景資料】" in result
+    assert "共 2 筆" in result
     assert "規範 A" in result
     assert "內容 A" in result
     assert "規範 B" in result
     assert "【引用規則】" in result
-    assert "（部分公司資料因長度未列入）" not in result
+    assert "其餘因長度未列入" not in result
 
 
 def test_build_company_data_prompt_truncation(monkeypatch):
-    """When total length exceeds max_tokens, truncation note is appended."""
+    """When total length exceeds max_tokens, header reports total vs included."""
     monkeypatch.setattr(
         "app.tasks.claude_pro.settings",
         type("S", (), {"sonnet_company_data_max_tokens": 50})(),
@@ -592,4 +593,5 @@ def test_build_company_data_prompt_truncation(monkeypatch):
         {"name": "規範 B", "content": "B" * 100},
     ]
     result = claude_pro._build_company_data_prompt(rows)
-    assert "（部分公司資料因長度未列入）" in result
+    assert "共 2 筆" in result
+    assert "其餘因長度未列入" in result
