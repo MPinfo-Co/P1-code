@@ -57,7 +57,11 @@ def _normalize_tool_names(
             candidate = "tool_" + candidate
 
         # 步驟3：若為空字串或仍不合法，或與已用名稱重複，改用 tool_{index}
-        if not candidate or not re.match(r"^[a-zA-Z][a-zA-Z0-9_\-]*$", candidate) or candidate in used_names:
+        if (
+            not candidate
+            or not re.match(r"^[a-zA-Z][a-zA-Z0-9_\-]*$", candidate)
+            or candidate in used_names
+        ):
             candidate = f"tool_{idx}"
 
         used_names.add(candidate)
