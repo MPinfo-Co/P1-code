@@ -36,7 +36,7 @@ def test_settings_has_anthropic_and_scheduler_fields(monkeypatch, tmp_path):
     assert s.haiku_chunk_size == 100
     assert s.haiku_max_retry == 8
     assert s.analysis_mode == "full"  # default
-    assert s.expert_settings_reload_minutes == 60  # default
+    assert s.expert_settings_reload_minutes == 5  # default
 
 
 def test_settings_ssb_env_vars_removed(monkeypatch, tmp_path):

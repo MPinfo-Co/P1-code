@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # Settings sync cadence (Sonnet's HH:MM comes from DB; this controls how often we re-read)
     expert_settings_reload_minutes: int = Field(
-        60, alias="EXPERT_SETTINGS_RELOAD_MINUTES"
+        5, alias="EXPERT_SETTINGS_RELOAD_MINUTES"
     )
 
 
