@@ -41,7 +41,8 @@ def test_smoke_haiku_then_pro(db_session):
     """Run the Haiku orchestrator then the Pro orchestrator and verify both writes."""
     scheduler._runtime = scheduler.RuntimeSettings(
         is_enabled=True,
-        ssb_host="https://h",
+        ssb_host="192.168.10.48",
+        ssb_port=443,
         ssb_logspace="ALL",
         ssb_username="u",
         ssb_password="p",

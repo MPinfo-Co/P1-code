@@ -49,7 +49,8 @@ def test_haiku_skips_when_disabled(db_session):
 def test_haiku_writes_batch_and_chunk_when_enabled(db_session):
     scheduler._runtime = scheduler.RuntimeSettings(
         is_enabled=True,
-        ssb_host="https://h",
+        ssb_host="192.168.10.48",
+        ssb_port=443,
         ssb_logspace="ALL",
         ssb_username="u",
         ssb_password="p",
