@@ -124,7 +124,6 @@ export default function FnRoleList() {
           <Button
             size="small"
             variant="outlined"
-            color="error"
             className="fn-role-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
@@ -157,12 +156,12 @@ export default function FnRoleList() {
           套用
         </Button>
         <Button
-          variant="contained"
+          variant="outlined"
           size="small"
           onClick={handleAddClick}
           className="fn-role-add-btn"
         >
-          ＋ 新增角色
+          新增
         </Button>
       </Box>
 
@@ -234,12 +233,7 @@ export default function FnRoleList() {
           >
             取消
           </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            variant="contained"
-            color="error"
-            disabled={deleteRole.isPending}
-          >
+          <Button onClick={handleDeleteConfirm} variant="contained" disabled={deleteRole.isPending}>
             {deleteRole.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}
           </Button>
         </DialogActions>

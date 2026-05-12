@@ -153,7 +153,6 @@ export default function FnUserList() {
           <Button
             size="small"
             variant="outlined"
-            color="error"
             className="fn-user-action-btn-error"
             onClick={() => handleDeleteClick(row)}
           >
@@ -203,12 +202,12 @@ export default function FnUserList() {
           套用
         </Button>
         <Button
-          variant="contained"
+          variant="outlined"
           size="small"
           onClick={handleAddClick}
           className="fn-user-add-btn"
         >
-          新增使用者
+          新增
         </Button>
       </Box>
 
@@ -280,12 +279,7 @@ export default function FnUserList() {
           >
             取消
           </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            variant="contained"
-            color="error"
-            disabled={deleteUser.isPending}
-          >
+          <Button onClick={handleDeleteConfirm} variant="contained" disabled={deleteUser.isPending}>
             {deleteUser.isPending ? <CircularProgress size={18} color="inherit" /> : '刪除'}
           </Button>
         </DialogActions>

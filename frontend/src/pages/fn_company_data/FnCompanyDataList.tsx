@@ -116,7 +116,6 @@ export default function FnCompanyDataList() {
           <Button
             size="small"
             variant="outlined"
-            color="error"
             onClick={() => handleDeleteClick(params.row)}
             sx={{ fontSize: 12, height: 24, minWidth: 40, borderRadius: '3px' }}
           >
@@ -154,12 +153,12 @@ export default function FnCompanyDataList() {
           套用
         </Button>
         <Button
-          variant="contained"
+          variant="outlined"
           size="small"
           onClick={handleAddClick}
           className="fn-company-data-add-btn"
         >
-          新增資料
+          新增
         </Button>
       </Box>
 
@@ -229,7 +228,6 @@ export default function FnCompanyDataList() {
           <Button
             onClick={handleDeleteConfirm}
             variant="contained"
-            color="error"
             disabled={deleteCompanyData.isPending}
           >
             {deleteCompanyData.isPending ? <CircularProgress size={18} color="inherit" /> : '確認'}

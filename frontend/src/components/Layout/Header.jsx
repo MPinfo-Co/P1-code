@@ -33,7 +33,7 @@ export default function Header() {
         </Typography>
         <Button
           onClick={logout}
-          sx={{ color: '#ef4444', fontWeight: 600, '&:hover': { bgcolor: '#fef2f2' } }}
+          sx={{ color: '#64748b', fontWeight: 600, '&:hover': { bgcolor: 'transparent' } }}
         >
           登出
         </Button>

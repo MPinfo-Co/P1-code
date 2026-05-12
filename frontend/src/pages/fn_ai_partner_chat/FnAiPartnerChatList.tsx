@@ -45,8 +45,6 @@ export default function FnAiPartnerChatList({ onEnterChat }: Props) {
           onClick={() => onEnterChat(row)}
           sx={{
             fontSize: 12,
-            height: 26,
-            borderRadius: '3px',
             borderColor: '#6366f1',
             color: '#6366f1',
             '&:hover': { bgcolor: '#f0f0ff', borderColor: '#4f46e5' },
