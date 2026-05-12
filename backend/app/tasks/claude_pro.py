@@ -13,6 +13,45 @@ from app.config.settings import settings
 MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 16384
 
+# claude-sonnet-4-6 rejects assistant-message prefill (HTTP 400 invalid_request_error),
+# so we force structured output via a tool_use call instead — the model cannot wrap
+# tool input in markdown fences, eliminating the JSON-parse failure mode.
+EVENT_TOOL = {
+    "name": "emit_daily_events",
+    "description": "Emit the final de-duplicated daily security event list.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "events": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "match_key": {"type": "string"},
+                        "star_rank": {"type": "integer", "minimum": 1, "maximum": 5},
+                        "title": {"type": "string"},
+                        "description": {"type": "string"},
+                        "affected_summary": {"type": "string"},
+                        "affected_detail": {"type": "string"},
+                        "detection_count": {"type": "integer"},
+                        "ioc_list": {"type": "array", "items": {"type": "string"}},
+                        "mitre_tags": {"type": "array", "items": {"type": "string"}},
+                        "suggests": {"type": "array", "items": {"type": "string"}},
+                        "continued_from_match_key": {"type": ["string", "null"]},
+                    },
+                    "required": [
+                        "match_key",
+                        "star_rank",
+                        "title",
+                        "affected_summary",
+                    ],
+                },
+            },
+        },
+        "required": ["events"],
+    },
+}
+
 # Lifted verbatim from app/tasks/old_task/claude_pro.py:20-51 (load-bearing
 # domain prompt — defines merge rules, output format, affected_detail tags).
 SYSTEM_PROMPT = """你是資深資安分析師。根據一整天的 AI 分析結果，產出整合去重後的最終事件清單。
@@ -104,5 +143,10 @@ def aggregate_daily(
         max_tokens=MAX_TOKENS,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
+        tools=[EVENT_TOOL],
+        tool_choice={"type": "tool", "name": "emit_daily_events"},
     )
-    return json.loads("[" + msg.content[0].text)
+    for block in msg.content:
+        if getattr(block, "type", None) == "tool_use" and block.name == "emit_daily_events":
+            return block.input["events"]
+    raise RuntimeError("Sonnet did not emit emit_daily_events tool call")
