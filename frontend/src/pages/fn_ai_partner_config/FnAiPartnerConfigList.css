@@ -21,15 +21,15 @@
 }
 
 .fn-ai-partner-config-apply-btn {
-  height: 24px !important;
+  height: 24px;
   font-size: 12px !important;
-  border-radius: 3px !important;
+  border-radius: 3px;
 }
 
 .fn-ai-partner-config-add-btn {
-  height: 24px !important;
+  height: 24px;
   font-size: 12px !important;
-  border-radius: 3px !important;
+  border-radius: 3px;
   margin-left: auto !important;
 }
 
@@ -51,17 +51,13 @@
 }
 
 .fn-ai-partner-config-action-btn {
-  height: 24px !important;
   font-size: 12px !important;
-  border-radius: 3px !important;
-  padding: 0 8px !important;
+  border-radius: 3px;
 }
 
 .fn-ai-partner-config-action-btn-error {
-  height: 24px !important;
   font-size: 12px !important;
-  border-radius: 3px !important;
-  padding: 0 8px !important;
+  border-radius: 3px;
 }
 
 .fn-ai-partner-config-dialog-title {

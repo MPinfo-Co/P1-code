@@ -322,7 +322,6 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   />
                   <IconButton
                     size="small"
-                    color="error"
                     onClick={() => handleRemoveBodyParam(index)}
                     aria-label="刪除參數"
                   >

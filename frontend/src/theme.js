@@ -19,6 +19,13 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 700,
+          '&:not(.login-btn)': {
+            padding: '2px',
+            lineHeight: 1,
+            minWidth: 'unset',
+            borderRadius: '4px',
+            fontSize: '12px',
+          },
         },
       },
     },

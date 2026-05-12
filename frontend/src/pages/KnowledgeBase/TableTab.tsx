@@ -66,8 +66,8 @@ export default function TableTab({ kb }: Props) {
             可自訂建立或匯入 Excel/CSV
           </Typography>
         </Box>
-        <Button variant="contained" size="small" className="table-tab-add-btn">
-          + 新增資料表
+        <Button variant="outlined" size="small" className="table-tab-add-btn">
+          新增
         </Button>
       </Box>
       <Box className="table-tab-list">

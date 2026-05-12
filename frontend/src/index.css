@@ -22,7 +22,14 @@ body {
 .btn,
 .btn-sm,
 .btn-lg,
-.btn-filter,
-.MuiButton-root:not(.login-btn) {
+.btn-filter {
   padding: 0.5mm;
+}
+
+[class*='-add-btn'] {
+  margin-left: auto !important;
+}
+
+[class*='-actions-cell'] {
+  gap: 4px !important;
 }
