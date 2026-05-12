@@ -67,7 +67,7 @@ def run_haiku_task(
     time_from = time_to - timedelta(minutes=settings.haiku_interval_minutes)
 
     # TC-01: base URL 由 ssb_host/ssb_port 拼裝，與測試連線 API 使用相同規則
-    ssb_base_url = f"https://{rt.ssb_host}:{rt.ssb_port}"
+    ssb_base_url = f"{rt.ssb_host}:{rt.ssb_port}"
     ssb = ssb_client_factory(
         host=ssb_base_url,
         logspace=rt.ssb_logspace,
