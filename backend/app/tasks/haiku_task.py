@@ -39,11 +39,37 @@ def run_haiku_task(
         logger.info("haiku_task: skipped (is_enabled=False)")
         return
 
+    # TC-04: 連線資訊未設定時記錄失敗並提早結束，不丟未捕捉例外
+    if (
+        not rt.ssb_host
+        or not rt.ssb_logspace
+        or not rt.ssb_username
+        or not rt.ssb_password
+    ):
+        db = db_factory()
+        time_to = datetime.utcnow()
+        time_from = time_to - timedelta(minutes=settings.haiku_interval_minutes)
+        batch = LogBatch(
+            time_from=time_from,
+            time_to=time_to,
+            status="failed",
+            records_fetched=0,
+            chunks_total=0,
+            chunks_done=0,
+            error_message="SSB 連線資訊未設定",
+        )
+        db.add(batch)
+        db.commit()
+        logger.warning("haiku_task: SSB 連線資訊未設定，跳過本次執行")
+        return
+
     time_to = datetime.utcnow()
     time_from = time_to - timedelta(minutes=settings.haiku_interval_minutes)
 
+    # TC-01: base URL 由 ssb_host/ssb_port 拼裝，與測試連線 API 使用相同規則
+    ssb_base_url = f"{rt.ssb_host}:{rt.ssb_port}"
     ssb = ssb_client_factory(
-        host=rt.ssb_host,
+        host=ssb_base_url,
         logspace=rt.ssb_logspace,
         username=rt.ssb_username,
         password=rt.ssb_password,
@@ -58,6 +84,7 @@ def run_haiku_task(
     items = forti + others
     chunk_size = settings.haiku_chunk_size
     chunks = [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
+    logger.info(f"Retrieving {str(len(chunks))} chunks")
 
     db = db_factory()
     batch = LogBatch(
@@ -102,9 +129,4 @@ def run_haiku_task(
     batch.status = "done"
     db.commit()
     logger.info(
-        "haiku_task: batch_id=%s records=%d chunks=%d/%d",
-        batch.id,
-        batch.records_fetched,
-        batch.chunks_done,
-        batch.chunks_total,
-    )
+        f"haiku_task: batch_id={batch.id} records={batch.records_fetched} chunks={batch.chunks_done}/{batch.chunks_total}")

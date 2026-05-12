@@ -136,7 +136,7 @@ def _seed_setting(engine, password_enc: str | None = None) -> int:
         frequency="daily",
         schedule_time="02:00",
         weekday=None,
-        ssb_host="192.168.10.48",
+        ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="center",
         ssb_username="mpinfo",
@@ -155,7 +155,7 @@ def _valid_save_payload(**overrides) -> dict:
         "frequency": "daily",
         "schedule_time": "02:00",
         "weekday": None,
-        "ssb_host": "192.168.10.48",
+        "ssb_host": "https://192.168.10.48",
         "ssb_port": 443,
         "ssb_logspace": "center",
         "ssb_username": "mpinfo",
@@ -167,7 +167,7 @@ def _valid_save_payload(**overrides) -> dict:
 
 def _valid_ssb_test_payload(**overrides) -> dict:
     base = {
-        "host": "192.168.10.48",
+        "host": "https://192.168.10.48",
         "port": 443,
         "logspace": "center",
         "username": "mpinfo",

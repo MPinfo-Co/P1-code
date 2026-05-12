@@ -26,7 +26,9 @@ class FakeAnthropic:
     def create(self, **kw):
         self.calls += 1
         msg = MagicMock()
-        msg.content = [MagicMock(text=json.dumps(self.events))]
+        # Production prefills the assistant turn with "[", so the real model's
+        # response continues inside the array — drop the leading "[" here too.
+        msg.content = [MagicMock(text=json.dumps(self.events)[1:])]
         return msg
 
 
