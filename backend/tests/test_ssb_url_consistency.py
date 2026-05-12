@@ -27,8 +27,8 @@ from app.utils.crypto import encrypt
 def test_ssb_client_base_url_matches_test_api_rule(db_session):
     """對應 TC-01
 
-    haiku_task 傳入 SSBClient 的 host 必須為 https://{ssb_host}:{ssb_port}，
-    與設定頁測試連線 API 建構 base_url 的規則完全相同。
+    ssb_host 已包含 scheme（例如 https://），haiku_task 傳入 SSBClient 的 host
+    為 {ssb_host}:{ssb_port}，與設定頁測試連線 API 建構 base_url 的規則完全相同。
     """
     captured_kwargs: dict = {}
 
@@ -40,7 +40,7 @@ def test_ssb_client_base_url_matches_test_api_rule(db_session):
 
     scheduler._runtime = scheduler.RuntimeSettings(
         is_enabled=True,
-        ssb_host="192.168.10.48",
+        ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="center",
         ssb_username="mpinfo",
@@ -58,7 +58,8 @@ def test_ssb_client_base_url_matches_test_api_rule(db_session):
         db_factory=lambda: db_session,
     )
 
-    # 驗證傳給 SSBClient 的 host 與測試連線 API 規則一致：https://{host}:{port}
+    # 驗證傳給 SSBClient 的 host 與測試連線 API 規則一致：{host}:{port}
+    # （host 已含 scheme，直接從 tb_expert_settings.ssb_host 讀出）
     assert captured_kwargs.get("host") == "https://192.168.10.48:443"
 
 
@@ -74,7 +75,7 @@ def test_ssb_client_base_url_with_non_standard_port(db_session):
 
     scheduler._runtime = scheduler.RuntimeSettings(
         is_enabled=True,
-        ssb_host="10.0.0.5",
+        ssb_host="https://10.0.0.5",
         ssb_port=8443,
         ssb_logspace="ALL",
         ssb_username="admin",
@@ -151,7 +152,7 @@ def test_haiku_task_marks_failed_when_ssb_password_is_none(db_session):
 
     scheduler._runtime = scheduler.RuntimeSettings(
         is_enabled=True,
-        ssb_host="192.168.10.48",
+        ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="ALL",
         ssb_username="u",
@@ -214,7 +215,7 @@ def test_settings_sync_updates_ssb_host_in_runtime(
         is_enabled=True,
         frequency="daily",
         schedule_time="02:00",
-        ssb_host="192.168.10.48",
+        ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="center",
         ssb_username="mpinfo",
@@ -227,17 +228,17 @@ def test_settings_sync_updates_ssb_host_in_runtime(
     scheduler._sync_settings()
 
     rt = scheduler.get_runtime()
-    assert rt.ssb_host == "192.168.10.48"
+    assert rt.ssb_host == "https://192.168.10.48"
 
     # 模擬設定頁修改 ssb_host 後儲存
-    row.ssb_host = "10.10.20.30"
+    row.ssb_host = "https://10.10.20.30"
     db_session.commit()
 
     scheduler._sync_settings()
 
     rt_new = scheduler.get_runtime()
-    assert rt_new.ssb_host == "10.10.20.30"
+    assert rt_new.ssb_host == "https://10.10.20.30"
 
-    # 確認拼裝後的 URL 也更新
-    expected_url = f"https://{rt_new.ssb_host}:{rt_new.ssb_port}"
+    # 確認拼裝後的 URL 也更新（ssb_host 已含 scheme，直接拼 port）
+    expected_url = f"{rt_new.ssb_host}:{rt_new.ssb_port}"
     assert expected_url == "https://10.10.20.30:443"
