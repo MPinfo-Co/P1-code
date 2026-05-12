@@ -57,8 +57,18 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
     return dict(grouped)
 
 
-def _yesterday_open_events(db: Session, today: date) -> list[dict]:
-    """Return a digest of yesterday's still-open SecurityEvents for continuity.
+def _recent_open_events_for_continuity(db: Session, today: date) -> list[dict]:
+    """Return a digest of all still-open SecurityEvents before today, for
+    Sonnet continuity detection (continued_from_match_key判斷).
+
+    範圍：`event_date < today` AND `current_status` 為 `pending` 或
+    `investigating`。撈整段歷史 open 事件（不只昨天），讓 Sonnet 有足夠
+    context 判斷今天的事件是不是既有 open 事件的延續。實務上 open 事件
+    數量通常不大、prompt 不會爆。
+
+    註：SD spec `fn_expert_03_backend.md` 中描述「昨天的已確認事件」
+    為過時用語，實際 continuity 設計是看「所有 open 歷史事件」；待
+    SD spec 修正時同步更新（見 PG #206 audit 議題 #14）。
 
     Args:
         db: Active SQLAlchemy session.
@@ -205,7 +215,7 @@ def run_pro_task(
             logger.info(f"pro_task: no chunks for {today}")
             return
 
-        prev = _yesterday_open_events(db, today)
+        prev = _recent_open_events_for_continuity(db, today)
         ant = anthropic_client_factory()
         merged = claude_pro.aggregate_daily(
             grouped_events=grouped,
