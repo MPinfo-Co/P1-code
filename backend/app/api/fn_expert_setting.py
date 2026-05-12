@@ -272,7 +272,7 @@ def test_ssb_connection(
     # 兩步驗證:
     # 1. POST /api/5/login 拿 session token (驗證帳密)
     # 2. GET /api/5/search/logspace/list_logspaces 帶 cookie (驗證 logspace 存在)
-    base_url = f"https://{payload.host}:{payload.port}"
+    base_url = f"{payload.host}:{payload.port}"
     try:
         with httpx.Client(timeout=10.0, verify=False) as http_client:
             # Step 1: login
