@@ -65,8 +65,7 @@ _SEED_TABLES = [
     Message.__table__,
     RoleAiPartner.__table__,
     Feedback.__table__,
-    # events / company-data 也走 client HTTP test（T-EV-04 / T-EV-05），需在 seed 階段建表
-    SecurityEvent.__table__,
+    # PG #207 新增（main 上沒有、加進 seed 不算動 main 既有分組）
     EventHistory.__table__,
     CompanyData.__table__,
 ]
@@ -76,6 +75,7 @@ _TASK_TABLES = [
     LogBatch.__table__,
     ChunkResult.__table__,
     DailyAnalysis.__table__,
+    SecurityEvent.__table__,
 ]
 
 

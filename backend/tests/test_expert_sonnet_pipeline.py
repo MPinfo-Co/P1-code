@@ -480,6 +480,10 @@ def test_ev04_get_event_detail_without_analysis_basis(client, engine):
     from app.db.models.events import SecurityEvent as SE
     from app.utils.util_store import create_access_token
 
+    # main 把 SecurityEvent 放 _TASK_TABLES、client/engine fixture 只建 _SEED_TABLES，
+    # PG #207 HTTP test 在 test 內自行補建（不動 main conftest 分組）
+    SE.__table__.create(bind=engine, checkfirst=True)
+
     Session_ = _sm(bind=engine)
     db = Session_()
 
@@ -524,6 +528,9 @@ def test_ev05_get_event_detail_with_analysis_basis(client, engine):
     from sqlalchemy.orm import sessionmaker as _sm
     from app.db.models.events import SecurityEvent as SE
     from app.utils.util_store import create_access_token
+
+    # 同 T-EV-04 註：在 test 內自行補建 SecurityEvent（main _TASK_TABLES 含、client 不建）
+    SE.__table__.create(bind=engine, checkfirst=True)
 
     Session_ = _sm(bind=engine)
     db = Session_()
