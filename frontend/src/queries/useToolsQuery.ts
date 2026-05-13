@@ -11,13 +11,13 @@ export interface BodyParam {
   description: string
 }
 
-export interface ImageField {
-  field_name: string
-  field_type: 'string' | 'number'
-  description: string
+export interface WebScraperConfig {
+  target_url: string
+  extract_description: string
+  max_chars: number
 }
 
-export type ToolType = 'external_api' | 'image_extract'
+export type ToolType = 'external_api' | 'image_extract' | 'web_scraper'
 
 export interface ToolRow {
   id: number
@@ -30,7 +30,12 @@ export interface ToolRow {
   auth_header_name: string | null
   has_credential: boolean
   body_params?: BodyParam[]
-  image_fields?: ImageField[]
+  image_extract_fields?: {
+    field_name: string
+    field_type: 'string' | 'number'
+    description: string
+  }[]
+  web_scraper_config?: WebScraperConfig | null
 }
 
 export interface ToolQueryParams {
@@ -47,19 +52,30 @@ export interface CreateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  image_fields?: ImageField[]
+  image_extract_fields?: {
+    field_name: string
+    field_type: 'string' | 'number'
+    description: string
+  }[]
+  web_scraper_config?: WebScraperConfig
 }
 
 export interface UpdateToolPayload {
   name: string
   description: string
+  tool_type?: ToolType
   endpoint_url?: string
   auth_type?: 'none' | 'api_key' | 'bearer'
   auth_header_name?: string | null
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  image_fields?: ImageField[]
+  image_extract_fields?: {
+    field_name: string
+    field_type: 'string' | 'number'
+    description: string
+  }[]
+  web_scraper_config?: WebScraperConfig
 }
 
 export interface TestToolPayload {

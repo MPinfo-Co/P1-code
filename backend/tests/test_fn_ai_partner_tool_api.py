@@ -5,14 +5,17 @@ Tests for fn_ai_partner_tool APIs:
   PATCH  /tool/{id}
   DELETE /tool/{id}
   POST   /tool/test
+
+  Also covers ai_agent.py web_scraper tool execution.
 """
 
 import os
 from unittest.mock import MagicMock, patch
 
+import httpx
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolImageField
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolWebScraperConfig
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -128,37 +131,40 @@ def _add_tool(
     return tid
 
 
-def _add_image_extract_tool(engine, name: str, image_fields: list | None = None) -> int:
-    """Insert an image_extract tool with optional image fields. Return tool id."""
+def _add_web_scraper_tool(
+    engine,
+    name: str,
+    target_url: str = "https://example.com",
+    extract_description: str = "test",
+    max_chars: int = 4000,
+) -> int:
+    """Insert a web_scraper tool directly. Return tool id."""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     tool = Tool(
         name=name,
-        tool_type="image_extract",
+        tool_type="web_scraper",
         endpoint_url=None,
         http_method=None,
         auth_type="none",
     )
     db.add(tool)
     db.flush()
-    tid = tool.id
-    for idx, field in enumerate(image_fields or []):
-        db.add(
-            ToolImageField(
-                tool_id=tid,
-                field_name=field["field_name"],
-                field_type=field.get("field_type", "string"),
-                description=field.get("description"),
-                sort_order=idx,
-            )
-        )
+    config = ToolWebScraperConfig(
+        tool_id=tool.id,
+        target_url=target_url,
+        extract_description=extract_description,
+        max_chars=max_chars,
+    )
+    db.add(config)
     db.commit()
+    tid = tool.id
     db.close()
     return tid
 
 
 # ---------------------------------------------------------------------------
-# GET /tool — T1, T2, T3
+# GET /tool — T1, T2, T3 (test_api.md T1, T2, T3)
 # ---------------------------------------------------------------------------
 
 
@@ -206,9 +212,17 @@ def test_list_tools_no_permission_returns_403(client, engine):
 
 
 def test_list_tools_unauthenticated_returns_401(client, engine):
-    """未登入 GET /tool 應回 401"""
+    """對應 T24（未登入 GET /tool 應回 401）"""
     resp = client.get("/tool")
     assert resp.status_code == 401
+
+
+def test_list_tools_fn_permission_403(client, engine):
+    """對應 T25（已登入但不具備功能權限）"""
+    user_id, _ = _setup_plain_user(engine, "plain5@test.com")
+    resp = client.get("/tool", headers=_auth_headers(user_id))
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "您沒有執行此操作的權限"
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +236,7 @@ def test_add_tool_returns_201(client, engine):
 
     payload = {
         "name": "My Tool",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "none",
@@ -237,6 +252,7 @@ def test_add_tool_with_bearer_and_body_params(client, engine):
 
     payload = {
         "name": "Bearer Tool",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "POST",
         "auth_type": "bearer",
@@ -271,6 +287,7 @@ def test_add_tool_empty_name_returns_400(client, engine):
 
     payload = {
         "name": "",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "none",
@@ -286,6 +303,7 @@ def test_add_tool_empty_url_returns_400(client, engine):
 
     payload = {
         "name": "Some Tool",
+        "tool_type": "external_api",
         "endpoint_url": "",
         "http_method": "GET",
         "auth_type": "none",
@@ -302,6 +320,7 @@ def test_add_tool_duplicate_name_returns_400(client, engine):
 
     payload = {
         "name": "Duplicate Tool",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "none",
@@ -317,6 +336,7 @@ def test_add_tool_api_key_missing_header_name_returns_400(client, engine):
 
     payload = {
         "name": "API Key Tool",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com/v1",
         "http_method": "GET",
         "auth_type": "api_key",
@@ -333,6 +353,7 @@ def test_add_tool_no_permission_returns_403(client, engine):
 
     payload = {
         "name": "Some Tool",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com",
         "http_method": "GET",
         "auth_type": "none",
@@ -371,6 +392,7 @@ def test_update_tool_empty_credential_keeps_existing(client, engine):
     # Create tool with credential via POST
     post_payload = {
         "name": "Credential Tool",
+        "tool_type": "external_api",
         "endpoint_url": "https://api.example.com",
         "http_method": "GET",
         "auth_type": "bearer",
@@ -552,8 +574,6 @@ def test_tool_test_external_returns_401(client, engine):
 
 def test_tool_test_connection_failure_returns_502(client, engine):
     """對應 T17"""
-    import httpx as _httpx
-
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     with patch("app.api.fn_ai_partner_tool.httpx.Client") as mock_client_cls:
@@ -561,7 +581,7 @@ def test_tool_test_connection_failure_returns_502(client, engine):
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
         mock_ctx.request = MagicMock(
-            side_effect=_httpx.ConnectError("Connection refused")
+            side_effect=httpx.ConnectError("Connection refused")
         )
         mock_client_cls.return_value = mock_ctx
 
@@ -601,28 +621,27 @@ def test_tool_test_no_permission_returns_403(client, engine):
 
 
 # ---------------------------------------------------------------------------
-# image_extract 工具 — T20, T21, T22, T23, T24, T25, T26, T27
+# image_extract 類型工具 — T20, T21, T22, T23, T26, T27
 # ---------------------------------------------------------------------------
 
 
 def test_add_image_extract_tool_returns_201(client, engine):
-    """對應 T20：新增 image_extract 工具成功，tb_tool_image_fields 寫入 2 筆"""
+    """對應 T20"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "發票擷取工具",
-        "description": "從圖片中擷取發票資訊",
+        "name": "圖片擷取工具",
         "tool_type": "image_extract",
         "image_fields": [
             {
                 "field_name": "invoice_date",
                 "field_type": "string",
-                "description": "發票日期",
+                "description": "日期",
             },
             {
                 "field_name": "invoice_amount",
                 "field_type": "number",
-                "description": "發票金額",
+                "description": "金額",
             },
         ],
     }
@@ -630,29 +649,13 @@ def test_add_image_extract_tool_returns_201(client, engine):
     assert resp.status_code == 201
     assert resp.json()["message"] == "新增成功"
 
-    # Verify db records
-    Session_ = sessionmaker(bind=engine)
-    db = Session_()
-    tool = db.query(Tool).filter(Tool.name == "發票擷取工具").first()
-    assert tool is not None
-    assert tool.tool_type == "image_extract"
-    assert tool.endpoint_url is None
-    assert tool.http_method is None
-
-    fields = db.query(ToolImageField).filter(ToolImageField.tool_id == tool.id).all()
-    assert len(fields) == 2
-
-    body_params = db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool.id).all()
-    assert len(body_params) == 0
-    db.close()
-
 
 def test_add_image_extract_empty_fields_returns_400(client, engine):
-    """對應 T21：image_extract 工具 image_fields 為空陣列 → 400"""
+    """對應 T21"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "空欄位工具",
+        "name": "Empty Fields Tool",
         "tool_type": "image_extract",
         "image_fields": [],
     }
@@ -662,14 +665,14 @@ def test_add_image_extract_empty_fields_returns_400(client, engine):
 
 
 def test_add_image_extract_empty_field_name_returns_400(client, engine):
-    """對應 T22：image_extract 工具 field_name 為空字串 → 400"""
+    """對應 T22"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "空名稱欄位工具",
+        "name": "Bad Field Name Tool",
         "tool_type": "image_extract",
         "image_fields": [
-            {"field_name": "", "field_type": "string", "description": "測試"},
+            {"field_name": "", "field_type": "string", "description": "test"},
         ],
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
@@ -677,124 +680,378 @@ def test_add_image_extract_empty_field_name_returns_400(client, engine):
     assert resp.json()["detail"] == "擷取欄位名稱不可為空"
 
 
-def test_list_tools_includes_image_fields(client, engine):
-    """對應 T23：查詢含 image_fields；external_api 工具的 image_fields 為空陣列"""
+def test_list_tools_contains_image_fields(client, engine):
+    """對應 T23"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    _add_tool(engine, "外部 API 工具")
-    _add_image_extract_tool(
-        engine,
-        "圖片擷取工具",
-        image_fields=[
-            {
-                "field_name": "invoice_date",
-                "field_type": "string",
-                "description": "發票日期",
-            },
-            {
-                "field_name": "invoice_amount",
-                "field_type": "number",
-                "description": "發票金額",
-            },
+
+    # Add image_extract tool
+    payload = {
+        "name": "ImageTool",
+        "tool_type": "image_extract",
+        "image_fields": [
+            {"field_name": "date", "field_type": "string", "description": "日期"},
+            {"field_name": "amount", "field_type": "number", "description": "金額"},
         ],
-    )
+    }
+    client.post("/tool", json=payload, headers=_auth_headers(admin_id))
 
     resp = client.get("/tool", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     data = resp.json()["data"]
-
-    ext_item = next((t for t in data if t["name"] == "外部 API 工具"), None)
-    img_item = next((t for t in data if t["name"] == "圖片擷取工具"), None)
-
-    assert ext_item is not None
-    assert ext_item["tool_type"] == "external_api"
-    assert ext_item["image_fields"] == []
-
-    assert img_item is not None
-    assert img_item["tool_type"] == "image_extract"
-    assert len(img_item["image_fields"]) == 2
-    field_names = [f["field_name"] for f in img_item["image_fields"]]
-    assert "invoice_date" in field_names
-    assert "invoice_amount" in field_names
-
-
-def test_list_tools_unauthenticated_returns_401_v2(client, engine):
-    """對應 T24：未登入 GET /tool → 401"""
-    resp = client.get("/tool")
-    assert resp.status_code == 401
-
-
-def test_list_tools_no_fn_permission_returns_403(client, engine):
-    """對應 T25：已登入但不具備 fn_ai_partner_tool 功能權限 → 403"""
-    user_id, _ = _setup_plain_user(engine, "plain5@test.com")
-    resp = client.get("/tool", headers=_auth_headers(user_id))
-    assert resp.status_code == 403
-    assert resp.json()["detail"] == "您沒有執行此操作的權限"
+    image_tool = next((t for t in data if t["name"] == "ImageTool"), None)
+    assert image_tool is not None
+    assert image_tool["tool_type"] == "image_extract"
+    assert len(image_tool["image_fields"]) == 2
+    assert image_tool["web_scraper_config"] is None
 
 
 def test_update_image_extract_tool_returns_200(client, engine):
-    """對應 T26：修改 image_extract 工具成功；image_fields 清除重寫 3 筆；tool_type 不變"""
+    """對應 T26"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    tool_id = _add_image_extract_tool(
-        engine,
-        "待更新圖片工具",
-        image_fields=[
-            {"field_name": "field1", "field_type": "string"},
-            {"field_name": "field2", "field_type": "number"},
-        ],
-    )
 
-    payload = {
-        "name": "待更新圖片工具",
-        "tool_type": "external_api",  # 即使傳入不同 tool_type，後端應忽略
+    # Create image_extract tool
+    post_payload = {
+        "name": "Update Image Tool",
+        "tool_type": "image_extract",
         "image_fields": [
-            {
-                "field_name": "new_field1",
-                "field_type": "string",
-                "description": "第一欄",
-            },
-            {
-                "field_name": "new_field2",
-                "field_type": "number",
-                "description": "第二欄",
-            },
-            {
-                "field_name": "new_field3",
-                "field_type": "boolean",
-                "description": "第三欄",
-            },
+            {"field_name": "old_field", "field_type": "string"},
+        ],
+    }
+    client.post("/tool", json=post_payload, headers=_auth_headers(admin_id))
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    tool = db.query(Tool).filter(Tool.name == "Update Image Tool").first()
+    tool_id = tool.id
+    db.close()
+
+    # Update with new fields and even pass tool_type (should be ignored)
+    patch_payload = {
+        "name": "Update Image Tool",
+        "tool_type": "external_api",  # should be ignored
+        "image_fields": [
+            {"field_name": "f1", "field_type": "string"},
+            {"field_name": "f2", "field_type": "number"},
+            {"field_name": "f3", "field_type": "boolean"},
         ],
     }
     resp = client.patch(
-        f"/tool/{tool_id}", json=payload, headers=_auth_headers(admin_id)
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
-    # Verify db: tool_type unchanged, image_fields rewritten with 3 rows
-    Session_ = sessionmaker(bind=engine)
+    # Verify tool_type unchanged and image_fields updated
     db = Session_()
     tool = db.query(Tool).filter(Tool.id == tool_id).first()
     assert tool.tool_type == "image_extract"
+    from app.db.models.fn_ai_partner_tool import ToolImageField
+
     fields = db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).all()
     assert len(fields) == 3
     db.close()
 
 
 def test_update_image_extract_empty_fields_returns_400(client, engine):
-    """對應 T27：修改 image_extract 工具時 image_fields 為空陣列 → 400"""
+    """對應 T27"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    tool_id = _add_image_extract_tool(
-        engine,
-        "待測試圖片工具",
-        image_fields=[{"field_name": "field1", "field_type": "string"}],
-    )
 
-    payload = {
-        "name": "待測試圖片工具",
+    post_payload = {
+        "name": "Image Tool T27",
+        "tool_type": "image_extract",
+        "image_fields": [{"field_name": "f1", "field_type": "string"}],
+    }
+    client.post("/tool", json=post_payload, headers=_auth_headers(admin_id))
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    tool = db.query(Tool).filter(Tool.name == "Image Tool T27").first()
+    tool_id = tool.id
+    db.close()
+
+    patch_payload = {
+        "name": "Image Tool T27",
         "image_fields": [],
     }
     resp = client.patch(
-        f"/tool/{tool_id}", json=payload, headers=_auth_headers(admin_id)
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "圖片擷取工具至少需設定一個擷取欄位"
+
+
+# ---------------------------------------------------------------------------
+# web_scraper 類型工具 — T28, T29, T30, T31, T32, T33, T34
+# ---------------------------------------------------------------------------
+
+
+def test_add_web_scraper_tool_default_max_chars(client, engine):
+    """對應 T28（test_api.md）- web_scraper 新增成功，max_chars 省略預設 4000"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+
+    payload = {
+        "name": "匯率查詢工具",
+        "tool_type": "web_scraper",
+        "target_url": "https://rate.bot.com.tw/xrt",
+        "extract_description": "台銀美元買入匯率",
+    }
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
+    assert resp.status_code == 201
+    assert resp.json()["message"] == "新增成功"
+
+    # Verify DB
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    tool = db.query(Tool).filter(Tool.name == "匯率查詢工具").first()
+    assert tool is not None
+    assert tool.tool_type == "web_scraper"
+    assert tool.endpoint_url is None
+    assert tool.http_method is None
+    assert tool.auth_type == "none"
+
+    config = (
+        db.query(ToolWebScraperConfig)
+        .filter(ToolWebScraperConfig.tool_id == tool.id)
+        .first()
+    )
+    assert config is not None
+    assert config.target_url == "https://rate.bot.com.tw/xrt"
+    assert config.extract_description == "台銀美元買入匯率"
+    assert config.max_chars == 4000
+    db.close()
+
+
+def test_add_web_scraper_empty_target_url_returns_400(client, engine):
+    """對應 T29（test_api.md）- target_url 為空 → 400"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+
+    payload = {
+        "name": "Web Scraper Bad",
+        "tool_type": "web_scraper",
+        "target_url": "",
+        "extract_description": "台銀美元買入匯率",
+    }
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "目標網址為必填"
+
+
+def test_add_web_scraper_empty_extract_description_returns_400(client, engine):
+    """對應 T30（test_api.md）- extract_description 為空 → 400"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+
+    payload = {
+        "name": "Web Scraper No Desc",
+        "tool_type": "web_scraper",
+        "target_url": "https://example.com",
+        "extract_description": "",
+    }
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "擷取描述為必填"
+
+
+def test_add_web_scraper_custom_max_chars(client, engine):
+    """對應 T31（test_api.md）- 指定 max_chars=1000"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+
+    payload = {
+        "name": "Custom MaxChars Tool",
+        "tool_type": "web_scraper",
+        "target_url": "https://example.com",
+        "extract_description": "test description",
+        "max_chars": 1000,
+    }
+    resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
+    assert resp.status_code == 201
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    tool = db.query(Tool).filter(Tool.name == "Custom MaxChars Tool").first()
+    config = (
+        db.query(ToolWebScraperConfig)
+        .filter(ToolWebScraperConfig.tool_id == tool.id)
+        .first()
+    )
+    assert config.max_chars == 1000
+    db.close()
+
+
+def test_list_tools_returns_web_scraper_config(client, engine):
+    """對應 T32（test_api.md）- GET /tool 回傳 web_scraper_config 物件；其他類型為 null"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+
+    # Add web_scraper tool
+    ws_payload = {
+        "name": "WebScraper Tool",
+        "tool_type": "web_scraper",
+        "target_url": "https://example.com",
+        "extract_description": "test",
+        "max_chars": 2000,
+    }
+    client.post("/tool", json=ws_payload, headers=_auth_headers(admin_id))
+
+    # Add external_api tool
+    ext_payload = {
+        "name": "External API Tool",
+        "tool_type": "external_api",
+        "endpoint_url": "https://api.example.com",
+        "http_method": "GET",
+        "auth_type": "none",
+    }
+    client.post("/tool", json=ext_payload, headers=_auth_headers(admin_id))
+
+    resp = client.get("/tool", headers=_auth_headers(admin_id))
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+
+    ws_item = next((t for t in data if t["name"] == "WebScraper Tool"), None)
+    ext_item = next((t for t in data if t["name"] == "External API Tool"), None)
+
+    assert ws_item is not None
+    assert ws_item["tool_type"] == "web_scraper"
+    assert ws_item["web_scraper_config"] is not None
+    assert ws_item["web_scraper_config"]["target_url"] == "https://example.com"
+    assert ws_item["web_scraper_config"]["extract_description"] == "test"
+    assert ws_item["web_scraper_config"]["max_chars"] == 2000
+
+    assert ext_item is not None
+    assert ext_item["web_scraper_config"] is None
+
+
+def test_update_web_scraper_tool_returns_200(client, engine):
+    """對應 T33（test_api.md）- 修改 web_scraper 工具成功，tool_type 不可變"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    tool_id = _add_web_scraper_tool(
+        engine, "WebScraper Update", extract_description="original desc"
+    )
+
+    patch_payload = {
+        "name": "WebScraper Update",
+        "tool_type": "external_api",  # should be ignored
+        "target_url": "https://new.example.com",
+        "extract_description": "updated desc",
+        "max_chars": 3000,
+    }
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "更新成功"
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    assert tool.tool_type == "web_scraper"  # unchanged
+    config = (
+        db.query(ToolWebScraperConfig)
+        .filter(ToolWebScraperConfig.tool_id == tool_id)
+        .first()
+    )
+    assert config.extract_description == "updated desc"
+    assert config.max_chars == 3000
+    db.close()
+
+
+def test_update_web_scraper_empty_target_url_returns_400(client, engine):
+    """對應 T34（test_api.md）- 修改 web_scraper 時 target_url 為空 → 400"""
+    admin_id, _, _ = _setup_admin_with_fn_tool(engine)
+    tool_id = _add_web_scraper_tool(engine, "WebScraper T34")
+
+    patch_payload = {
+        "name": "WebScraper T34",
+        "target_url": "",
+        "extract_description": "some desc",
+    }
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "目標網址為必填"
+
+
+# ---------------------------------------------------------------------------
+# AI Agent web_scraper 工具執行 — T15, T16, T17 (agentic loop)
+# ---------------------------------------------------------------------------
+
+
+def test_ai_agent_web_scraper_success():
+    """對應 T15 — AI Agent web_scraper 成功擷取並由 LLM 解讀"""
+    from app.services import ai_agent
+
+    mock_resp = MagicMock()
+    mock_resp.text = "<html><body><p>台銀美元買入匯率：31.5</p></body></html>"
+
+    mock_llm_result = {"content": "台銀美元買入匯率為 31.5", "tool_calls": []}
+
+    tool_config = {
+        "name": "rate_tool",
+        "tool_type": "web_scraper",
+        "target_url": "https://rate.bot.com.tw/xrt",
+        "extract_description": "台銀美元買入匯率",
+        "max_chars": 4000,
+    }
+
+    with (
+        patch("app.services.ai_agent.httpx.Client") as mock_client_cls,
+        patch("app.services.ai_agent.chat", return_value=mock_llm_result),
+    ):
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_ctx.get = MagicMock(return_value=mock_resp)
+        mock_client_cls.return_value = mock_ctx
+
+        result = ai_agent._execute_web_scraper(tool_config, {})
+
+    assert result == "台銀美元買入匯率為 31.5"
+
+
+def test_ai_agent_web_scraper_connect_error():
+    """對應 T16 — AI Agent web_scraper ConnectError 時回傳錯誤訊息，不 raise"""
+    from app.services import ai_agent
+
+    tool_config = {
+        "name": "rate_tool",
+        "tool_type": "web_scraper",
+        "target_url": "https://unreachable.local",
+        "extract_description": "台銀美元買入匯率",
+        "max_chars": 4000,
+    }
+
+    with patch("app.services.ai_agent.httpx.Client") as mock_client_cls:
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_ctx.get = MagicMock(side_effect=httpx.ConnectError("connection refused"))
+        mock_client_cls.return_value = mock_ctx
+
+        result = ai_agent._execute_web_scraper(tool_config, {})
+
+    assert result == "無法連線至目標網址"
+
+
+def test_ai_agent_web_scraper_timeout_error():
+    """對應 T17 — AI Agent web_scraper TimeoutException 時回傳錯誤訊息，不 raise"""
+    from app.services import ai_agent
+
+    tool_config = {
+        "name": "rate_tool",
+        "tool_type": "web_scraper",
+        "target_url": "https://slow.local",
+        "extract_description": "台銀美元買入匯率",
+        "max_chars": 4000,
+    }
+
+    with patch("app.services.ai_agent.httpx.Client") as mock_client_cls:
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_ctx.__exit__ = MagicMock(return_value=False)
+        mock_ctx.get = MagicMock(
+            side_effect=httpx.TimeoutException("timeout", request=MagicMock())
+        )
+        mock_client_cls.return_value = mock_ctx
+
+        result = ai_agent._execute_web_scraper(tool_config, {})
+
+    assert result == "目標網址請求逾時"

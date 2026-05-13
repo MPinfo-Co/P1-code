@@ -2,80 +2,26 @@
 
 職責：
 - 呼叫 llm_client.chat()
-- 判斷 tool_call，執行外部工具 API 或 image_extract 直通處理
+- 判斷 tool_call，執行外部工具 API（external_api / image_extract / web_scraper）
 - 帶回 tool_result 繼續對話
 - 迴圈上限 5 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
 - 工具名稱正規化（中文及非法字元 → Anthropic 合法格式）
+- 工具 input_schema property key 正規化（同上限制）
 """
 
-import json
 import re
 from urllib.parse import quote
 
 import httpx
+from bs4 import BeautifulSoup
 
+from app.config.settings import settings
 from app.services.llm_client import LLMClientError, chat  # noqa: F401 (re-export for convenience)
 
 
 class AgentMaxIterationError(Exception):
     """agentic loop 達到迴圈上限（5 次），上層捕捉後回傳 503。"""
-
-
-def _normalize_property_keys(
-    tools: list[dict],
-) -> tuple[list[dict], dict[str, dict[str, str]]]:
-    """對每個工具的 input_schema.properties 執行 key 正規化。
-
-    Anthropic 要求 properties key 符合 ^[a-zA-Z0-9_.-]{1,64}$，中文或含空格的
-    欄位名稱必須轉換。轉換後的 safe_key 以 f_{i} 命名，原始名稱合併至 description
-    讓 LLM 仍能理解語意。
-
-    Args:
-        tools: 已完成 name 正規化的工具定義清單。
-
-    Returns:
-        (normalized_tools, prop_mapping)
-        - normalized_tools: properties key 已替換的工具定義清單。
-        - prop_mapping: {tool_name: {safe_key: original_key}} 還原用映射表。
-    """
-    prop_mapping: dict[str, dict[str, str]] = {}
-    normalized: list[dict] = []
-
-    for tool in tools:
-        tool_name: str = tool["name"]
-        schema: dict = tool.get("input_schema", {})
-        props: dict = schema.get("properties", {})
-        required: list = schema.get("required", [])
-
-        key_map: dict[str, str] = {}
-        new_props: dict = {}
-        new_required: list = []
-
-        for i, (orig_key, prop_def) in enumerate(props.items()):
-            if re.match(r"^[a-zA-Z0-9_.\-]{1,64}$", orig_key):
-                safe_key = orig_key
-            else:
-                safe_key = f"f_{i}"
-                prop_def = dict(prop_def)
-                existing_desc = prop_def.get("description", "")
-                prop_def["description"] = (
-                    f"{orig_key}：{existing_desc}" if existing_desc else orig_key
-                )
-
-            key_map[safe_key] = orig_key
-            new_props[safe_key] = prop_def
-            if orig_key in required:
-                new_required.append(safe_key)
-
-        new_tool = dict(tool)
-        new_tool["input_schema"] = {**schema, "properties": new_props, "required": new_required}
-        normalized.append(new_tool)
-
-        if any(k != v for k, v in key_map.items()):
-            prop_mapping[tool_name] = key_map
-
-    return normalized, prop_mapping
 
 
 def _normalize_tool_names(
@@ -132,6 +78,57 @@ def _normalize_tool_names(
     return normalized_tools, name_mapping
 
 
+def _normalize_tool_properties(tools: list[dict]) -> list[dict]:
+    """對工具定義清單中每個工具的 input_schema.properties key 執行正規化。
+
+    Anthropic API 要求 property key 只能包含 ^[a-zA-Z0-9_.-]{1,64}$。
+    若 key 含中文或其他非法字元（例如 image_extract 欄位名稱），需在送出前轉換。
+
+    轉換規則：
+    1. 以 _ 替換所有非 a-z A-Z 0-9 _ . - 字元。
+    2. 若轉換後全為底線（原始全中文）、開頭為數字，或與已用 key 重複，改用 field_{index}。
+    3. required 清單中的 key 同步更新。
+    """
+    result: list[dict] = []
+    for tool in tools:
+        schema = tool.get("input_schema", {})
+        props: dict = schema.get("properties", {})
+        required: list[str] = schema.get("required", [])
+
+        if not props:
+            result.append(tool)
+            continue
+
+        new_props: dict = {}
+        key_mapping: dict[str, str] = {}
+        used_keys: set[str] = set()
+
+        for idx, (orig_key, prop_def) in enumerate(props.items()):
+            safe = re.sub(r"[^a-zA-Z0-9_.\-]", "_", orig_key)
+            if (
+                not safe
+                or re.match(r"^[0-9]", safe)
+                or re.fullmatch(r"_+", safe)
+                or safe in used_keys
+            ):
+                safe = f"field_{idx}"
+            used_keys.add(safe)
+            key_mapping[orig_key] = safe
+            new_props[safe] = prop_def
+
+        new_required = [key_mapping.get(k, k) for k in required]
+
+        new_tool = dict(tool)
+        new_tool["input_schema"] = {
+            **schema,
+            "properties": new_props,
+            "required": new_required,
+        }
+        result.append(new_tool)
+
+    return result
+
+
 def run(
     model: str,
     system: str,
@@ -146,7 +143,7 @@ def run(
         system: 組裝完成的 system prompt。
         messages: 對話歷史（含本輪 user message）。
         tools: Anthropic tool_use 格式的工具定義清單；無工具時傳 None。
-        tool_configs: 對應 tools 的執行設定（tool_type, endpoint_url, http_method, auth_type 等）；
+        tool_configs: 對應 tools 的執行設定（endpoint_url, http_method, auth_type 等）；
                       無工具時傳 None。
 
     Returns:
@@ -163,11 +160,10 @@ def run(
     iteration = 0
     current_messages = list(messages)
 
-    # 工具名稱正規化：建立 normalized_tools 及 正規化後名稱 → 原始名稱 對映表
-    prop_key_mapping: dict[str, dict[str, str]] = {}
+    # 工具正規化：名稱與 property key 均需符合 Anthropic 格式限制
     if tools:
         normalized_tools, name_mapping = _normalize_tool_names(tools)
-        normalized_tools, prop_key_mapping = _normalize_property_keys(normalized_tools)
+        normalized_tools = _normalize_tool_properties(normalized_tools)
     else:
         normalized_tools = tools
         name_mapping: dict[str, str] = {}
@@ -222,7 +218,7 @@ def run(
         # 執行每個 tool_call（使用還原後的原始名稱查找 tool_configs）
         tool_results = []
         for tc in restored_tool_calls:
-            tool_result_content = _execute_tool(tc, tool_configs or [], prop_key_mapping)
+            tool_result_content = _execute_tool(tc, tool_configs or [])
             tool_results.append(
                 {
                     "type": "tool_result",
@@ -235,16 +231,12 @@ def run(
         current_messages.append({"role": "user", "content": tool_results})
 
 
-def _execute_tool(
-    tool_call: dict,
-    tool_configs: list[dict],
-    prop_key_mapping: dict[str, dict[str, str]] | None = None,
-) -> str:
+def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
     """執行單一工具呼叫，回傳結果字串。
 
     Args:
         tool_call: {"id": ..., "name": ..., "input": {...}}
-        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params/tb_tool_image_fields）
+        tool_configs: 工具執行設定清單（來自 tb_tools + 各子表）
 
     Returns:
         str: 工具執行結果（或錯誤訊息）
@@ -257,24 +249,30 @@ def _execute_tool(
     if config is None:
         return f"[工具錯誤] 找不到工具設定：{tool_name}"
 
-    # 判斷 tool_type
     tool_type: str = config.get("tool_type", "external_api")
 
     if tool_type == "image_extract":
-        # image_extract：跳過外部 HTTP 呼叫
-        # LLM 已在 vision 對話中看到圖片並自行填入 tool_input（結構化欄位值）
-        # 還原 safe_key → 原始中文 key，再回傳
-        key_map = (prop_key_mapping or {}).get(tool_name, {})
-        remapped = {key_map.get(k, k): v for k, v in tool_input.items()}
-        return json.dumps(remapped, ensure_ascii=False)
+        # image_extract：LLM 已在 vision 對話中自行填入結構化欄位值
+        # 直接將本輪 tool_input 作為 tool_result（JSON 字串）
+        import json
 
-    # external_api：執行外部 HTTP 呼叫
+        return json.dumps(tool_input, ensure_ascii=False)
+
+    if tool_type == "web_scraper":
+        return _execute_web_scraper(config, tool_input)
+
+    # external_api（預設）
+    return _execute_external_api(config, tool_input)
+
+
+def _execute_external_api(config: dict, tool_input: dict) -> str:
+    """執行 external_api 類型工具呼叫。"""
     # URL 樣板替換
-    endpoint_url: str = config.get("endpoint_url", "") or ""
+    endpoint_url: str = config.get("endpoint_url", "")
     for key, value in tool_input.items():
         endpoint_url = endpoint_url.replace(f"{{{key}}}", quote(str(value), safe=""))
 
-    http_method: str = (config.get("http_method", "GET") or "GET").upper()
+    http_method: str = config.get("http_method", "GET").upper()
     auth_type: str = config.get("auth_type", "none")
     auth_header_name: str = config.get("auth_header_name", "") or ""
     credential: str = config.get("credential", "") or ""
@@ -296,3 +294,58 @@ def _execute_tool(
             return resp.text
     except Exception as exc:
         return f"[工具執行失敗] {exc}"
+
+
+def _execute_web_scraper(config: dict, tool_input: dict) -> str:  # noqa: ARG001
+    """執行 web_scraper 類型工具呼叫。
+
+    流程：
+    1. httpx GET target_url（timeout=30s）
+    2. BeautifulSoup 清除 script/style/img 取純文字
+    3. 截斷至 max_chars 字元
+    4. LLM 依 extract_description 解讀並回傳擷取結果
+    """
+    target_url: str = config.get("target_url", "")
+    extract_description: str = config.get("extract_description", "")
+    max_chars: int = int(config.get("max_chars", 4000))
+
+    # Step 1: HTTP GET
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.get(target_url)
+        html_content = resp.text
+    except httpx.ConnectError:
+        return "無法連線至目標網址"
+    except httpx.TimeoutException:
+        return "目標網址請求逾時"
+    except Exception as exc:
+        return f"無法連線至目標網址：{exc}"
+
+    # Step 2: BeautifulSoup 清除 script/style/img 取純文字
+    soup = BeautifulSoup(html_content, "html.parser")
+    for tag in soup(["script", "style", "img"]):
+        tag.decompose()
+    plain_text = soup.get_text(separator="\n", strip=True)
+
+    # Step 3: 截斷至 max_chars 字元
+    plain_text = plain_text[:max_chars]
+
+    # Step 4: 呼叫 LLM 依 extract_description 解讀
+    try:
+        llm_messages = [
+            {
+                "role": "user",
+                "content": (
+                    f"以下是從網頁擷取的純文字內容：\n\n{plain_text}\n\n"
+                    f"請依據以下描述，從上述內容中擷取所需資訊並回傳結果：\n{extract_description}"
+                ),
+            }
+        ]
+        result = chat(
+            model=settings.anthropic_model,
+            system="你是一個資料擷取助理，請依據使用者的描述從提供的網頁文字中精確擷取所需資訊，並直接回傳擷取結果。",
+            messages=llm_messages,
+        )
+        return result.get("content", "無法解讀擷取結果")
+    except Exception as exc:
+        return f"[LLM 解讀失敗] {exc}"
