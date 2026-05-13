@@ -40,7 +40,7 @@ from app.db.models.fn_ai_partner_tool import (
     ToolBodyParam,
     ToolWebScraperConfig,
 )
-from app.db.models.fn_custom_table import CustomTableField
+from app.db.models.fn_custom_table import CustomTableField, CustomTableRecord
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -173,7 +173,11 @@ def _build_tool_definitions(
                     "description": f.description or f.field_name,
                 }
                 required_params.append(f.field_name)
-            tool_configs.append({"name": safe_name, "tool_type": tool_type})
+            tool_configs.append({
+                "name": safe_name,
+                "tool_type": tool_type,
+                "custom_table_id": tool.custom_table_id,
+            })
 
         elif tool_type == "web_scraper":
             scraper_config = (
@@ -660,6 +664,21 @@ def send_message(
         )
 
     ai_content = result.get("content", "")
+
+    # 寫入 image_extract 擷取結果至 tb_custom_table_records
+    for tc in result.get("all_tool_calls", []):
+        cfg = next(
+            (c for c in (tool_configs or []) if c.get("name") == tc["name"] and c.get("tool_type") == "image_extract"),
+            None,
+        )
+        if cfg and cfg.get("custom_table_id"):
+            db.add(
+                CustomTableRecord(
+                    table_id=cfg["custom_table_id"],
+                    data=tc.get("input", {}),
+                    source_message_id=user_msg.id,
+                )
+            )
 
     # 寫入 AI 回覆
     ai_msg = Message(

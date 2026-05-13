@@ -1,5 +1,7 @@
 """Pydantic schemas for fn_custom_table API."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -67,3 +69,20 @@ class CustomTableOptionItem(BaseModel):
     id: int
     name: str
     fields: list[CustomTableOptionFieldItem]
+
+
+class CustomTableRecordItem(BaseModel):
+    """單筆 record 輸出。"""
+
+    model_config = {"from_attributes": True}
+
+    id: int
+    data: dict
+    created_at: datetime
+
+
+class CustomTableRecordsOut(BaseModel):
+    """資料查看頁輸出：欄位定義 + records 清單。"""
+
+    fields: list[CustomTableFieldItem]
+    records: list[CustomTableRecordItem]

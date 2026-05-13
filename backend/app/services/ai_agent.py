@@ -157,8 +157,9 @@ def run(
 
     Returns:
         dict: {
-            "content": str,           # AI 最終回覆文字
-            "tool_calls": list[dict]  # 最後一輪的 tool_use 結果；無時為空陣列
+            "content": str,               # AI 最終回覆文字
+            "tool_calls": list[dict],     # 最後一輪的 tool_use 結果；無時為空陣列
+            "all_tool_calls": list[dict]  # 所有迭代中執行過的 tool_calls（含已還原原始名稱）
         }
 
     Raises:
@@ -168,6 +169,7 @@ def run(
     MAX_ITERATIONS = 5
     iteration = 0
     current_messages = list(messages)
+    all_tool_calls: list[dict] = []
 
     # 工具名稱正規化：建立 normalized_tools 及 正規化後名稱 → 原始名稱 對映表
     prop_key_mapping: dict[str, dict[str, str]] = {}
@@ -190,7 +192,7 @@ def run(
 
         # 無 tool_call → 對話結束，回傳最終結果
         if not tool_calls:
-            return result
+            return {**result, "all_tool_calls": all_tool_calls}
 
         # 有 tool_call → 還原正規化名稱為原始名稱，再執行外部工具
         iteration += 1
@@ -207,6 +209,8 @@ def run(
             restored_tc = dict(tc)
             restored_tc["name"] = original_name
             restored_tool_calls.append(restored_tc)
+
+        all_tool_calls.extend(restored_tool_calls)
 
         # 將 assistant 的 tool_use 回應附加到 messages
         # Anthropic 格式：assistant message 的 content 為 block 陣列

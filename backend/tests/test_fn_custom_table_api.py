@@ -139,6 +139,19 @@ def _insert_record(engine, table_id: int, data: dict | None = None) -> None:
     db.close()
 
 
+def _insert_record_id(engine, table_id: int, data: dict | None = None) -> int:
+    """Insert a record into a custom table and return its id."""
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    record = CustomTableRecord(table_id=table_id, data=data or {"欄位A": "值"})
+    db.add(record)
+    db.flush()
+    rid = record.id
+    db.commit()
+    db.close()
+    return rid
+
+
 # ---------------------------------------------------------------------------
 # GET /custom_table — T1, T2, T3
 # ---------------------------------------------------------------------------
@@ -481,3 +494,122 @@ def test_list_custom_table_options_unauthenticated_returns_401(client, engine):
     """對應 T17"""
     resp = client.get("/custom_table/options")
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /custom_table/{id}/records — T18, T19, T20
+# ---------------------------------------------------------------------------
+
+
+def test_list_records_returns_200_with_fields_and_records(client, engine):
+    """對應 T18"""
+    admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
+    table_id = _insert_custom_table(
+        engine,
+        "Records表格T18",
+        [
+            {"field_name": "姓名", "field_type": "string"},
+            {"field_name": "金額", "field_type": "number"},
+        ],
+    )
+    _insert_record(engine, table_id, {"姓名": "Alice", "金額": 100})
+    _insert_record(engine, table_id, {"姓名": "Bob", "金額": 200})
+
+    resp = client.get(f"/custom_table/{table_id}/records", headers=_auth_headers(admin_id))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "fields" in body
+    assert "records" in body
+    assert len(body["fields"]) == 2
+    assert len(body["records"]) == 2
+    field_names = [f["field_name"] for f in body["fields"]]
+    assert "姓名" in field_names
+    assert "金額" in field_names
+    for r in body["records"]:
+        assert "id" in r
+        assert "data" in r
+        assert "created_at" in r
+
+
+def test_list_records_table_not_found_returns_404(client, engine):
+    """對應 T19"""
+    admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
+
+    resp = client.get("/custom_table/99999/records", headers=_auth_headers(admin_id))
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "資料表不存在"
+
+
+def test_list_records_no_permission_returns_403(client, engine):
+    """對應 T20"""
+    user_id = _setup_plain_user(engine, "plain20_ct@test.com")
+    admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
+    table_id = _insert_custom_table(engine, "Records表格T20")
+
+    resp = client.get(f"/custom_table/{table_id}/records", headers=_auth_headers(user_id))
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "您沒有執行此操作的權限"
+
+
+# ---------------------------------------------------------------------------
+# DELETE /custom_table/{id}/records/{record_id} — T21, T22
+# ---------------------------------------------------------------------------
+
+
+def test_delete_record_returns_200(client, engine):
+    """對應 T21"""
+    admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
+    table_id = _insert_custom_table(engine, "Records表格T21")
+    record_id = _insert_record_id(engine, table_id, {"欄位A": "test"})
+
+    resp = client.delete(
+        f"/custom_table/{table_id}/records/{record_id}",
+        headers=_auth_headers(admin_id),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "刪除成功"
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    assert db.query(CustomTableRecord).filter(CustomTableRecord.id == record_id).first() is None
+    db.close()
+
+
+def test_delete_record_not_found_returns_404(client, engine):
+    """對應 T22"""
+    admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
+    table_id = _insert_custom_table(engine, "Records表格T22")
+
+    resp = client.delete(
+        f"/custom_table/{table_id}/records/99999",
+        headers=_auth_headers(admin_id),
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "記錄不存在"
+
+
+# ---------------------------------------------------------------------------
+# DELETE /custom_table/{id}/records — T23
+# ---------------------------------------------------------------------------
+
+
+def test_delete_all_records_returns_200(client, engine):
+    """對應 T23"""
+    admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
+    table_id = _insert_custom_table(engine, "Records表格T23")
+    _insert_record(engine, table_id, {"欄位A": "r1"})
+    _insert_record(engine, table_id, {"欄位A": "r2"})
+    _insert_record(engine, table_id, {"欄位A": "r3"})
+
+    resp = client.delete(
+        f"/custom_table/{table_id}/records",
+        headers=_auth_headers(admin_id),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "刪除成功"
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    count = db.query(CustomTableRecord).filter(CustomTableRecord.table_id == table_id).count()
+    assert count == 0
+    db.close()

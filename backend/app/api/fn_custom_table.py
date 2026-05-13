@@ -6,8 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.api.schema.fn_custom_table import (
     CustomTableCreate,
+    CustomTableFieldItem,
     CustomTableItem,
     CustomTableOptionItem,
+    CustomTableRecordItem,
+    CustomTableRecordsOut,
     CustomTableUpdate,
 )
 from app.db.connector import get_db
@@ -348,9 +351,108 @@ def delete_custom_table(
             detail="此資料表已被工具綁定，無法刪除",
         )
 
-    # Delete fields then table
+    # Delete records, fields, then table
+    db.query(CustomTableRecord).filter(CustomTableRecord.table_id == table_id).delete()
     db.query(CustomTableField).filter(CustomTableField.table_id == table_id).delete()
     db.delete(table)
     db.commit()
     system_logger.info(f"User {auth.user_id} deleted custom table {table_id}")
+    return {"message": "刪除成功"}
+
+
+# ── GET /custom-table/{table_id}/records ─────────────────────────────────────
+
+
+@router.get("/{table_id}/records", response_model=CustomTableRecordsOut, status_code=status.HTTP_200_OK)
+def list_records(
+    table_id: int,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> CustomTableRecordsOut:
+    """List all records for a custom table."""
+    if not _has_fn_custom_table_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+    table = db.query(CustomTable).filter(CustomTable.id == table_id).first()
+    if table is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="資料表不存在"
+        )
+    fields = (
+        db.query(CustomTableField)
+        .filter(CustomTableField.table_id == table_id)
+        .order_by(CustomTableField.sort_order.asc())
+        .all()
+    )
+    records = (
+        db.query(CustomTableRecord)
+        .filter(CustomTableRecord.table_id == table_id)
+        .order_by(CustomTableRecord.created_at.desc())
+        .all()
+    )
+    return CustomTableRecordsOut(
+        fields=[CustomTableFieldItem.model_validate(f) for f in fields],
+        records=[CustomTableRecordItem.model_validate(r) for r in records],
+    )
+
+
+# ── DELETE /custom-table/{table_id}/records/{record_id} ──────────────────────
+
+
+@router.delete("/{table_id}/records/{record_id}", status_code=status.HTTP_200_OK)
+def delete_record(
+    table_id: int,
+    record_id: int,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """Delete a single record."""
+    if not _has_fn_custom_table_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+    table = db.query(CustomTable).filter(CustomTable.id == table_id).first()
+    if table is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="資料表不存在"
+        )
+    record = (
+        db.query(CustomTableRecord)
+        .filter(CustomTableRecord.id == record_id, CustomTableRecord.table_id == table_id)
+        .first()
+    )
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="記錄不存在"
+        )
+    db.delete(record)
+    db.commit()
+    return {"message": "刪除成功"}
+
+
+# ── DELETE /custom-table/{table_id}/records ───────────────────────────────────
+
+
+@router.delete("/{table_id}/records", status_code=status.HTTP_200_OK)
+def delete_all_records(
+    table_id: int,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """Delete all records for a custom table."""
+    if not _has_fn_custom_table_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+    table = db.query(CustomTable).filter(CustomTable.id == table_id).first()
+    if table is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="資料表不存在"
+        )
+    db.query(CustomTableRecord).filter(CustomTableRecord.table_id == table_id).delete()
+    db.commit()
     return {"message": "刪除成功"}
