@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -28,6 +28,12 @@ import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
 import SmartToyOutlined from '@mui/icons-material/SmartToyOutlined'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import {
+  useEventDetailQuery,
+  useEventHistoryQuery,
+  useUpdateEvent,
+  useAddEventHistory,
+} from '@/queries/useEventsQuery'
 import './IssueDetail.css'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -37,43 +43,6 @@ const STATUS_LABEL: Record<string, string> = {
   dismissed: '擱置',
 }
 const STATUS_OPTIONS = Object.entries(STATUS_LABEL)
-
-interface LogObject {
-  id?: number | string
-  timestamp?: number
-  host?: string
-  program?: string
-  message: string
-}
-
-interface HistoryEntry {
-  id: number | string
-  created_at: string
-  action: string
-  old_status?: string
-  new_status?: string
-  note?: string
-}
-
-interface EventDetail {
-  id: number | string
-  title: string
-  description?: string
-  current_status: string
-  assignee_user_id?: number | null
-  affected_detail?: string
-  suggests?: string[]
-  mitre_tags?: string[]
-  logs?: (string | LogObject)[]
-  history?: HistoryEntry[]
-}
-
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('mp-box-token')
-  return token
-    ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    : { 'Content-Type': 'application/json' }
-}
 
 function nowDT() {
   return new Date().toISOString().slice(0, 16)
@@ -191,9 +160,16 @@ export default function IssueDetail() {
   const { issueId } = useParams()
   const navigate = useNavigate()
 
-  const [event, setEvent] = useState<EventDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const eventQuery = useEventDetailQuery(issueId)
+  const historyQuery = useEventHistoryQuery(issueId)
+  const updateEvent = useUpdateEvent()
+  const addHistory = useAddEventHistory()
+
+  const event = eventQuery.data
+  const loading = eventQuery.isLoading
+  const error = eventQuery.error
+  const history = historyQuery.data ?? []
+
   const [tabIndex, setTabIndex] = useState(0)
   const [chatVisible, setChatVisible] = useState(true)
 
@@ -201,27 +177,9 @@ export default function IssueDetail() {
   const [histNote, setHistNote] = useState('')
   const [histStatus, setHistStatus] = useState('')
 
-  const fetchEvent = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/events/${issueId}`, {
-        headers: authHeaders(),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data: EventDetail = await res.json()
-      setEvent(data)
-      setHistStatus(data.current_status)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [issueId])
-
   useEffect(() => {
-    fetchEvent()
-  }, [fetchEvent])
+    if (event) setHistStatus(event.current_status)
+  }, [event])
   useEffect(() => {
     setTabIndex(0)
     setChatVisible(true)
@@ -237,7 +195,7 @@ export default function IssueDetail() {
     return (
       <Box className="issue-detail-error">
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error || '找不到此事件'}
+          {error instanceof Error ? error.message : '找不到此事件'}
         </Alert>
         <Button onClick={() => navigate(-1)} className="issue-detail-back-link">
           ← 返回
@@ -245,39 +203,32 @@ export default function IssueDetail() {
       </Box>
     )
 
-  async function updateStatus(newStatus: string) {
-    try {
-      const res = await fetch(`/api/events/${issueId}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({ current_status: newStatus }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      await fetchEvent()
-    } catch (e) {
-      alert(`更新失敗: ${e instanceof Error ? e.message : String(e)}`)
-    }
-  }
-
   async function addHistoryEntry() {
+    if (!issueId || !event) return
     if (!histNote.trim()) {
       alert('請輸入備註內容')
       return
     }
-    if (event && histStatus !== event.current_status) await updateStatus(histStatus)
+    const wantsStatusChange = histStatus !== event.current_status
     try {
-      const res = await fetch(`/api/events/${issueId}/history`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
+      if (wantsStatusChange) {
+        await updateEvent.mutateAsync({
+          id: issueId,
+          payload: { current_status: histStatus },
+        })
+      }
+      await addHistory.mutateAsync({
+        id: issueId,
+        payload: {
+          action: wantsStatusChange ? 'status_change' : 'comment',
+          old_status: wantsStatusChange ? event.current_status : undefined,
+          new_status: wantsStatusChange ? histStatus : undefined,
           note: histNote,
-          resolved_at: histStatus === 'resolved' ? new Date(histDate).toISOString() : null,
-        }),
+          resolved_at: histStatus === 'resolved' ? new Date(histDate).toISOString() : undefined,
+        },
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setHistNote('')
       setHistDate(nowDT())
-      await fetchEvent()
     } catch (e) {
       alert(`新增失敗: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -559,11 +510,11 @@ export default function IssueDetail() {
                 </Box>
 
                 <Box className="issue-detail-history-mb">
-                  {!event.history || event.history.length === 0 ? (
+                  {history.length === 0 ? (
                     <Typography className="issue-detail-history-empty">（尚無處置紀錄）</Typography>
                   ) : (
                     <List dense disablePadding>
-                      {event.history.map((h) => (
+                      {history.map((h) => (
                         <ListItem
                           key={h.id}
                           className="issue-detail-history-list-item issue-detail-history-list-item-pad0"
@@ -671,7 +622,11 @@ export default function IssueDetail() {
                         ))}
                       </TextField>
                     </Box>
-                    <Button onClick={addHistoryEntry} className="issue-detail-history-add-btn">
+                    <Button
+                      onClick={addHistoryEntry}
+                      disabled={updateEvent.isPending || addHistory.isPending}
+                      className="issue-detail-history-add-btn"
+                    >
                       新增
                     </Button>
                   </CardContent>
