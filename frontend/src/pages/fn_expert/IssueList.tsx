@@ -123,7 +123,8 @@ async function fetchAnalysisStatus(): Promise<AnalysisStatusResponse | null> {
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     const res = await fetch(`${BASE_URL}/expert/analysis/status`, { headers })
     if (!res.ok) return null
-    return (await res.json()) as AnalysisStatusResponse
+    const json = await res.json()
+    return (json.data ?? json) as AnalysisStatusResponse
   } catch {
     return null
   }

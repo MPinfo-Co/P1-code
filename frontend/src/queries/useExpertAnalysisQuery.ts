@@ -25,7 +25,8 @@ export function useAnalysisStatusQuery(enabled = true) {
         headers: authHeaders(),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return res.json()
+      const json = await res.json()
+      return json.data ?? json
     },
     enabled,
     refetchOnWindowFocus: false,
