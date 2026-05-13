@@ -181,11 +181,13 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
 
     Args:
         tool_call: {"id": ..., "name": ..., "input": {...}}
-        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params）
+        tool_configs: 工具執行設定清單（來自 tb_tools + 各類型子表）
 
     Returns:
         str: 工具執行結果（或錯誤訊息）
     """
+    import json
+
     tool_name = tool_call["name"]
     tool_input = tool_call.get("input", {})
 
@@ -194,30 +196,82 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
     if config is None:
         return f"[工具錯誤] 找不到工具設定：{tool_name}"
 
-    # URL 樣板替換
-    endpoint_url: str = config.get("endpoint_url", "")
-    for key, value in tool_input.items():
-        endpoint_url = endpoint_url.replace(f"{{{key}}}", quote(str(value), safe=""))
+    tool_type: str = config.get("tool_type", "external_api")
 
-    http_method: str = config.get("http_method", "GET").upper()
-    auth_type: str = config.get("auth_type", "none")
-    auth_header_name: str = config.get("auth_header_name", "") or ""
-    credential: str = config.get("credential", "") or ""
+    # image_extract：直接將 tool_input 作為 tool_result，跳過外部 HTTP 呼叫
+    if tool_type == "image_extract":
+        return json.dumps(tool_input, ensure_ascii=False)
 
-    headers: dict[str, str] = {}
-    if auth_type == "api_key" and auth_header_name:
-        headers[auth_header_name] = credential
-    elif auth_type == "bearer":
-        headers["Authorization"] = f"Bearer {credential}"
+    # external_api：URL 樣板替換 + HTTP 呼叫
+    if tool_type == "external_api":
+        # URL 樣板替換
+        endpoint_url: str = config.get("endpoint_url", "")
+        for key, value in tool_input.items():
+            endpoint_url = endpoint_url.replace(
+                f"{{{key}}}", quote(str(value), safe="")
+            )
 
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            if http_method in ("GET", "DELETE"):
-                resp = client.request(http_method, endpoint_url, headers=headers)
-            else:
-                resp = client.request(
-                    http_method, endpoint_url, headers=headers, json=tool_input
-                )
-            return resp.text
-    except Exception as exc:
-        return f"[工具執行失敗] {exc}"
+        http_method: str = config.get("http_method", "GET").upper()
+        auth_type: str = config.get("auth_type", "none")
+        auth_header_name: str = config.get("auth_header_name", "") or ""
+        credential: str = config.get("credential", "") or ""
+
+        headers: dict[str, str] = {}
+        if auth_type == "api_key" and auth_header_name:
+            headers[auth_header_name] = credential
+        elif auth_type == "bearer":
+            headers["Authorization"] = f"Bearer {credential}"
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                if http_method in ("GET", "DELETE"):
+                    resp = client.request(http_method, endpoint_url, headers=headers)
+                else:
+                    resp = client.request(
+                        http_method, endpoint_url, headers=headers, json=tool_input
+                    )
+                return resp.text
+        except Exception as exc:
+            return f"[工具執行失敗] {exc}"
+
+    # web_scraper：爬取目標網址並以 LLM 解讀
+    if tool_type == "web_scraper":
+        target_url: str = config.get("target_url", "")
+        extract_description: str = config.get("extract_description", "")
+        max_chars: int = config.get("max_chars", 4000)
+
+        try:
+            from bs4 import BeautifulSoup
+
+            with httpx.Client(timeout=30.0) as client:
+                resp = client.get(target_url)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for tag in soup(["script", "style", "img"]):
+                tag.decompose()
+            plain_text = soup.get_text(separator="\n", strip=True)
+            truncated = plain_text[:max_chars]
+        except httpx.ConnectError:
+            return "無法連線至目標網址"
+        except httpx.TimeoutException:
+            return "目標網址請求逾時"
+        except Exception as exc:
+            return f"[網頁擷取失敗] {exc}"
+
+        # 呼叫 LLM 解讀擷取結果
+        try:
+            from app.config.settings import settings as _settings
+
+            extract_result = chat(
+                model=_settings.anthropic_model,
+                system=(
+                    f"你是資料擷取助理。請依照使用者描述，從以下網頁純文字內容中擷取對應資訊，"
+                    f"僅回傳擷取結果。\n\n擷取描述：{extract_description}"
+                ),
+                messages=[{"role": "user", "content": truncated}],
+                tools=None,
+            )
+            return extract_result.get("content", "")
+        except Exception as exc:
+            return f"[LLM 解讀失敗] {exc}"
+
+    return f"[工具錯誤] 不支援的工具類型：{tool_type}"
