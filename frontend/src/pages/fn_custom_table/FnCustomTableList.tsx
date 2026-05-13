@@ -1,5 +1,6 @@
 // src/pages/fn_custom_table/FnCustomTableList.tsx
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -11,6 +12,7 @@ import type { CustomTableRow } from '@/queries/useCustomTableQuery'
 import FnCustomTableForm from './FnCustomTableForm'
 
 export default function FnCustomTableList() {
+  const navigate = useNavigate()
   const [keyword, setKeyword] = useState('')
   const [appliedKeyword, setAppliedKeyword] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -94,10 +96,18 @@ export default function FnCustomTableList() {
     {
       field: 'actions',
       headerName: '操作',
-      width: 140,
+      width: 210,
       sortable: false,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: '100%' }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => navigate(`/custom_table/${params.row.id}/records`)}
+            sx={{ fontSize: 12, height: 24, borderRadius: '3px', minWidth: 'auto', px: 1 }}
+          >
+            查看資料
+          </Button>
           <Button
             size="small"
             variant="outlined"

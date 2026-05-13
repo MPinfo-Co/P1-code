@@ -12,6 +12,25 @@ export interface CustomTableField {
   field_description: string
 }
 
+export interface CustomTableFieldDef {
+  id: number
+  field_name: string
+  field_type: string
+  description: string | null
+  sort_order: number
+}
+
+export interface CustomTableRecord {
+  id: number
+  data: Record<string, unknown>
+  created_at: string
+}
+
+export interface CustomTableRecordsData {
+  fields: CustomTableFieldDef[]
+  records: CustomTableRecord[]
+}
+
 export interface CustomTableRow {
   id: number
   table_name: string
@@ -153,6 +172,58 @@ export function useDeleteCustomTable() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom_tables'] })
       queryClient.invalidateQueries({ queryKey: ['custom_table_options'] })
+    },
+  })
+}
+
+export function useCustomTableRecordsQuery(tableId: number | null) {
+  return useQuery<CustomTableRecordsData>({
+    queryKey: ['custom_table_records', tableId],
+    queryFn: async () => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/${tableId}/records`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail ?? err.message ?? '查詢失敗')
+      }
+      return res.json()
+    },
+    enabled: tableId !== null,
+  })
+}
+
+export function useDeleteCustomTableRecord() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ tableId, recordId }: { tableId: number; recordId: number }) => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/${tableId}/records/${recordId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      await handleResponse(res)
+    },
+    onSuccess: (_, { tableId }) => {
+      queryClient.invalidateQueries({ queryKey: ['custom_table_records', tableId] })
+    },
+  })
+}
+
+export function useDeleteAllCustomTableRecords() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (tableId: number) => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/${tableId}/records`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      await handleResponse(res)
+    },
+    onSuccess: (_, tableId) => {
+      queryClient.invalidateQueries({ queryKey: ['custom_table_records', tableId] })
     },
   })
 }
