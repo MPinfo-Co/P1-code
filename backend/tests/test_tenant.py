@@ -12,27 +12,31 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest")
 
 import pytest
 from unittest.mock import MagicMock, patch
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import BigInteger
+from sqlalchemy import Integer as _Integer
+from sqlalchemy import JSON, create_engine, inspect
+from sqlalchemy.dialects.postgresql import JSONB as _JSONB
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db.models.fn_tenant import Tenant
-from app.db.models.user_role import User, Role, TokenBlacklist, UserRole
-from app.db.models.fn_feedback import Feedback
-from app.db.models.function_access import FunctionFolder, FunctionItems, RoleFunction
-from app.db.models.fn_company_data import CompanyData
-from app.db.models.fn_ai_partner_config import AiPartner, AiPartnerConfig, AiPartnerTool
+from app.db.models.analysis import LogBatch, ChunkResult, DailyAnalysis
+from app.db.models.events import SecurityEvent, EventHistory
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
+from app.db.models.fn_ai_partner_config import AiPartner, AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
     ToolImageField,
     ToolWebScraperConfig,
 )
+from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
-from app.db.models.analysis import LogBatch, ChunkResult, DailyAnalysis
-from app.db.models.events import SecurityEvent, EventHistory
-from app.utils.util_store import hash_password, create_access_token
+from app.db.models.fn_feedback import Feedback
+from app.db.models.fn_tenant import Tenant
+from app.db.models.function_access import FunctionFolder, FunctionItems, RoleFunction
+from app.db.models.user_role import User, Role, TokenBlacklist, UserRole
+from app.utils.util_store import create_access_token
 
 # 全部 23 張需要 tenant_id 的 table 名稱
 _ALL_TENANT_TABLES = [
@@ -62,9 +66,6 @@ _ALL_TENANT_TABLES = [
 ]
 
 # SQLite 相容 patch（JSONB → JSON, BigInteger → Integer）
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
-from sqlalchemy.dialects.postgresql import JSONB as _JSONB
-from sqlalchemy import BigInteger, Integer as _Integer, JSON
 
 
 def _visit_JSONB(self, type_, **kw):  # noqa: N802
@@ -139,9 +140,9 @@ def mem_engine():
     # 預建 default tenant
     with eng.connect() as conn:
         conn.execute(
-            Tenant.__table__.insert().prefix_with("OR IGNORE").values(
-                id=1, name="default"
-            )
+            Tenant.__table__.insert()
+            .prefix_with("OR IGNORE")
+            .values(id=1, name="default")
         )
         conn.commit()
 
@@ -184,9 +185,7 @@ def test_T2_all_tables_have_tenant_id_column(mem_engine):
     inspector = inspect(mem_engine)
     for table_name in _ALL_TENANT_TABLES:
         columns = {col["name"] for col in inspector.get_columns(table_name)}
-        assert "tenant_id" in columns, (
-            f"tb={table_name} 缺少 tenant_id 欄位"
-        )
+        assert "tenant_id" in columns, f"tb={table_name} 缺少 tenant_id 欄位"
 
 
 def test_T2_tenant_id_not_nullable(mem_engine):
@@ -195,9 +194,7 @@ def test_T2_tenant_id_not_nullable(mem_engine):
     for table_name in _ALL_TENANT_TABLES:
         for col in inspector.get_columns(table_name):
             if col["name"] == "tenant_id":
-                assert not col["nullable"], (
-                    f"tb={table_name}.tenant_id 應為 NOT NULL"
-                )
+                assert not col["nullable"], f"tb={table_name}.tenant_id 應為 NOT NULL"
                 break
 
 
@@ -303,8 +300,12 @@ def test_T6_two_tenants_data_isolated(mem_session):
     mem_session.add(Tenant(id=2, name="tenant_b"))
     mem_session.flush()
 
-    mem_session.add(User(name="UserA", email="a@ta.com", password_hash="h", tenant_id=1))
-    mem_session.add(User(name="UserB", email="b@tb.com", password_hash="h", tenant_id=2))
+    mem_session.add(
+        User(name="UserA", email="a@ta.com", password_hash="h", tenant_id=1)
+    )
+    mem_session.add(
+        User(name="UserB", email="b@tb.com", password_hash="h", tenant_id=2)
+    )
     mem_session.commit()
 
     t1_emails = {
@@ -332,9 +333,7 @@ def test_T7_new_tenant_creates_default_user(mem_session):
     # event listener 在 after_insert 觸發，以 connection.execute 直接插入
     # 在 SQLite in-memory 環境中 event listener 應已觸發
     default_user = (
-        mem_session.query(User)
-        .filter(User.email == "99_admin@tenant.local")
-        .first()
+        mem_session.query(User).filter(User.email == "99_admin@tenant.local").first()
     )
     assert default_user is not None, "新增 tenant 後應自動建立 default_user"
     assert default_user.name == "99_admin"
@@ -442,9 +441,7 @@ def test_T28_default_user_idempotent(mem_session):
     mem_session.commit()
 
     count_after_first = (
-        mem_session.query(User)
-        .filter(User.email == "88_admin@tenant.local")
-        .count()
+        mem_session.query(User).filter(User.email == "88_admin@tenant.local").count()
     )
     assert count_after_first == 1, "第一次建立 tenant 應建立一個 default_user"
 
@@ -463,8 +460,6 @@ def test_T28_default_user_idempotent(mem_session):
         mem_session.rollback()
 
     count_after_second = (
-        mem_session.query(User)
-        .filter(User.email == "88_admin@tenant.local")
-        .count()
+        mem_session.query(User).filter(User.email == "88_admin@tenant.local").count()
     )
     assert count_after_second == 1, "重複插入相同 email 後 default_user 仍應只有一筆"

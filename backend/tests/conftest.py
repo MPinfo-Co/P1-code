@@ -101,9 +101,9 @@ def engine():
     # 預建 default tenant（id=1）供所有需要 tenant_id FK 的測試使用
     with _engine.connect() as conn:
         conn.execute(
-            Tenant.__table__.insert().prefix_with("OR IGNORE").values(
-                id=1, name="default"
-            )
+            Tenant.__table__.insert()
+            .prefix_with("OR IGNORE")
+            .values(id=1, name="default")
         )
         conn.commit()
     yield _engine
@@ -169,9 +169,9 @@ def db_session():
     # 預建 default tenant（id=1）
     with _engine.connect() as conn:
         conn.execute(
-            Tenant.__table__.insert().prefix_with("OR IGNORE").values(
-                id=1, name="default"
-            )
+            Tenant.__table__.insert()
+            .prefix_with("OR IGNORE")
+            .values(id=1, name="default")
         )
         conn.commit()
 

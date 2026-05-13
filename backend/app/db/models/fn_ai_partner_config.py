@@ -16,7 +16,11 @@ class AiPartner(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -43,7 +47,11 @@ class AiPartnerConfig(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -69,5 +77,9 @@ class AiPartnerTool(Base):
         Integer, ForeignKey("tb_tools.id"), primary_key=True
     )
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )

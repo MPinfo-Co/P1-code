@@ -21,7 +21,11 @@ class Conversation(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_users.id"), nullable=False
@@ -46,7 +50,11 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     conversation_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_conversations.id"), nullable=False
@@ -71,5 +79,9 @@ class RoleAiPartner(Base):
         Integer, ForeignKey("tb_ai_partner_configs.id"), primary_key=True
     )
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )

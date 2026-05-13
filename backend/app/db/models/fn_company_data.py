@@ -15,7 +15,11 @@ class CompanyData(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)

@@ -58,8 +58,7 @@ def upgrade() -> None:
 
     # ── Step 2: 插入預設 tenant（id=1, name='default'）──────────────────────
     op.execute(
-        "INSERT INTO tb_tenants (id, name) VALUES (1, 'default') "
-        "ON CONFLICT DO NOTHING"
+        "INSERT INTO tb_tenants (id, name) VALUES (1, 'default') ON CONFLICT DO NOTHING"
     )
 
     # ── Step 3: 為所有既有 table 新增 tenant_id（先允許 NULL）───────────────

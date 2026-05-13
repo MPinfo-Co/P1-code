@@ -28,7 +28,11 @@ class SecurityEvent(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     event_date: Mapped[date] = mapped_column(Date, nullable=False)
     date_end: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -79,7 +83,11 @@ class EventHistory(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     event_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("tb_security_events.id"), nullable=False

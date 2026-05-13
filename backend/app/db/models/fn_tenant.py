@@ -5,7 +5,7 @@
 """
 
 from sqlalchemy import Integer, String, event
-from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
 

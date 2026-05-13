@@ -18,7 +18,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     updated_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("tb_users.id"), nullable=True
@@ -36,7 +40,11 @@ class Role(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
@@ -58,7 +66,11 @@ class UserRole(Base):
         Integer, ForeignKey("tb_roles.id"), primary_key=True
     )
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
 
 
@@ -71,7 +83,11 @@ class TokenBlacklist(Base):
     token_jti: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     expired_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     tenant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )
     updated_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("tb_users.id"), nullable=True

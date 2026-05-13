@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 
 from fastapi import Request
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config.settings import settings
