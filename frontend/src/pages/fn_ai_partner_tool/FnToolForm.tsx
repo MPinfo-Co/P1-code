@@ -278,14 +278,10 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
 
           <Divider />
 
-          {/* 連線資訊（工具類型為 API 呼叫時顯示） */}
-          {showConnectionSection && (
-            <Typography className="fn-tool-form-section-title">連線資訊</Typography>
-          )}
-
           {/* 連線資訊區段（工具類型為 API 呼叫時顯示） */}
           {showConnectionSection && (
             <>
+              <Typography className="fn-tool-form-section-title">連線資訊</Typography>
               <Box>
                 <Typography className="fn-tool-form-label">
                   API Endpoint URL <span style={{ color: '#ef4444' }}>*</span>
