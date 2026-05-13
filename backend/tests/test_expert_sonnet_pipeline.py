@@ -459,8 +459,9 @@ def test_t10_exception_writes_failed_status_no_events(db_session):
 
     da = db_session.query(DailyAnalysis).filter_by(analysis_date=today).one()
     assert da.status == "failed"
-    assert da.error_message is not None
-    assert "Anthropic API 連線失敗" in da.error_message
+    # TDD #298 設計決定：未分類 exception 寫 4 桶 fallback 訊息，
+    # raw exception 只進 logger.exception，不入 DB（避免 IP/stack/secrets 外露）
+    assert da.error_message == "分析失敗，請稍後重試"
     # No new security events should be written
     assert db_session.query(SecurityEvent).count() == 0
 

@@ -56,9 +56,7 @@ def _classify_error(exc: BaseException) -> str:
     if isinstance(exc, (ValueError, KeyError)):
         # JSON parsing error
         return _ERR_RETRY
-    # fallback — truncate raw message to 200 chars
-    raw = str(exc)
-    return raw[:_ERROR_MSG_MAX_LEN] if len(raw) > _ERROR_MSG_MAX_LEN else raw
+    return _ERR_RETRY
 
 
 def run_haiku_task(

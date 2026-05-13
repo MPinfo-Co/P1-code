@@ -635,3 +635,117 @@ def test_status_returns_correct_message_ok(client, engine):
 
     assert resp.status_code == 200
     assert resp.json()["message"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Manual-mode pipeline integration (regression for is_enabled=False trigger)
+# ---------------------------------------------------------------------------
+
+
+def test_run_pro_task_manual_mode_bypasses_is_enabled_guard(db_session):
+    """手動觸發 Sonnet 即使 is_enabled=False 也要跑完，不可早退。"""
+    from app.tasks.pro_task import run_pro_task
+
+    with patch("app.tasks.pro_task.scheduler") as mock_sched:
+        rt = MagicMock()
+        rt.is_enabled = False
+        mock_sched.get_runtime.return_value = rt
+
+        today = date.today()
+        with patch("app.tasks.pro_task._collect_today_events") as mock_collect:
+            mock_collect.return_value = {}
+            run_pro_task(
+                today=today,
+                anthropic_client_factory=lambda: MagicMock(),
+                db_factory=lambda: db_session,
+                manual_mode=True,
+            )
+
+    da = (
+        db_session.query(DailyAnalysis)
+        .filter(DailyAnalysis.analysis_date == today)
+        .first()
+    )
+    assert da is not None, "manual_mode=True 時 run_pro_task 不該早退"
+    assert da.status == "done"
+    assert da.events_created == 0
+
+
+def test_dispatch_haiku_then_sonnet_runs_pro_task_with_manual_mode(client, engine):
+    """is_enabled=False + manual trigger：Haiku 跑完後 Sonnet 必須串接執行。
+
+    既有測試一律 mock `_dispatch_haiku_job`，無法捕捉這條串接 bug。
+    這支測試只 mock 外部 client，驗 run_pro_task 真的會被呼到。
+    """
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine, is_enabled=False)
+
+    with (
+        patch("app.tasks.haiku_task.run_haiku_task") as mock_haiku,
+        patch("app.tasks.pro_task.run_pro_task") as mock_pro,
+        patch("app.api.fn_expert._scheduler_mod_for_dispatch", create=True),
+    ):
+        # 強制走 fallback thread 路徑（測試環境 scheduler 未啟動）
+        from app import scheduler as sched_mod
+
+        sched_mod._scheduler = None
+
+        # 攔截 thread 內的 import：讓 _haiku_then_sonnet 走自訂 wiring
+
+        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
+
+        # 等 thread 跑完
+        import time
+
+        for _ in range(50):
+            if mock_pro.called:
+                break
+            time.sleep(0.02)
+
+    assert resp.status_code == 202
+    assert mock_haiku.called, "haiku 必須先跑"
+    assert mock_pro.called, "Sonnet 必須串接執行（這是 Bug 1）"
+    pro_kwargs = mock_pro.call_args.kwargs
+    assert pro_kwargs.get("manual_mode") is True, (
+        "Sonnet 應以 manual_mode=True 呼叫，繞過 is_enabled 守門"
+    )
+
+
+def test_dispatch_sonnet_when_is_enabled_uses_manual_mode(client, engine):
+    """is_enabled=True + manual trigger：Sonnet 也要以 manual_mode=True 呼叫，
+    避免「分析中關掉排程」的 race 讓 Sonnet 半途早退。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine, is_enabled=True)
+
+    with patch("app.tasks.pro_task.run_pro_task") as mock_pro:
+        from app import scheduler as sched_mod
+
+        sched_mod._scheduler = None
+
+        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
+
+        import time
+
+        for _ in range(50):
+            if mock_pro.called:
+                break
+            time.sleep(0.02)
+
+    assert resp.status_code == 202
+    assert mock_pro.called, "Sonnet 必須被呼叫"
+    pro_kwargs = mock_pro.call_args.kwargs
+    assert pro_kwargs.get("manual_mode") is True
+
+
+def test_classify_error_fallback_returns_retry_message():
+    """未分類 exception 應寫入「分析失敗，請稍後重試」，不可寫 raw exception 訊息。"""
+    from app.tasks.haiku_task import _classify_error as haiku_classify
+    from app.tasks.pro_task import _classify_error as pro_classify
+
+    # 完全未分類的 exception（既非 anthropic / sqlalchemy / httpx / ValueError）
+    class _UnknownError(Exception):
+        pass
+
+    exc = _UnknownError("internal IP 192.168.1.1 leaked, sensitive=true")
+    assert haiku_classify(exc) == "分析失敗，請稍後重試"
+    assert pro_classify(exc) == "分析失敗，請稍後重試"

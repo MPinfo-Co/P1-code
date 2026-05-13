@@ -233,14 +233,39 @@ def get_analysis_status(
 # ---------------------------------------------------------------------------
 
 
+def _run_sonnet_manual() -> None:
+    """直接執行 Sonnet 任務（manual_mode=True，繞過 is_enabled 守門）。
+
+    手動觸發 pipeline 必須走這個入口，不可走 scheduler._sonnet_job —— 後者
+    沒有 manual_mode 通道，會在 is_enabled=False 時早退讓 Sonnet 整段被跳過。
+    包 try/except 防單次失敗炸掉背景 thread。
+    """
+    from anthropic import Anthropic
+
+    from app.config.settings import settings as _settings
+    from app.db.connector import SessionLocal
+    from app.tasks.pro_task import run_pro_task
+
+    try:
+        run_pro_task(
+            anthropic_client_factory=lambda: Anthropic(
+                api_key=_settings.anthropic_api_key
+            ),
+            db_factory=SessionLocal,
+            manual_mode=True,
+        )
+    except Exception:
+        logger.exception("manual sonnet run failed")
+
+
 def _dispatch_sonnet_job() -> None:
-    """以 APScheduler one-shot job 投遞 _sonnet_job（立即執行）。"""
+    """投遞一次性 Sonnet 任務（is_enabled=True 路徑）。"""
     from app import scheduler as _scheduler_mod
 
     sched = _scheduler_mod._scheduler
     if sched is not None and sched.running:
         sched.add_job(
-            _scheduler_mod._sonnet_job,
+            _run_sonnet_manual,
             trigger=DateTrigger(run_date=datetime.now(timezone.utc)),
             id=f"manual_sonnet_{datetime.now(timezone.utc).timestamp()}",
             replace_existing=False,
@@ -250,9 +275,7 @@ def _dispatch_sonnet_job() -> None:
         # fallback: 直接在 thread 中執行（e.g. 測試環境 scheduler 未啟動）
         import threading
 
-        from app import scheduler as _sm
-
-        t = threading.Thread(target=_sm._sonnet_job, daemon=True)
+        t = threading.Thread(target=_run_sonnet_manual, daemon=True)
         t.start()
 
 
@@ -261,9 +284,8 @@ def _dispatch_haiku_job(
     time_to: datetime,
     batch_id: int,
 ) -> None:
-    """以 APScheduler one-shot job 投遞 _haiku_job（立即執行）。
+    """投遞一次性 Haiku 任務，完成後串接 Sonnet（is_enabled=False 路徑）。
 
-    Haiku job 完成後串接 Sonnet job。
     pipeline 由 haiku_task 使用傳入的 time_from/time_to，
     batch row 已在 trigger API 中同步建立。
     """
@@ -284,7 +306,7 @@ def _dispatch_haiku_job(
             time_to=time_to,
             batch_id=batch_id,
         )
-        _scheduler_mod._sonnet_job()
+        _run_sonnet_manual()
 
     sched = _scheduler_mod._scheduler
     if sched is not None and sched.running:

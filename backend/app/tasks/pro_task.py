@@ -52,9 +52,7 @@ def _classify_error(exc: BaseException) -> str:
         return _ERR_RETRY
     if isinstance(exc, (ValueError, KeyError)):
         return _ERR_RETRY
-    # fallback — truncate raw message to 200 chars
-    raw = str(exc)
-    return raw[:_ERROR_MSG_MAX_LEN] if len(raw) > _ERROR_MSG_MAX_LEN else raw
+    return _ERR_RETRY
 
 
 def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
@@ -183,15 +181,15 @@ def run_pro_task(
     today: date | None = None,
     anthropic_client_factory: Callable,
     db_factory: Callable[[], Session],
+    manual_mode: bool = False,
 ) -> None:
     """Execute one Sonnet daily aggregation cycle.
 
     Reads ``scheduler.get_runtime()`` to decide whether the cycle should run.
-    When ``is_enabled`` is False the function returns immediately without any
-    Anthropic or DB I/O. Otherwise it collects today's done ChunkResult rows,
-    groups events by ``match_key``, asks Claude Sonnet to merge them against
-    yesterday's still-open SecurityEvents, then upserts the merged results
-    into ``tb_security_events`` and records one ``tb_daily_analysis`` row.
+    When ``is_enabled`` is False AND ``manual_mode`` is False the function
+    returns immediately without any Anthropic or DB I/O — schedule-driven
+    runs are gated by the schedule switch. Manual triggers (one-click
+    analysis) pass ``manual_mode=True`` to bypass that gate.
 
     Args:
         today: Override the analysis date (defaults to UTC today). Useful for
@@ -200,13 +198,16 @@ def run_pro_task(
         db_factory: Callable returning a SQLAlchemy ``Session``. The session
             is committed but not closed; lifecycle is the caller's
             responsibility.
+        manual_mode: When True, bypass the ``is_enabled`` schedule gate.
+            Used by one-click analysis trigger so Sonnet runs even without
+            a configured schedule.
 
     Returns:
         None. All output is written to ``tb_daily_analysis`` and
         ``tb_security_events`` via ``db_factory``.
     """
     rt = scheduler.get_runtime()
-    if not rt.is_enabled:
+    if not manual_mode and not rt.is_enabled:
         logger.info("pro_task: skipped (is_enabled=False)")
         return
 
