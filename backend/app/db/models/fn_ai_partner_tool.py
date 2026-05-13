@@ -1,4 +1,4 @@
-"""ORM models for fn_ai_partner_tool: tb_tools, tb_tool_body_params, tb_tool_image_fields."""
+"""ORM models for fn_ai_partner_tool: tb_tools, tb_tool_body_params, tb_tool_image_fields, tb_tool_web_scraper_configs."""
 
 from datetime import datetime
 
@@ -10,7 +10,7 @@ from .base import Base
 
 
 class Tool(Base):
-    """AI工具主表 — 工具定義（external_api 或 image_extract 類型）。"""
+    """AI工具主表 — 外部 API / image_extract / web_scraper 工具定義。"""
 
     __tablename__ = "tb_tools"
 
@@ -72,4 +72,20 @@ class ToolImageField(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
+    )
+
+
+class ToolWebScraperConfig(Base):
+    """AI工具網頁擷取設定表（web_scraper 類型使用）。"""
+
+    __tablename__ = "tb_tool_web_scraper_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tool_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tools.id"), nullable=False, index=True
+    )
+    target_url: Mapped[str] = mapped_column(String(2000), nullable=False)
+    extract_description: Mapped[str] = mapped_column(Text, nullable=False)
+    max_chars: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=4000, server_default="4000"
     )
