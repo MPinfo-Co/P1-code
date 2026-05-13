@@ -1,5 +1,5 @@
 // src/pages/fn_ai_partner_chat/FnAiPartnerChat.tsx
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -7,18 +7,21 @@ import IconButton from '@mui/material/IconButton'
 import TextField from '@mui/material/TextField'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
-import Alert from '@mui/material/Alert'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Popover from '@mui/material/Popover'
+import Tooltip from '@mui/material/Tooltip'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SendIcon from '@mui/icons-material/Send'
 import ImageIcon from '@mui/icons-material/Image'
 import CloseIcon from '@mui/icons-material/Close'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import CheckIcon from '@mui/icons-material/Check'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import {
   useAiPartnerHistoryQuery,
   useNewAiPartnerChat,
@@ -31,6 +34,270 @@ interface Props {
   onBack: () => void
 }
 
+// ===== Markdown 渲染工具函式 =====
+function escHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function applyInline(text: string): string {
+  return escHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+}
+
+function renderMarkdown(text: string): string {
+  const lines = text.split('\n')
+  let html = ''
+  let inTable = false
+  let tableHtml = ''
+  let tableRowCount = 0
+  let inCodeBlock = false
+  let codeLines: string[] = []
+  let inUl = false
+  let inOl = false
+
+  function closeList() {
+    if (inUl) {
+      html += '</ul>'
+      inUl = false
+    }
+    if (inOl) {
+      html += '</ol>'
+      inOl = false
+    }
+  }
+
+  for (const line of lines) {
+    // 程式碼區塊
+    if (line.trim().startsWith('```')) {
+      if (!inCodeBlock) {
+        closeList()
+        inCodeBlock = true
+        codeLines = []
+      } else {
+        inCodeBlock = false
+        html += `<pre style="background:#1e293b;color:#e2e8f0;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;margin:6px 0;white-space:pre-wrap;overflow-x:auto;">${escHtml(codeLines.join('\n'))}</pre>`
+        codeLines = []
+      }
+      continue
+    }
+    if (inCodeBlock) {
+      codeLines.push(line)
+      continue
+    }
+
+    // 表格
+    const isTableRow = /^\|.+\|$/.test(line.trim())
+    const isSeparator = /^\|[\s\-|:]+\|$/.test(line.trim())
+    if (isTableRow && !isSeparator) {
+      closeList()
+      if (!inTable) {
+        inTable = true
+        tableHtml = '<table style="border-collapse:collapse;margin:6px 0;font-size:13px;"><tbody>'
+        tableRowCount = 0
+      }
+      const cells = line
+        .trim()
+        .replace(/^\||\|$/g, '')
+        .split('|')
+        .map((c) => c.trim())
+      if (tableRowCount === 0) {
+        tableHtml +=
+          '<tr>' +
+          cells
+            .map(
+              (c) =>
+                `<th style="border:1px solid #c7d2fe;padding:4px 10px;text-align:left;background:#eff6ff;font-weight:600;color:#1e40af;">${applyInline(c)}</th>`
+            )
+            .join('') +
+          '</tr>'
+      } else {
+        tableHtml +=
+          '<tr>' +
+          cells
+            .map(
+              (c) =>
+                `<td style="border:1px solid #c7d2fe;padding:4px 10px;text-align:left;">${applyInline(c)}</td>`
+            )
+            .join('') +
+          '</tr>'
+      }
+      tableRowCount++
+      continue
+    } else if (isSeparator) {
+      continue
+    } else {
+      if (inTable) {
+        tableHtml += '</tbody></table>'
+        html += tableHtml
+        inTable = false
+        tableHtml = ''
+        tableRowCount = 0
+      }
+    }
+
+    // 無序清單
+    const ulMatch = line.match(/^(\s*)[*-]\s+(.+)$/)
+    if (ulMatch) {
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      if (!inUl) {
+        html += '<ul style="margin:4px 0 4px 18px;padding:0;">'
+        inUl = true
+      }
+      html += `<li style="margin-bottom:2px;font-size:13px;">${applyInline(ulMatch[2])}</li>`
+      continue
+    }
+    // 有序清單
+    const olMatch = line.match(/^(\s*)\d+\.\s+(.+)$/)
+    if (olMatch) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (!inOl) {
+        html += '<ol style="margin:4px 0 4px 18px;padding:0;">'
+        inOl = true
+      }
+      html += `<li style="margin-bottom:2px;font-size:13px;">${applyInline(olMatch[2])}</li>`
+      continue
+    }
+    closeList()
+    html += line === '' ? '<br>' : applyInline(line) + '<br>'
+  }
+  closeList()
+  if (inCodeBlock)
+    html += `<pre style="background:#1e293b;color:#e2e8f0;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;margin:6px 0;white-space:pre-wrap;">${escHtml(codeLines.join('\n'))}</pre>`
+  if (inTable) {
+    tableHtml += '</tbody></table>'
+    html += tableHtml
+  }
+  return html
+}
+
+// ===== AI 訊息泡泡（支援 Markdown + 複製按鈕）=====
+interface AiBubbleProps {
+  content: string
+}
+
+function AiBubble({ content }: AiBubbleProps) {
+  const [isHovered, setIsHovered] = useState(false)
+  const [isCopied, setIsCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard.writeText(content).then(() => {
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 1500)
+    })
+  }
+
+  return (
+    <Box
+      sx={{ position: 'relative' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* 複製按鈕：hover 時右上角顯示 */}
+      {isHovered && (
+        <Tooltip title={isCopied ? '已複製' : '複製'} placement="top">
+          <IconButton
+            size="small"
+            onClick={handleCopy}
+            sx={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              zIndex: 1,
+              bgcolor: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              width: 26,
+              height: 26,
+              color: isCopied ? '#22c55e' : '#64748b',
+              '&:hover': { color: '#4f46e5', borderColor: '#c7d2fe' },
+            }}
+          >
+            {isCopied ? (
+              <CheckIcon sx={{ fontSize: 14 }} />
+            ) : (
+              <ContentCopyIcon sx={{ fontSize: 14 }} />
+            )}
+          </IconButton>
+        </Tooltip>
+      )}
+      <Box
+        sx={{
+          maxWidth: '72%',
+          bgcolor: '#f1f5f9',
+          color: '#1e293b',
+          px: 2,
+          py: 1.25,
+          borderRadius: '16px 16px 16px 4px',
+          fontSize: 14,
+          lineHeight: 1.6,
+          '& strong': { fontWeight: 700 },
+          '& pre': { overflowX: 'auto' },
+        }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+      />
+    </Box>
+  )
+}
+
+// ===== 503 錯誤提示列 =====
+interface ErrorRowProps {
+  hasImage: boolean
+  onRetry: () => void
+}
+
+function ErrorRow({ hasImage, onRetry }: ErrorRowProps) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+        bgcolor: '#fef2f2',
+        border: '1px solid #fecaca',
+        borderRadius: '8px',
+        px: 1.75,
+        py: 1,
+        fontSize: 13,
+        color: '#dc2626',
+      }}
+    >
+      <Typography sx={{ fontSize: 13, color: '#dc2626', flex: 1 }}>
+        {hasImage
+          ? '⚠ AI 服務暫時無法使用（503）（原訊息含圖片，請重新上傳後再傳送）'
+          : '⚠ AI 服務暫時無法使用（503）'}
+      </Typography>
+      {!hasImage && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={onRetry}
+          sx={{
+            fontSize: 12,
+            height: 26,
+            borderRadius: '6px',
+            borderColor: '#fca5a5',
+            color: '#dc2626',
+            flexShrink: 0,
+            '&:hover': { bgcolor: '#fef2f2' },
+          }}
+        >
+          重新傳送
+        </Button>
+      )}
+    </Box>
+  )
+}
+
+// ===== 主元件 =====
 export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -40,19 +307,44 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [sendError, setSendError] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<{ message: string; hasImage: boolean } | null>(null)
   const [isConfirmNewOpen, setIsConfirmNewOpen] = useState(false)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isShowSuggestions, setIsShowSuggestions] = useState(false)
   const [helpAnchor, setHelpAnchor] = useState<HTMLButtonElement | null>(null)
+  // 記錄是否已有首次 AI 回覆（用於建議 Chip 自動展開）
+  const [isFirstAiReplyDone, setIsFirstAiReplyDone] = useState(false)
+  // 記錄最後一則使用者訊息（用於 503 重試）
+  const lastUserMsgRef = useRef<{ text: string; image: File | null; hasImage: boolean } | null>(
+    null
+  )
+  // 捲到最新浮動按鈕
+  const [isShowScrollBtn, setIsShowScrollBtn] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef = useRef<HTMLTextAreaElement>(null)
 
   const { data: historyData, isLoading: isHistoryLoading } = useAiPartnerHistoryQuery(partner.id)
   const newChat = useNewAiPartnerChat()
   const sendMessage = useSendAiPartnerMessage()
 
   const isLoading = isHistoryLoading || newChat.isPending
+
+  // 將輸入框 focus 的工具函式
+  const focusInput = useCallback(() => {
+    // 短暫延遲確保 DOM 更新後 focus
+    setTimeout(() => {
+      textInputRef.current?.focus()
+    }, 50)
+  }, [])
+
+  // 1. 進入對話畫面時 focus 輸入框
+  useEffect(() => {
+    if (isInitialized) {
+      focusInput()
+    }
+  }, [isInitialized, focusInput])
 
   // Initialize chat on history load
   useEffect(() => {
@@ -73,21 +365,44 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
-          setSendError(msg || 'AI 服務暫時無法使用，請稍後再試')
+          setSendError({ message: msg || 'AI 服務暫時無法使用，請稍後再試', hasImage: false })
         },
       })
     }
   }, [historyData, isInitialized, partner.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll to bottom on new messages or loading state change
+  // 捲到最新訊息
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isSending, isLoading])
+
+  // 捲動監聽：更新「捲到最新」浮動按鈕顯示狀態
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30
+    setIsShowScrollBtn(!atBottom)
+  }, [])
+
+  function handleScrollToBottom() {
+    messagesContainerRef.current?.scrollTo({
+      top: messagesContainerRef.current.scrollHeight,
+      behavior: 'smooth',
+    })
+  }
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     if (!file) return
     setSelectedImage(file)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImagePreviewUrl(reader.result as string)
+      // 3. 圖片選取完成後（FileReader 讀取完成）focus 輸入框
+      focusInput()
+    }
+    reader.readAsDataURL(file)
+    // 同步更新 objectURL 供預覽（FileReader 非同步，用 createObjectURL 立即顯示）
     setImagePreviewUrl(URL.createObjectURL(file))
   }
 
@@ -112,6 +427,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
     if (!text.trim() && !image) return
     if (!conversationId) return
 
+    const hadImage = !!image
+
+    lastUserMsgRef.current = { text, image, hasImage: hadImage }
+
     const userMessage: ChatMessage = {
       role: 'user',
       content: text,
@@ -121,10 +440,9 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
 
     setMessages((prev) => [...prev, userMessage])
     setSuggestions([])
-    setShowSuggestions(false)
+    setIsShowSuggestions(false)
     setInputText('')
     setSelectedImage(null)
-    // 有傳圖時保留 blob URL 供訊息顯示；無圖時才 revoke（清掉未送出的預覽）
     if (imagePreviewUrl && !image) URL.revokeObjectURL(imagePreviewUrl)
     setImagePreviewUrl(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -149,14 +467,34 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           setMessages((prev) => [...prev, aiMessage])
           setSuggestions(data.suggestions)
           setIsSending(false)
+
+          // 5. AI 首次回覆後自動展開建議 Chip；後續維持收合
+          if (!isFirstAiReplyDone) {
+            setIsFirstAiReplyDone(true)
+            if (data.suggestions.length > 0) {
+              setIsShowSuggestions(true)
+            }
+          } else {
+            setIsShowSuggestions(false)
+          }
+
+          // 2. AI 回覆完成後 focus 輸入框
+          focusInput()
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
-          setSendError(msg || 'AI 服務暫時無法使用，請稍後再試')
+          setSendError({ message: msg || 'AI 服務暫時無法使用，請稍後再試', hasImage: hadImage })
           setIsSending(false)
         },
       }
     )
+  }
+
+  function handleRetry() {
+    if (!lastUserMsgRef.current) return
+    const { text, image } = lastUserMsgRef.current
+    setSendError(null)
+    doSend(text, image)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -177,29 +515,34 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
     setSuggestions([])
     setConversationId(null)
     setSendError(null)
+    setIsFirstAiReplyDone(false)
+    lastUserMsgRef.current = null
     newChat.mutate(partner.id, {
       onSuccess: (data) => {
         setConversationId(data.conversation_id)
         setMessages(data.messages)
         setSuggestions(data.suggestions)
         setInputText('')
+        setIsShowSuggestions(false)
         handleRemoveImage()
       },
       onError: (err) => {
         const msg = err instanceof Error ? err.message : '建立新對話失敗，請稍後再試'
-        setSendError(msg)
+        setSendError({ message: msg, hasImage: false })
       },
     })
   }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 40px - 28px)' }}>
-      {/* Top bar */}
+      {/* 7. Top bar — 修正底部分隔線與下方元素視覺重疊：加 borderBottom + mb */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           pb: 1.25,
+          mb: 0.5,
+          borderBottom: '1px solid #e2e8f0',
           flexShrink: 0,
           gap: 1,
         }}
@@ -240,111 +583,152 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         </Button>
       </Box>
 
-      {/* Messages area */}
+      {/* 6. Messages area — position:relative 支援浮動按鈕定位 */}
       <Box
         sx={{
           flex: 1,
-          overflowY: 'auto',
+          position: 'relative',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          gap: 1.5,
-          py: 1,
-          px: 0.5,
         }}
       >
-        {messages.map((msg, idx) => (
-          <Box
-            key={idx}
+        <Box
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          sx={{
+            flex: 1,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+            py: 1,
+            px: 0.5,
+          }}
+        >
+          {messages.map((msg, idx) => (
+            <Box
+              key={idx}
+              sx={{
+                display: 'flex',
+                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              }}
+            >
+              {msg.role === 'assistant' ? (
+                // 1. AI 回覆：Markdown 渲染 + 4. 複製按鈕
+                <AiBubble content={msg.content} />
+              ) : (
+                // 使用者訊息：純文字
+                <Box
+                  sx={{
+                    maxWidth: '72%',
+                    bgcolor: '#6366f1',
+                    color: 'white',
+                    px: 2,
+                    py: 1.25,
+                    borderRadius: '16px 16px 4px 16px',
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {msg.image_url && (
+                    <Box
+                      component="img"
+                      src={msg.image_url}
+                      sx={{
+                        width: 120,
+                        height: 120,
+                        objectFit: 'cover',
+                        borderRadius: 1,
+                        mb: 0.75,
+                        display: 'block',
+                      }}
+                    />
+                  )}
+                  <Typography sx={{ fontSize: 13, whiteSpace: 'pre-wrap', color: 'inherit' }}>
+                    {msg.content}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          ))}
+
+          {/* AI loading indicator */}
+          {isSending && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <Box
+                sx={{
+                  bgcolor: '#f1f5f9',
+                  px: 2,
+                  py: 1.25,
+                  borderRadius: '16px 16px 16px 4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      bgcolor: '#6366f1',
+                      borderRadius: '50%',
+                      animation: 'aiPulse 1.2s infinite',
+                      animationDelay: `${i * 0.2}s`,
+                      '@keyframes aiPulse': {
+                        '0%, 100%': { opacity: 0.3, transform: 'scale(0.8)' },
+                        '50%': { opacity: 1, transform: 'scale(1)' },
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* 3. 503 錯誤提示列 */}
+          {sendError && <ErrorRow hasImage={sendError.hasImage} onRetry={handleRetry} />}
+
+          {isLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={28} />
+            </Box>
+          )}
+
+          <div ref={messagesEndRef} />
+        </Box>
+
+        {/* 6. 「↓ 捲到最新」浮動按鈕 */}
+        {isShowScrollBtn && (
+          <Button
+            size="small"
+            startIcon={<KeyboardArrowDownIcon />}
+            onClick={handleScrollToBottom}
             sx={{
-              display: 'flex',
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              position: 'absolute',
+              bottom: 14,
+              right: 14,
+              zIndex: 10,
+              bgcolor: 'white',
+              border: '1px solid #c7d2fe',
+              borderRadius: '20px',
+              color: '#4f46e5',
+              fontSize: 12,
+              px: 1.75,
+              py: 0.625,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              '&:hover': { bgcolor: '#eff6ff' },
             }}
           >
-            <Box
-              sx={{
-                maxWidth: '72%',
-                bgcolor: msg.role === 'user' ? '#6366f1' : '#f1f5f9',
-                color: msg.role === 'user' ? 'white' : '#1e293b',
-                px: 2,
-                py: 1.25,
-                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                fontSize: 14,
-                lineHeight: 1.6,
-              }}
-            >
-              {msg.image_url && (
-                <Box
-                  component="img"
-                  src={msg.image_url}
-                  sx={{
-                    width: 120,
-                    height: 120,
-                    objectFit: 'cover',
-                    borderRadius: 1,
-                    mb: 0.75,
-                    display: 'block',
-                  }}
-                />
-              )}
-              <Typography sx={{ fontSize: 13, whiteSpace: 'pre-wrap', color: 'inherit' }}>
-                {msg.content}
-              </Typography>
-            </Box>
-          </Box>
-        ))}
-
-        {/* AI loading indicator */}
-        {isSending && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <Box
-              sx={{
-                bgcolor: '#f1f5f9',
-                px: 2,
-                py: 1.25,
-                borderRadius: '16px 16px 16px 4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-              }}
-            >
-              {[0, 1, 2].map((i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    bgcolor: '#6366f1',
-                    borderRadius: '50%',
-                    animation: 'aiPulse 1.2s infinite',
-                    animationDelay: `${i * 0.2}s`,
-                    '@keyframes aiPulse': {
-                      '0%, 100%': { opacity: 0.3, transform: 'scale(0.8)' },
-                      '50%': { opacity: 1, transform: 'scale(1)' },
-                    },
-                  }}
-                />
-              ))}
-            </Box>
-          </Box>
+            捲到最新
+          </Button>
         )}
-
-        {sendError && (
-          <Alert severity="error" sx={{ mx: 0 }}>
-            {sendError}
-          </Alert>
-        )}
-
-        {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={28} />
-          </Box>
-        )}
-
-        <div ref={messagesEndRef} />
       </Box>
 
-      {/* Suggestions expanded list */}
-      {suggestions.length > 0 && !isSending && showSuggestions && (
+      {/* 5. 建議問題清單（展開時顯示） */}
+      {suggestions.length > 0 && !isSending && isShowSuggestions && (
         <Box
           sx={{
             flexShrink: 0,
@@ -360,7 +744,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
               key={idx}
               label={s}
               size="small"
-              onClick={() => handleChipClick(s)}
+              onClick={() => {
+                handleChipClick(s)
+                // 4. Chip 點擊後送出後 focus 輸入框（doSend 結束後由 focusInput 處理）
+              }}
               sx={{
                 fontSize: 12,
                 bgcolor: '#f0f0ff',
@@ -431,7 +818,9 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
               >
                 {keys}
               </Typography>
-              <Typography sx={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>{desc}</Typography>
+              <Typography sx={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>
+                {desc}
+              </Typography>
             </Box>
           ))}
         </Popover>
@@ -484,7 +873,8 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             onKeyDown={handleKeyDown}
             disabled={isSending || !isInitialized}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
+            inputRef={textInputRef}
+            slotProps={{ input: { disableUnderline: true } }}
             sx={{
               '& .MuiInputBase-root': { px: 1.5, py: 1, fontSize: 14 },
             }}
@@ -494,10 +884,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         {suggestions.length > 0 && !isSending && (
           <IconButton
             size="small"
-            onClick={() => setShowSuggestions((v) => !v)}
+            onClick={() => setIsShowSuggestions((v) => !v)}
             sx={{
-              color: showSuggestions ? '#6366f1' : '#94a3b8',
-              bgcolor: showSuggestions ? '#f0f0ff' : 'transparent',
+              color: isShowSuggestions ? '#6366f1' : '#94a3b8',
+              bgcolor: isShowSuggestions ? '#f0f0ff' : 'transparent',
               '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' },
             }}
           >
