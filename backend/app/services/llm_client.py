@@ -50,6 +50,9 @@ def chat(
     Raises:
         LLMClientError: API 呼叫失敗且 retry 耗盡，或非 retryable 錯誤。
     """
+    if not settings.anthropic_api_key:
+        raise LLMClientError("LLM 呼叫失敗：ANTHROPIC_API_KEY 尚未設定，請聯絡管理員")
+
     kwargs: dict = {
         "model": model,
         "system": system,
@@ -84,6 +87,8 @@ def chat(
                 raise LLMClientError(f"LLM 呼叫失敗：{exc}") from exc
             time.sleep(delay)
             delay *= 2
+        except TypeError as exc:
+            raise LLMClientError(f"LLM 呼叫失敗：{exc}") from exc
 
     # 解析回應
     content_text = ""

@@ -82,7 +82,7 @@ export default function FnToolList() {
     }
     return (
       <Chip
-        label="外部 API 呼叫"
+        label="API 呼叫"
         size="small"
         sx={{ fontSize: 12, bgcolor: '#dbeafe', color: '#1d4ed8', fontWeight: 600 }}
       />

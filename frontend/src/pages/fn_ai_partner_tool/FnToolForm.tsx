@@ -248,7 +248,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
             </Typography>
             {isEdit ? (
               <Typography sx={{ fontSize: 14, color: '#334155', py: 0.5 }}>
-                {toolType === 'image_extract' ? '圖片擷取' : '外部 API 呼叫'}
+                {toolType === 'image_extract' ? '圖片擷取' : 'API 呼叫'}
               </Typography>
             ) : (
               <RadioGroup
@@ -259,7 +259,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                 <FormControlLabel
                   value="external_api"
                   control={<Radio size="small" />}
-                  label="外部 API 呼叫"
+                  label="API 呼叫"
                 />
                 <FormControlLabel
                   value="image_extract"
@@ -272,12 +272,12 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
 
           <Divider />
 
-          {/* 連線資訊（工具類型為「外部 API 呼叫」時顯示） */}
+          {/* 連線資訊（工具類型為「API 呼叫」時顯示） */}
           {isExternalApi && (
             <Typography className="fn-tool-form-section-title">連線資訊</Typography>
           )}
 
-          {/* 連線資訊區段（僅「外部 API 呼叫」顯示） */}
+          {/* 連線資訊區段（僅「API 呼叫」顯示） */}
           {isExternalApi && (
             <>
               <Box>
@@ -445,7 +445,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
 
               <Divider />
 
-              {/* 測試區塊（僅外部 API 呼叫顯示） */}
+              {/* 測試區塊（僅API 呼叫顯示） */}
               <Typography className="fn-tool-form-section-title">測試</Typography>
 
               {showBodyParams && bodyParams.filter((p) => p.param_name.trim()).length > 0 && (

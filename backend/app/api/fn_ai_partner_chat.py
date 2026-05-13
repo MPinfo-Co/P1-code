@@ -34,7 +34,7 @@ from app.config.settings import settings
 from app.db.connector import get_db
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolImageField
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -142,38 +142,47 @@ def _build_tool_definitions(
     tool_configs: list[dict] = []
 
     for tool in tool_rows:
-        params = (
-            db.query(ToolBodyParam)
-            .filter(ToolBodyParam.tool_id == tool.id)
-            .order_by(ToolBodyParam.sort_order.asc())
-            .all()
-        )
+        safe_name = f"tool_{tool.id}"
+        tool_type: str = tool.tool_type or "external_api"
 
         # Anthropic tool definition
         properties: dict = {}
         required_params: list[str] = []
-        for p in params:
-            type_map = {
-                "string": "string",
-                "number": "number",
-                "boolean": "boolean",
-                "object": "object",
-            }
-            properties[p.param_name] = {
-                "type": type_map.get(p.param_type, "string"),
-                "description": p.description or "",
-            }
-            if p.is_required:
-                required_params.append(p.param_name)
 
-        # 從 endpoint_url 解析 {param} 佔位符，補足 body params 未涵蓋的參數
-        for url_param in re.findall(r"\{(\w+)\}", tool.endpoint_url or ""):
-            if url_param not in properties:
-                properties[url_param] = {"type": "string", "description": url_param}
-                required_params.append(url_param)
+        if tool_type == "image_extract":
+            image_fields = (
+                db.query(ToolImageField)
+                .filter(ToolImageField.tool_id == tool.id)
+                .order_by(ToolImageField.sort_order.asc())
+                .all()
+            )
+            for f in image_fields:
+                properties[f.field_name] = {
+                    "type": f.field_type if f.field_type in ("string", "number") else "string",
+                    "description": f.description or f.field_name,
+                }
+                required_params.append(f.field_name)
+        else:
+            params = (
+                db.query(ToolBodyParam)
+                .filter(ToolBodyParam.tool_id == tool.id)
+                .order_by(ToolBodyParam.sort_order.asc())
+                .all()
+            )
+            type_map = {"string": "string", "number": "number", "boolean": "boolean", "object": "object"}
+            for p in params:
+                properties[p.param_name] = {
+                    "type": type_map.get(p.param_type, "string"),
+                    "description": p.description or "",
+                }
+                if p.is_required:
+                    required_params.append(p.param_name)
 
-        # Anthropic tool names must match ^[a-zA-Z0-9_-]{1,64}$; use tool_{id} as safe name
-        safe_name = f"tool_{tool.id}"
+            # 從 endpoint_url 解析 {param} 佔位符，補足 body params 未涵蓋的參數
+            for url_param in re.findall(r"\{(\w+)\}", tool.endpoint_url or ""):
+                if url_param not in properties:
+                    properties[url_param] = {"type": "string", "description": url_param}
+                    required_params.append(url_param)
 
         tool_defs.append(
             {
@@ -191,6 +200,7 @@ def _build_tool_definitions(
         tool_configs.append(
             {
                 "name": safe_name,
+                "tool_type": tool_type,
                 "endpoint_url": tool.endpoint_url,
                 "http_method": tool.http_method,
                 "auth_type": tool.auth_type,
