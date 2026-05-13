@@ -456,6 +456,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
 
   function handleChipClick(text: string) {
     doSend(text, null)
+    focusInput()
   }
 
   async function handleSend() {
@@ -522,9 +523,13 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           // 2. AI 回覆完成後 focus 輸入框
           focusInput()
         },
-        onError: (err) => {
-          const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
-          setSendError({ message: msg || 'AI 服務暫時無法使用，請稍後再試', hasImage: hadImage })
+        onError: (err: Error & { status?: number }) => {
+          if (err.status === 503) {
+            setSendError({
+              message: err.message || 'AI 服務暫時無法使用，請稍後再試',
+              hasImage: hadImage,
+            })
+          }
           setIsSending(false)
         },
       }
