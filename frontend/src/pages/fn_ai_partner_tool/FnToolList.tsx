@@ -12,8 +12,9 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
+import Chip from '@mui/material/Chip'
 import { useToolsQuery, useDeleteTool } from '@/queries/useToolsQuery'
-import type { ToolRow } from '@/queries/useToolsQuery'
+import type { ToolRow, ToolType } from '@/queries/useToolsQuery'
 import FnToolForm from './FnToolForm'
 import './FnToolList.css'
 
@@ -69,6 +70,17 @@ export default function FnToolList() {
     }
   }
 
+  const TOOL_TYPE_LABEL: Record<ToolType, string> = {
+    external_api: 'API 呼叫',
+    image_extract: '圖片擷取',
+    web_scraper: '網頁擷取',
+  }
+  const TOOL_TYPE_COLOR: Record<ToolType, 'primary' | 'success' | 'warning'> = {
+    external_api: 'primary',
+    image_extract: 'success',
+    web_scraper: 'warning',
+  }
+
   const columns: GridColDef[] = [
     {
       field: 'name',
@@ -77,6 +89,22 @@ export default function FnToolList() {
       renderCell: ({ value }) => (
         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
       ),
+    },
+    {
+      field: 'tool_type',
+      headerName: '工具類型',
+      width: 130,
+      renderCell: ({ value }) => {
+        const toolTypeValue = value as ToolType
+        return (
+          <Chip
+            label={TOOL_TYPE_LABEL[toolTypeValue] ?? toolTypeValue}
+            color={TOOL_TYPE_COLOR[toolTypeValue] ?? 'default'}
+            size="small"
+            sx={{ fontSize: 12, height: 22 }}
+          />
+        )
+      },
     },
     {
       field: 'description',
