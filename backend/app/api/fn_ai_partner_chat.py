@@ -158,7 +158,9 @@ def _build_tool_definitions(
             )
             for f in image_fields:
                 properties[f.field_name] = {
-                    "type": f.field_type if f.field_type in ("string", "number") else "string",
+                    "type": f.field_type
+                    if f.field_type in ("string", "number")
+                    else "string",
                     "description": f.description or f.field_name,
                 }
                 required_params.append(f.field_name)
@@ -169,7 +171,12 @@ def _build_tool_definitions(
                 .order_by(ToolBodyParam.sort_order.asc())
                 .all()
             )
-            type_map = {"string": "string", "number": "number", "boolean": "boolean", "object": "object"}
+            type_map = {
+                "string": "string",
+                "number": "number",
+                "boolean": "boolean",
+                "object": "object",
+            }
             for p in params:
                 properties[p.param_name] = {
                     "type": type_map.get(p.param_type, "string"),

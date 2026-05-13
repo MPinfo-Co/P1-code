@@ -69,7 +69,11 @@ def _normalize_property_keys(
                 new_required.append(safe_key)
 
         new_tool = dict(tool)
-        new_tool["input_schema"] = {**schema, "properties": new_props, "required": new_required}
+        new_tool["input_schema"] = {
+            **schema,
+            "properties": new_props,
+            "required": new_required,
+        }
         normalized.append(new_tool)
 
         if any(k != v for k, v in key_map.items()):
@@ -222,7 +226,9 @@ def run(
         # 執行每個 tool_call（使用還原後的原始名稱查找 tool_configs）
         tool_results = []
         for tc in restored_tool_calls:
-            tool_result_content = _execute_tool(tc, tool_configs or [], prop_key_mapping)
+            tool_result_content = _execute_tool(
+                tc, tool_configs or [], prop_key_mapping
+            )
             tool_results.append(
                 {
                     "type": "tool_result",
