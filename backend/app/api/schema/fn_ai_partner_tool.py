@@ -2,11 +2,9 @@
 
 from pydantic import BaseModel, Field
 
-VALID_TOOL_TYPES = {"external_api", "image_extract", "web_scraper"}
-
 
 class ToolBodyParamCreate(BaseModel):
-    """單筆 Body 參數輸入（external_api 類型使用）。"""
+    """單筆 Body 參數輸入。"""
 
     param_name: str = Field(..., description="參數名稱")
     param_type: str = Field(..., description="型別：string / number / boolean / object")
@@ -15,9 +13,9 @@ class ToolBodyParamCreate(BaseModel):
 
 
 class ToolImageFieldCreate(BaseModel):
-    """單筆擷取欄位輸入（image_extract 類型使用）。"""
+    """單筆圖片擷取欄位輸入（image_extract 類型使用）。"""
 
-    field_name: str = Field(..., description="擷取欄位名稱")
+    field_name: str = Field(..., description="欄位名稱")
     field_type: str = Field(..., description="欄位型別：string / number / boolean")
     description: str | None = Field(None, description="欄位說明")
 
@@ -28,16 +26,17 @@ class ToolCreate(BaseModel):
     name: str = Field(..., description="工具名稱")
     description: str | None = Field(None, description="工具說明")
     tool_type: str = Field(
-        "external_api", description="工具類型：external_api / image_extract"
+        default="external_api",
+        description="工具類型：external_api / image_extract / web_scraper",
     )
     endpoint_url: str | None = Field(
-        None, description="API Endpoint URL（external_api 必填）"
+        None, description="API Endpoint URL（external_api 類型）"
     )
     http_method: str | None = Field(
-        None, description="HTTP Method（external_api 必填）"
+        None, description="HTTP Method（external_api 類型）"
     )
     auth_type: str | None = Field(
-        None, description="認證方式：none / api_key / bearer（external_api 必填）"
+        None, description="認證方式：none / api_key / bearer（external_api 類型）"
     )
     auth_header_name: str | None = Field(
         None, description="API Key 模式下的 Header 名稱"
@@ -47,7 +46,14 @@ class ToolCreate(BaseModel):
         default_factory=list, description="Body 參數定義（external_api 類型）"
     )
     image_fields: list[ToolImageFieldCreate] = Field(
-        default_factory=list, description="擷取欄位定義（image_extract 類型）"
+        default_factory=list, description="圖片擷取欄位定義（image_extract 類型）"
+    )
+    target_url: str | None = Field(None, description="目標網址（web_scraper 類型）")
+    extract_description: str | None = Field(
+        None, description="擷取描述（web_scraper 類型）"
+    )
+    max_chars: int | None = Field(
+        None, description="最大擷取字元數（web_scraper 類型，預設 4000）"
     )
 
 
@@ -56,14 +62,17 @@ class ToolUpdate(BaseModel):
 
     name: str = Field(..., description="工具名稱")
     description: str | None = Field(None, description="工具說明")
+    tool_type: str | None = Field(
+        None, description="工具類型（後端忽略，以 DB 現有值為準）"
+    )
     endpoint_url: str | None = Field(
-        None, description="API Endpoint URL（external_api 必填）"
+        None, description="API Endpoint URL（external_api 類型）"
     )
     http_method: str | None = Field(
-        None, description="HTTP Method（external_api 必填）"
+        None, description="HTTP Method（external_api 類型）"
     )
     auth_type: str | None = Field(
-        None, description="認證方式：none / api_key / bearer（external_api 必填）"
+        None, description="認證方式：none / api_key / bearer（external_api 類型）"
     )
     auth_header_name: str | None = Field(
         None, description="API Key 模式下的 Header 名稱"
@@ -73,7 +82,14 @@ class ToolUpdate(BaseModel):
         default_factory=list, description="Body 參數定義（external_api 類型）"
     )
     image_fields: list[ToolImageFieldCreate] = Field(
-        default_factory=list, description="擷取欄位定義（image_extract 類型）"
+        default_factory=list, description="圖片擷取欄位定義（image_extract 類型）"
+    )
+    target_url: str | None = Field(None, description="目標網址（web_scraper 類型）")
+    extract_description: str | None = Field(
+        None, description="擷取描述（web_scraper 類型）"
+    )
+    max_chars: int | None = Field(
+        None, description="最大擷取字元數（web_scraper 類型）"
     )
 
 
@@ -91,7 +107,7 @@ class ToolBodyParamItem(BaseModel):
 
 
 class ToolImageFieldItem(BaseModel):
-    """單筆擷取欄位輸出。"""
+    """單筆圖片擷取欄位輸出（image_extract 類型）。"""
 
     model_config = {"from_attributes": True}
 
@@ -100,6 +116,16 @@ class ToolImageFieldItem(BaseModel):
     field_type: str
     description: str | None
     sort_order: int
+
+
+class ToolWebScraperConfigItem(BaseModel):
+    """網頁擷取設定輸出（web_scraper 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    target_url: str
+    extract_description: str
+    max_chars: int
 
 
 class ToolItem(BaseModel):
@@ -118,6 +144,7 @@ class ToolItem(BaseModel):
     has_credential: bool
     body_params: list[ToolBodyParamItem] = []
     image_fields: list[ToolImageFieldItem] = []
+    web_scraper_config: ToolWebScraperConfigItem | None = None
 
 
 class ToolTestRequest(BaseModel):
