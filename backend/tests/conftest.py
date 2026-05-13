@@ -5,17 +5,18 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest")
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from app.db.connector import get_db
-from app.main import app
 from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
-from app.db.models.events import SecurityEvent
+from app.db.models.events import EventHistory, SecurityEvent
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_feedback import Feedback
 from app.db.models.function_access import (
@@ -24,6 +25,27 @@ from app.db.models.function_access import (
     RoleFunction,
 )
 from app.db.models.user_role import Role, TokenBlacklist, User, UserRole
+from app.main import app
+
+
+# SQLite compatibility patches for in-memory testing:
+# 1. JSONB → JSON  (SQLite has no native JSONB)
+# 2. BIGINT → INTEGER  (SQLite autoincrement requires INTEGER PK)
+# 加 module-level patch 讓 client/engine fixture 也能建含 JSONB/BIGINT 欄位的表
+# （tb_security_events 等）。db_session fixture 另外有 dynamic patching 機制、
+# 兩者並行不衝突。
+
+
+def _visit_JSONB(self, type_, **kw):  # noqa: N802
+    return self.visit_JSON(type_, **kw)
+
+
+def _visit_BIGINT(self, type_, **kw):  # noqa: N802
+    return "INTEGER"
+
+
+SQLiteTypeCompiler.visit_JSONB = _visit_JSONB  # type: ignore[method-assign]
+SQLiteTypeCompiler.visit_BIGINT = _visit_BIGINT  # type: ignore[method-assign]
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -43,6 +65,9 @@ _SEED_TABLES = [
     Message.__table__,
     RoleAiPartner.__table__,
     Feedback.__table__,
+    # PG #207 新增（main 上沒有、加進 seed 不算動 main 既有分組）
+    EventHistory.__table__,
+    CompanyData.__table__,
 ]
 
 _TASK_TABLES = [

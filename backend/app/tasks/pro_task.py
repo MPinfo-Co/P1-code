@@ -31,7 +31,9 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
 
     Args:
         db: Active SQLAlchemy session.
-        today: Date used to filter ``LogBatch.time_from``.
+        today: Date used to filter ``LogBatch.time_to`` (batch 結束時間落在 today
+            才收進；以結束時間歸屬可避免跨日 batch（如 23:55–00:05 開始於昨天）
+            被永遠漏掉）。
 
     Returns:
         Mapping from ``match_key`` to the list of raw events sharing it.
@@ -41,7 +43,7 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
         db.query(ChunkResult)
         .join(LogBatch, ChunkResult.batch_id == LogBatch.id)
         .filter(
-            func.date(LogBatch.time_from) == today,
+            func.date(LogBatch.time_to) == today,
             ChunkResult.status == "done",
         )
         .all()
@@ -55,8 +57,18 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
     return dict(grouped)
 
 
-def _yesterday_open_events(db: Session, today: date) -> list[dict]:
-    """Return a digest of yesterday's still-open SecurityEvents for continuity.
+def _recent_open_events_for_continuity(db: Session, today: date) -> list[dict]:
+    """Return a digest of all still-open SecurityEvents before today, for
+    Sonnet continuity detection (continued_from_match_key判斷).
+
+    範圍：`event_date < today` AND `current_status` 為 `pending` 或
+    `investigating`。撈整段歷史 open 事件（不只昨天），讓 Sonnet 有足夠
+    context 判斷今天的事件是不是既有 open 事件的延續。實務上 open 事件
+    數量通常不大、prompt 不會爆。
+
+    註：SD spec `fn_expert_03_backend.md` 中描述「昨天的已確認事件」
+    為過時用語，實際 continuity 設計是看「所有 open 歷史事件」；待
+    SD spec 修正時同步更新（見 PG #206 audit 議題 #14）。
 
     Args:
         db: Active SQLAlchemy session.
@@ -111,6 +123,16 @@ def _upsert_event(db: Session, today: date, ev: dict) -> tuple[bool, bool]:
         existing.detection_count = (existing.detection_count or 0) + ev.get(
             "detection_count", 1
         )
+        # Refresh Sonnet-produced fields so 新【分析依據】、新 suggests、重新分析的標題/風險評估
+        # 都會反映到既有 row（current_status 與 created_at 保留 DB metadata）
+        existing.star_rank = ev["star_rank"]
+        existing.title = ev["title"]
+        existing.description = ev.get("description")
+        existing.affected_summary = ev["affected_summary"]
+        existing.affected_detail = ev.get("affected_detail")
+        existing.suggests = ev.get("suggests")
+        existing.ioc_list = ev.get("ioc_list")
+        existing.mitre_tags = ev.get("mitre_tags")
         existing.updated_at = datetime.now(timezone.utc)
         return False, True
 
@@ -193,13 +215,14 @@ def run_pro_task(
             logger.info(f"pro_task: no chunks for {today}")
             return
 
-        prev = _yesterday_open_events(db, today)
+        prev = _recent_open_events_for_continuity(db, today)
         ant = anthropic_client_factory()
         merged = claude_pro.aggregate_daily(
             grouped_events=grouped,
             previous_events=prev,
             today=today.isoformat(),
             client=ant,
+            db=db,
         )
 
         created = updated = 0
@@ -215,8 +238,9 @@ def run_pro_task(
         db.commit()
         logger.info("pro_task: date=%s created=%d updated=%d", today, created, updated)
     except Exception as exc:
-        da.status = "error"
+        db.rollback()
+        da.status = "failed"
         da.error_message = str(exc)
+        da.completed_at = datetime.now(timezone.utc)
         db.commit()
-        logger.exception("pro_task: failed")
-        raise
+        logger.exception("pro_task: failed — %s", exc)
