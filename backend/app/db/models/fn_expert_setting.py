@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Integer, SmallInteger, String, Text, TIMESTAMP
+from sqlalchemy import Boolean, ForeignKey, Integer, SmallInteger, String, Text, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -18,6 +18,9 @@ class ExpertSetting(Base):
     __tablename__ = "tb_expert_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )

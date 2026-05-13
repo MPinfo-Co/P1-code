@@ -14,6 +14,9 @@ class FunctionFolder(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     folder_code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     folder_label: Mapped[str] = mapped_column(String(50), nullable=False)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     sort_order: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
@@ -30,6 +33,9 @@ class FunctionItems(Base):
     folder_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_function_folder.id"), nullable=False
     )
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     sort_order: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
@@ -45,4 +51,7 @@ class RoleFunction(Base):
     )
     function_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_function_items.function_id"), primary_key=True
+    )
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
     )

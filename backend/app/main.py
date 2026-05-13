@@ -25,6 +25,7 @@ from app.api.navigation import router as navigation_router
 from app.api.roles import router as roles_router
 from app.api.user import router as user_router
 from app.middlewares.request_response_handler import RequestResponseHandlerMiddleware
+from app.middlewares.tenant_middleware import TenantMiddleware
 
 
 @asynccontextmanager
@@ -74,6 +75,7 @@ def create_app():
         allow_headers=["*"],
     )
     server.add_middleware(RequestResponseHandlerMiddleware)
+    server.add_middleware(TenantMiddleware)
 
     server.include_router(auth_router)
     server.include_router(fn_ai_partner_chat_router)

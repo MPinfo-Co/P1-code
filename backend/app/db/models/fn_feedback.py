@@ -18,6 +18,9 @@ class Feedback(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_users.id"), nullable=False
     )
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

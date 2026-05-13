@@ -15,6 +15,9 @@ class Tool(Base):
     __tablename__ = "tb_tools"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tool_type: Mapped[str] = mapped_column(
@@ -41,6 +44,9 @@ class ToolBodyParam(Base):
     __tablename__ = "tb_tool_body_params"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     tool_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_tools.id"), nullable=False, index=True
     )

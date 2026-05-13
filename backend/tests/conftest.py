@@ -24,6 +24,7 @@ from app.db.models.fn_ai_partner_tool import (
 from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_feedback import Feedback
+from app.db.models.fn_tenant import Tenant
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -55,6 +56,8 @@ SQLiteTypeCompiler.visit_BIGINT = _visit_BIGINT  # type: ignore[method-assign]
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
 _SEED_TABLES = [
+    # tb_tenants 必須在所有 FK 參照表之前建立
+    Tenant.__table__,
     User.__table__,
     Role.__table__,
     UserRole.__table__,
@@ -95,6 +98,14 @@ def engine():
     )
     for table in _SEED_TABLES:
         table.create(bind=_engine, checkfirst=True)
+    # 預建 default tenant（id=1）供所有需要 tenant_id FK 的測試使用
+    with _engine.connect() as conn:
+        conn.execute(
+            Tenant.__table__.insert().prefix_with("OR IGNORE").values(
+                id=1, name="default"
+            )
+        )
+        conn.commit()
     yield _engine
     for table in reversed(_SEED_TABLES):
         table.drop(bind=_engine, checkfirst=True)
@@ -154,6 +165,15 @@ def db_session():
     # Restore original types so other tests / the real app are not affected
     for col, original_type in _patched:
         col.type = original_type
+
+    # 預建 default tenant（id=1）
+    with _engine.connect() as conn:
+        conn.execute(
+            Tenant.__table__.insert().prefix_with("OR IGNORE").values(
+                id=1, name="default"
+            )
+        )
+        conn.commit()
 
     Session = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
     session = Session()

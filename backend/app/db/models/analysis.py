@@ -25,6 +25,9 @@ class LogBatch(Base):
     __tablename__ = "tb_log_batches"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     time_from: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     time_to: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     status: Mapped[str] = mapped_column(
@@ -62,6 +65,9 @@ class ChunkResult(Base):
     __tablename__ = "tb_chunk_results"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     batch_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("tb_log_batches.id"), nullable=False
     )
@@ -91,6 +97,9 @@ class DailyAnalysis(Base):
     __tablename__ = "tb_daily_analysis"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tenants.id"), nullable=False, default=1, server_default="1"
+    )
     analysis_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", server_default="pending"
