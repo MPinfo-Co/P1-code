@@ -18,7 +18,6 @@ import MenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
-import Switch from '@mui/material/Switch'
 import { useCreateTool, useUpdateTool, useTestTool } from '@/queries/useToolsQuery'
 import type { ToolRow, BodyParam, TestToolResult, ToolType } from '@/queries/useToolsQuery'
 import './FnToolForm.css'
@@ -42,7 +41,7 @@ interface ExtractField {
 }
 
 const TOOL_TYPE_LABEL: Record<ToolType, string> = {
-  external_api: '外部 API 呼叫',
+  external_api: 'API 呼叫',
   image_extract: '圖片擷取',
   web_scraper: '網頁擷取',
 }
@@ -222,11 +221,9 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
           name: name.trim(),
           description: description.trim(),
           tool_type: toolType,
-          web_scraper_config: {
-            target_url: targetUrl.trim(),
-            extract_description: extractDescription.trim(),
-            max_chars: maxChars > 0 ? maxChars : 4000,
-          },
+          target_url: targetUrl.trim(),
+          extract_description: extractDescription.trim(),
+          max_chars: maxChars > 0 ? maxChars : 4000,
         }
         if (isEdit && row) {
           await updateTool.mutateAsync({ id: row.id, payload })
@@ -300,7 +297,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                 <FormControlLabel
                   value="external_api"
                   control={<Radio size="small" />}
-                  label="外部 API 呼叫"
+                  label="API 呼叫"
                 />
                 <FormControlLabel
                   value="image_extract"
@@ -563,7 +560,10 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   fullWidth
                   size="small"
                   value={targetUrl}
-                  onChange={(e) => setTargetUrl(e.target.value)}
+                  onChange={(e) => {
+                    setTargetUrl(e.target.value)
+                    setFormError(null)
+                  }}
                   placeholder="https://example.com/page"
                   sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
                 />
@@ -579,7 +579,10 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   multiline
                   rows={3}
                   value={extractDescription}
-                  onChange={(e) => setExtractDescription(e.target.value)}
+                  onChange={(e) => {
+                    setExtractDescription(e.target.value)
+                    setFormError(null)
+                  }}
                   placeholder="描述要從頁面中擷取哪些資訊（供 AI 夥伴解讀用）"
                   sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
                 />
@@ -595,16 +598,6 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   inputProps={{ min: 1 }}
                   sx={{ width: 160, '& .MuiInputBase-input': { fontSize: 14 } }}
                 />
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography className="fn-tool-form-label" sx={{ mb: '0 !important' }}>
-                  需要 JS 執行
-                </Typography>
-                <Switch disabled checked={false} size="small" />
-                <Typography sx={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
-                  即將支援
-                </Typography>
               </Box>
             </>
           )}

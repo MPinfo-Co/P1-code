@@ -19,7 +19,7 @@ import FnToolForm from './FnToolForm'
 import './FnToolList.css'
 
 const TOOL_TYPE_LABEL: Record<ToolType, string> = {
-  external_api: '外部 API 呼叫',
+  external_api: 'API 呼叫',
   image_extract: '圖片擷取',
   web_scraper: '網頁擷取',
 }

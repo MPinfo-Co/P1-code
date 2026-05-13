@@ -7,6 +7,7 @@
 - 迴圈上限 5 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
 - 工具名稱正規化（中文及非法字元 → Anthropic 合法格式）
+- 工具 input_schema property key 正規化（同上限制）
 """
 
 import re
@@ -77,6 +78,57 @@ def _normalize_tool_names(
     return normalized_tools, name_mapping
 
 
+def _normalize_tool_properties(tools: list[dict]) -> list[dict]:
+    """對工具定義清單中每個工具的 input_schema.properties key 執行正規化。
+
+    Anthropic API 要求 property key 只能包含 ^[a-zA-Z0-9_.-]{1,64}$。
+    若 key 含中文或其他非法字元（例如 image_extract 欄位名稱），需在送出前轉換。
+
+    轉換規則：
+    1. 以 _ 替換所有非 a-z A-Z 0-9 _ . - 字元。
+    2. 若轉換後全為底線（原始全中文）、開頭為數字，或與已用 key 重複，改用 field_{index}。
+    3. required 清單中的 key 同步更新。
+    """
+    result: list[dict] = []
+    for tool in tools:
+        schema = tool.get("input_schema", {})
+        props: dict = schema.get("properties", {})
+        required: list[str] = schema.get("required", [])
+
+        if not props:
+            result.append(tool)
+            continue
+
+        new_props: dict = {}
+        key_mapping: dict[str, str] = {}
+        used_keys: set[str] = set()
+
+        for idx, (orig_key, prop_def) in enumerate(props.items()):
+            safe = re.sub(r"[^a-zA-Z0-9_.\-]", "_", orig_key)
+            if (
+                not safe
+                or re.match(r"^[0-9]", safe)
+                or re.fullmatch(r"_+", safe)
+                or safe in used_keys
+            ):
+                safe = f"field_{idx}"
+            used_keys.add(safe)
+            key_mapping[orig_key] = safe
+            new_props[safe] = prop_def
+
+        new_required = [key_mapping.get(k, k) for k in required]
+
+        new_tool = dict(tool)
+        new_tool["input_schema"] = {
+            **schema,
+            "properties": new_props,
+            "required": new_required,
+        }
+        result.append(new_tool)
+
+    return result
+
+
 def run(
     model: str,
     system: str,
@@ -108,9 +160,10 @@ def run(
     iteration = 0
     current_messages = list(messages)
 
-    # 工具名稱正規化：建立 normalized_tools 及 正規化後名稱 → 原始名稱 對映表
+    # 工具正規化：名稱與 property key 均需符合 Anthropic 格式限制
     if tools:
         normalized_tools, name_mapping = _normalize_tool_names(tools)
+        normalized_tools = _normalize_tool_properties(normalized_tools)
     else:
         normalized_tools = tools
         name_mapping: dict[str, str] = {}
