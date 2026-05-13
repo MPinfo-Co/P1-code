@@ -18,6 +18,37 @@ import type { ToolRow, ToolType } from '@/queries/useToolsQuery'
 import FnToolForm from './FnToolForm'
 import './FnToolList.css'
 
+const TOOL_TYPE_LABEL: Record<ToolType, string> = {
+  external_api: '外部 API 呼叫',
+  image_extract: '圖片擷取',
+  web_scraper: '網頁擷取',
+}
+
+const TOOL_TYPE_COLOR: Record<ToolType, { bg: string; color: string; border: string }> = {
+  external_api: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  image_extract: { bg: '#f0fdf4', color: '#166534', border: '#86efac' },
+  web_scraper: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+}
+
+function ToolTypeBadge({ toolType }: { toolType: ToolType }) {
+  const label = TOOL_TYPE_LABEL[toolType] ?? toolType
+  const style = TOOL_TYPE_COLOR[toolType] ?? { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' }
+  return (
+    <Chip
+      label={label}
+      size="small"
+      sx={{
+        bgcolor: style.bg,
+        color: style.color,
+        border: `1px solid ${style.border}`,
+        fontWeight: 500,
+        fontSize: 12,
+        height: 22,
+      }}
+    />
+  )
+}
+
 interface AppliedFilter {
   keyword?: string
 }
@@ -70,25 +101,6 @@ export default function FnToolList() {
     }
   }
 
-  function renderToolTypeChip(toolType: ToolType) {
-    if (toolType === 'image_extract') {
-      return (
-        <Chip
-          label="圖片擷取"
-          size="small"
-          sx={{ fontSize: 12, bgcolor: '#dcfce7', color: '#166534', fontWeight: 600 }}
-        />
-      )
-    }
-    return (
-      <Chip
-        label="API 呼叫"
-        size="small"
-        sx={{ fontSize: 12, bgcolor: '#dbeafe', color: '#1d4ed8', fontWeight: 600 }}
-      />
-    )
-  }
-
   const columns: GridColDef[] = [
     {
       field: 'name',
@@ -101,8 +113,8 @@ export default function FnToolList() {
     {
       field: 'tool_type',
       headerName: '工具類型',
-      width: 140,
-      renderCell: (params) => renderToolTypeChip((params.value as ToolType) ?? 'external_api'),
+      width: 150,
+      renderCell: ({ value }) => (value ? <ToolTypeBadge toolType={value as ToolType} /> : null),
     },
     {
       field: 'description',
