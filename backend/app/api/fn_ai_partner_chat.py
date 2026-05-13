@@ -34,7 +34,12 @@ from app.config.settings import settings
 from app.db.connector import get_db
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolImageField
+from app.db.models.fn_ai_partner_tool import (
+    Tool,
+    ToolBodyParam,
+    ToolImageField,
+    ToolWebScraperConfig,
+)
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -126,7 +131,7 @@ def _build_system_prompt(partner: AiPartnerConfig) -> str:
 def _build_tool_definitions(
     partner_id: int, db: Session
 ) -> tuple[list[dict], list[dict]]:
-    """從 tb_ai_partner_tools JOIN tb_tools + tb_tool_body_params 組裝 tool 定義與設定清單。
+    """從 tb_ai_partner_tools JOIN tb_tools + 各子表 組裝 tool 定義與設定清單。
 
     Returns:
         (tool_defs, tool_configs) — Anthropic format defs & execution configs.
@@ -164,6 +169,27 @@ def _build_tool_definitions(
                     "description": f.description or f.field_name,
                 }
                 required_params.append(f.field_name)
+            tool_configs.append({"name": safe_name, "tool_type": tool_type})
+
+        elif tool_type == "web_scraper":
+            scraper_config = (
+                db.query(ToolWebScraperConfig)
+                .filter(ToolWebScraperConfig.tool_id == tool.id)
+                .first()
+            )
+            # web_scraper 不需要 LLM 傳入參數，提供一個空 schema
+            tool_configs.append(
+                {
+                    "name": safe_name,
+                    "tool_type": tool_type,
+                    "target_url": scraper_config.target_url if scraper_config else "",
+                    "extract_description": scraper_config.extract_description
+                    if scraper_config
+                    else "",
+                    "max_chars": scraper_config.max_chars if scraper_config else 4000,
+                }
+            )
+
         else:
             params = (
                 db.query(ToolBodyParam)
@@ -191,6 +217,20 @@ def _build_tool_definitions(
                     properties[url_param] = {"type": "string", "description": url_param}
                     required_params.append(url_param)
 
+            tool_configs.append(
+                {
+                    "name": safe_name,
+                    "tool_type": tool_type,
+                    "endpoint_url": tool.endpoint_url,
+                    "http_method": tool.http_method,
+                    "auth_type": tool.auth_type,
+                    "auth_header_name": tool.auth_header_name,
+                    "credential": decrypt(tool.credential_enc)
+                    if tool.credential_enc
+                    else "",
+                }
+            )
+
         tool_defs.append(
             {
                 "name": safe_name,
@@ -200,21 +240,6 @@ def _build_tool_definitions(
                     "properties": properties,
                     "required": required_params,
                 },
-            }
-        )
-
-        # Execution config
-        tool_configs.append(
-            {
-                "name": safe_name,
-                "tool_type": tool_type,
-                "endpoint_url": tool.endpoint_url,
-                "http_method": tool.http_method,
-                "auth_type": tool.auth_type,
-                "auth_header_name": tool.auth_header_name,
-                "credential": decrypt(tool.credential_enc)
-                if tool.credential_enc
-                else "",
             }
         )
 

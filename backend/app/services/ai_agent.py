@@ -2,7 +2,7 @@
 
 職責：
 - 呼叫 llm_client.chat()
-- 判斷 tool_call，執行外部工具 API 或 image_extract 直通處理
+- 判斷 tool_call，執行外部工具 API（external_api / image_extract / web_scraper）
 - 帶回 tool_result 繼續對話
 - 迴圈上限 5 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
@@ -14,7 +14,9 @@ import re
 from urllib.parse import quote
 
 import httpx
+from bs4 import BeautifulSoup
 
+from app.config.settings import settings
 from app.services.llm_client import LLMClientError, chat  # noqa: F401 (re-export for convenience)
 
 
@@ -274,6 +276,9 @@ def _execute_tool(
         remapped = {key_map.get(k, k): v for k, v in tool_input.items()}
         return json.dumps(remapped, ensure_ascii=False)
 
+    if tool_type == "web_scraper":
+        return _execute_web_scraper(config, tool_input)
+
     # external_api：執行外部 HTTP 呼叫
     # URL 樣板替換
     endpoint_url: str = config.get("endpoint_url", "") or ""
@@ -302,3 +307,53 @@ def _execute_tool(
             return resp.text
     except Exception as exc:
         return f"[工具執行失敗] {exc}"
+
+
+def _execute_web_scraper(config: dict, tool_input: dict) -> str:  # noqa: ARG001
+    """執行 web_scraper 類型工具呼叫。
+
+    流程：
+    1. httpx GET target_url（timeout=30s）
+    2. BeautifulSoup 清除 script/style/img 取純文字
+    3. 截斷至 max_chars 字元
+    4. LLM 依 extract_description 解讀並回傳擷取結果
+    """
+    target_url: str = config.get("target_url", "")
+    extract_description: str = config.get("extract_description", "")
+    max_chars: int = int(config.get("max_chars", 4000))
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.get(target_url)
+        html_content = resp.text
+    except httpx.ConnectError:
+        return "無法連線至目標網址"
+    except httpx.TimeoutException:
+        return "目標網址請求逾時"
+    except Exception as exc:
+        return f"無法連線至目標網址：{exc}"
+
+    soup = BeautifulSoup(html_content, "html.parser")
+    for tag in soup(["script", "style", "img"]):
+        tag.decompose()
+    plain_text = soup.get_text(separator="\n", strip=True)
+    plain_text = plain_text[:max_chars]
+
+    try:
+        llm_messages = [
+            {
+                "role": "user",
+                "content": (
+                    f"以下是從網頁擷取的純文字內容：\n\n{plain_text}\n\n"
+                    f"請依據以下描述，從上述內容中擷取所需資訊並回傳結果：\n{extract_description}"
+                ),
+            }
+        ]
+        result = chat(
+            model=settings.anthropic_model,
+            system="你是一個資料擷取助理，請依據使用者的描述從提供的網頁文字中精確擷取所需資訊，並直接回傳擷取結果。",
+            messages=llm_messages,
+        )
+        return result.get("content", "無法解讀擷取結果")
+    except Exception as exc:
+        return f"[LLM 解讀失敗] {exc}"
