@@ -1,5 +1,5 @@
 // src/pages/fn_ai_partner_chat/FnAiPartnerChat.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -32,6 +32,43 @@ import type { AiPartner, ChatMessage } from '@/queries/useAiPartnerChatQuery'
 interface Props {
   partner: AiPartner
   onBack: () => void
+}
+
+// ===== stripMarkdown：去除 Markdown 標記，用於複製純文字 =====
+function stripMarkdown(text: string): string {
+  return (
+    text
+      .split('\n')
+      .map((line) => {
+        // 程式碼區塊標記行（```...）→ 移除整行
+        if (/^\s*```/.test(line)) return null
+        // 表格分隔線（| --- | 或 | :--- | 等）→ 移除整行
+        if (/^\|[\s\-|:]+\|$/.test(line.trim())) return null
+        // 無序清單：行首 * 或 - + 空格 → 去除標記
+        line = line.replace(/^(\s*)[*-]\s+/, '$1')
+        // 有序清單：行首 1. 2. 等 → 去除標記
+        line = line.replace(/^(\s*)\d+\.\s+/, '$1')
+        // 粗體：**...**
+        line = line.replace(/\*\*(.+?)\*\*/g, '$1')
+        // 行內程式碼：`...`
+        line = line.replace(/`([^`]*)`/g, '$1')
+        // 表格列：去除首尾 | 並用空格分隔儲存格
+        if (/^\|.+\|$/.test(line.trim())) {
+          line = line
+            .trim()
+            .replace(/^\||\|$/g, '')
+            .split('|')
+            .map((c) => c.trim())
+            .join('  ')
+        }
+        return line
+      })
+      .filter((line): line is string => line !== null)
+      .join('\n')
+      // 折疊連續空行為單行空行
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  )
 }
 
 // ===== Markdown 渲染工具函式 =====
@@ -189,7 +226,7 @@ function AiBubble({ content }: AiBubbleProps) {
   const [isCopied, setIsCopied] = useState(false)
 
   function handleCopy() {
-    navigator.clipboard.writeText(content).then(() => {
+    navigator.clipboard.writeText(stripMarkdown(content)).then(() => {
       setIsCopied(true)
       setTimeout(() => setIsCopied(false), 1500)
     })
@@ -350,18 +387,22 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   useEffect(() => {
     if (!historyData || isInitialized) return
     if (historyData.conversation_id) {
-      setConversationId(historyData.conversation_id)
-      setMessages(historyData.messages)
-      setSuggestions(historyData.suggestions)
-      setIsInitialized(true)
+      startTransition(() => {
+        setConversationId(historyData.conversation_id)
+        setMessages(historyData.messages)
+        setSuggestions(historyData.suggestions)
+        setIsInitialized(true)
+      })
     } else {
       // No existing conversation — start new one
       newChat.mutate(partner.id, {
         onSuccess: (data) => {
-          setConversationId(data.conversation_id)
-          setMessages(data.messages)
-          setSuggestions(data.suggestions)
-          setIsInitialized(true)
+          startTransition(() => {
+            setConversationId(data.conversation_id)
+            setMessages(data.messages)
+            setSuggestions(data.suggestions)
+            setIsInitialized(true)
+          })
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
