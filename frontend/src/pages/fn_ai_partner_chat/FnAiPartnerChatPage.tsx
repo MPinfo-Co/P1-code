@@ -22,7 +22,7 @@ export default function FnAiPartnerChatPage() {
   }
 
   return (
-    <Box sx={{ p: '14px 20px', bgcolor: '#f0f4f8', minHeight: '100%' }}>
+    <Box sx={{ mt: '-7px' }}>
       {view === 'list' && <FnAiPartnerChatList onEnterChat={handleEnterChat} />}
       {view === 'chat' && selectedPartner && (
         <FnAiPartnerChat partner={selectedPartner} onBack={handleBack} />

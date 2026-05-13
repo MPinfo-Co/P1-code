@@ -1,5 +1,6 @@
 // src/pages/fn_ai_partner_chat/FnAiPartnerChat.tsx
 import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -224,6 +225,14 @@ interface AiBubbleProps {
 function AiBubble({ content }: AiBubbleProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [hoverY, setHoverY] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  function handleMouseEnter(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (rect) setHoverY(e.clientY - rect.top)
+    setIsHovered(true)
+  }
 
   function handleCopy() {
     navigator.clipboard.writeText(stripMarkdown(content)).then(() => {
@@ -234,38 +243,41 @@ function AiBubble({ content }: AiBubbleProps) {
 
   return (
     <Box
-      sx={{ position: 'relative' }}
-      onMouseEnter={() => setIsHovered(true)}
+      ref={containerRef}
+      sx={{ display: 'flex', alignItems: 'flex-start' }}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 複製按鈕：hover 時右上角顯示 */}
-      {isHovered && (
-        <Tooltip title={isCopied ? '已複製' : '複製'} placement="top">
-          <IconButton
-            size="small"
-            onClick={handleCopy}
-            sx={{
-              position: 'absolute',
-              top: 4,
-              right: 4,
-              zIndex: 1,
-              bgcolor: 'white',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              width: 26,
-              height: 26,
-              color: isCopied ? '#22c55e' : '#64748b',
-              '&:hover': { color: '#4f46e5', borderColor: '#c7d2fe' },
-            }}
-          >
-            {isCopied ? (
-              <CheckIcon sx={{ fontSize: 14 }} />
-            ) : (
-              <ContentCopyIcon sx={{ fontSize: 14 }} />
-            )}
-          </IconButton>
-        </Tooltip>
-      )}
+      {/* 左側複製按鈕欄：與滑鼠進入高度對齊 */}
+      <Box sx={{ width: 30, flexShrink: 0, position: 'relative', alignSelf: 'stretch' }}>
+        {isHovered && (
+          <Tooltip title={isCopied ? '已複製' : '複製'} placement="top">
+            <IconButton
+              size="small"
+              onClick={handleCopy}
+              sx={{
+                position: 'absolute',
+                top: Math.max(0, hoverY - 13),
+                left: 2,
+                zIndex: 1,
+                bgcolor: 'white',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                width: 26,
+                height: 26,
+                color: isCopied ? '#22c55e' : '#64748b',
+                '&:hover': { color: '#4f46e5', borderColor: '#c7d2fe' },
+              }}
+            >
+              {isCopied ? (
+                <CheckIcon sx={{ fontSize: 14 }} />
+              ) : (
+                <ContentCopyIcon sx={{ fontSize: 14 }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
       <Box
         sx={{
           maxWidth: '72%',
@@ -281,6 +293,49 @@ function AiBubble({ content }: AiBubbleProps) {
         }}
         dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
       />
+    </Box>
+  )
+}
+
+// ===== 思考中動畫 =====
+const THINKING_LABELS = ['思考中', '用力思考']
+
+function ThinkingIndicator() {
+  const [tick, setTick] = useState(0)
+  const dotCount = (tick % 20) + 1
+  const labelIdx = Math.floor(tick / 20) % THINKING_LABELS.length
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 200)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <Box
+      sx={{
+        bgcolor: '#f1f5f9',
+        px: 2,
+        py: 1.25,
+        borderRadius: '16px 16px 16px 4px',
+        display: 'inline-flex',
+        alignItems: 'baseline',
+      }}
+    >
+      <Typography
+        component="span"
+        sx={{
+          fontSize: 13,
+          fontWeight: 700,
+          animation: 'thinkingColor 1.35s ease-in-out infinite',
+          '@keyframes thinkingColor': {
+            '0%, 100%': { color: '#94a3b8' },
+            '50%': { color: '#1e293b' },
+          },
+        }}
+      >
+        {THINKING_LABELS[labelIdx]}
+        {'.'.repeat(dotCount)}
+      </Typography>
     </Box>
   )
 }
@@ -362,6 +417,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textInputRef = useRef<HTMLTextAreaElement>(null)
 
+  const queryClient = useQueryClient()
   const { data: historyData, isLoading: isHistoryLoading } = useAiPartnerHistoryQuery(partner.id)
   const newChat = useNewAiPartnerChat()
   const sendMessage = useSendAiPartnerMessage()
@@ -403,6 +459,9 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             setSuggestions(data.suggestions)
             setIsInitialized(true)
           })
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['aiPartnerHistory', partner.id] })
+          }, 4000)
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'AI 服務暫時無法使用，請稍後再試'
@@ -416,6 +475,14 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isSending, isLoading])
+
+  // 新對話後建議由背景任務非同步產生，historyData 重新抓取後若有建議則更新
+  useEffect(() => {
+    if (!isInitialized) return
+    if (!historyData?.suggestions?.length) return
+    if (suggestions.length > 0) return
+    setSuggestions(historyData.suggestions)
+  }, [historyData?.suggestions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 捲動監聽：更新「捲到最新」浮動按鈕顯示狀態
   const handleMessagesScroll = useCallback(() => {
@@ -571,6 +638,9 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         setInputText('')
         setIsShowSuggestions(false)
         handleRemoveImage()
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['aiPartnerHistory', partner.id] })
+        }, 4000)
       },
       onError: (err) => {
         const msg = err instanceof Error ? err.message : '建立新對話失敗，請稍後再試'
@@ -702,35 +772,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           {/* AI loading indicator */}
           {isSending && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <Box
-                sx={{
-                  bgcolor: '#f1f5f9',
-                  px: 2,
-                  py: 1.25,
-                  borderRadius: '16px 16px 16px 4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                }}
-              >
-                {[0, 1, 2].map((i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      bgcolor: '#6366f1',
-                      borderRadius: '50%',
-                      animation: 'aiPulse 1.2s infinite',
-                      animationDelay: `${i * 0.2}s`,
-                      '@keyframes aiPulse': {
-                        '0%, 100%': { opacity: 0.3, transform: 'scale(0.8)' },
-                        '50%': { opacity: 1, transform: 'scale(1)' },
-                      },
-                    }}
-                  />
-                ))}
-              </Box>
+              <ThinkingIndicator />
             </Box>
           )}
 
