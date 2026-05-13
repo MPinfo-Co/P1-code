@@ -431,7 +431,7 @@ def test_new_conversation_returns_201(client, engine):
             }
         ],
     }
-    with patch("app.api.fn_ai_partner_chat.ai_agent.run", return_value=mock_result):
+    with patch("app.api.fn_ai_partner_chat.llm_chat", return_value=mock_result):
         resp = client.post(
             "/ai-partner-chat/new",
             json={"partner_id": partner_id},
@@ -466,7 +466,7 @@ def test_new_conversation_keeps_old_records(client, engine):
         "content": "新問候",
         "tool_calls": [],
     }
-    with patch("app.api.fn_ai_partner_chat.ai_agent.run", return_value=mock_result):
+    with patch("app.api.fn_ai_partner_chat.llm_chat", return_value=mock_result):
         resp = client.post(
             "/ai-partner-chat/new",
             json={"partner_id": partner_id},
