@@ -20,16 +20,13 @@ class Settings(BaseSettings):
     aes_key: str = Field("default-aes-256-key-32bytes12345678", alias="AES_KEY")
     anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field("claude-sonnet-4-6", alias="ANTHROPIC_MODEL")
+    anthropic_fast_model: str = Field(
+        "claude-haiku-4-5-20251001", alias="ANTHROPIC_FAST_MODEL"
+    )
 
     # Anthropic (single key shared by Haiku + Sonnet jobs)
     anthropic_api_key: str | None = Field(None, alias="ANTHROPIC_API_KEY")
 
-    # SSB defaults — only used when tb_expert_settings is unconfigured (dev fallback;
-    # production must populate the DB row via /api/expert/settings)
-    ssb_host: str | None = Field(None, alias="SSB_HOST")
-    ssb_username: str | None = Field(None, alias="SSB_USERNAME")
-    ssb_password: str | None = Field(None, alias="SSB_PASSWORD")
-    ssb_logspace: str = Field("ALL", alias="SSB_LOGSPACE")
     analysis_mode: str = Field(
         "full", alias="ANALYSIS_MODE"
     )  # "full" or "windows_only"
@@ -39,9 +36,14 @@ class Settings(BaseSettings):
     haiku_chunk_size: int = Field(100, alias="HAIKU_CHUNK_SIZE")
     haiku_max_retry: int = Field(8, alias="HAIKU_MAX_RETRY")
 
+    # Sonnet company data injection limit (characters; acts as token budget proxy)
+    sonnet_company_data_max_tokens: int = Field(
+        50000, alias="SONNET_COMPANY_DATA_MAX_TOKENS"
+    )
+
     # Settings sync cadence (Sonnet's HH:MM comes from DB; this controls how often we re-read)
     expert_settings_reload_minutes: int = Field(
-        60, alias="EXPERT_SETTINGS_RELOAD_MINUTES"
+        5, alias="EXPERT_SETTINGS_RELOAD_MINUTES"
     )
 
 

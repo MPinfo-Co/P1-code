@@ -69,7 +69,11 @@ def list_events(
     total = query.count()
     total_pages = max(1, ceil(total / page_size))
     rows = (
-        query.order_by(SecurityEvent.star_rank.desc(), SecurityEvent.event_date.desc(), SecurityEvent.id.desc())
+        query.order_by(
+            SecurityEvent.star_rank.desc(),
+            SecurityEvent.event_date.desc(),
+            SecurityEvent.id.desc(),
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()

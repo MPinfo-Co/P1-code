@@ -25,16 +25,16 @@ depends_on: Union[str, Sequence[str], None] = None
 _PASSWORD_HASH = hashlib.sha256(b"tester").hexdigest()
 
 _MOCK_USERS: list[dict[str, str]] = [
-    {"name": "Avery Bennett",   "email": "avery.bennett@example.com"},
-    {"name": "Mira Caldwell",   "email": "mira.caldwell@example.com"},
-    {"name": "Theo Donovan",    "email": "theo.donovan@example.com"},
-    {"name": "Selene Park",     "email": "selene.park@example.com"},
-    {"name": "Rohan Iyer",      "email": "rohan.iyer@example.com"},
-    {"name": "Camille Hsu",     "email": "camille.hsu@example.com"},
-    {"name": "Jasper Quinn",    "email": "jasper.quinn@example.com"},
-    {"name": "Nadia Okoro",     "email": "nadia.okoro@example.com"},
+    {"name": "Avery Bennett", "email": "avery.bennett@example.com"},
+    {"name": "Mira Caldwell", "email": "mira.caldwell@example.com"},
+    {"name": "Theo Donovan", "email": "theo.donovan@example.com"},
+    {"name": "Selene Park", "email": "selene.park@example.com"},
+    {"name": "Rohan Iyer", "email": "rohan.iyer@example.com"},
+    {"name": "Camille Hsu", "email": "camille.hsu@example.com"},
+    {"name": "Jasper Quinn", "email": "jasper.quinn@example.com"},
+    {"name": "Nadia Okoro", "email": "nadia.okoro@example.com"},
     {"name": "Felix Marchetti", "email": "felix.marchetti@example.com"},
-    {"name": "Yuna Tanabe",     "email": "yuna.tanabe@example.com"},
+    {"name": "Yuna Tanabe", "email": "yuna.tanabe@example.com"},
 ]
 
 
@@ -43,8 +43,7 @@ def upgrade() -> None:
     without bumping ``tb_users_id_seq``; sync it before insert so nextval()
     does not collide with existing rows."""
     op.execute(
-        "SELECT setval('tb_users_id_seq', "
-        "COALESCE((SELECT MAX(id) FROM tb_users), 1))"
+        "SELECT setval('tb_users_id_seq', COALESCE((SELECT MAX(id) FROM tb_users), 1))"
     )
     users = table(
         "tb_users",
