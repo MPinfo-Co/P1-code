@@ -12,14 +12,6 @@ class ToolBodyParamCreate(BaseModel):
     description: str | None = Field(None, description="參數說明與範例值")
 
 
-class ToolImageFieldCreate(BaseModel):
-    """單筆圖片擷取欄位輸入（image_extract 類型使用）。"""
-
-    field_name: str = Field(..., description="欄位名稱")
-    field_type: str = Field(..., description="欄位型別：string / number / boolean")
-    description: str | None = Field(None, description="欄位說明")
-
-
 class ToolCreate(BaseModel):
     """新增工具輸入。"""
 
@@ -45,8 +37,8 @@ class ToolCreate(BaseModel):
     body_params: list[ToolBodyParamCreate] = Field(
         default_factory=list, description="Body 參數定義（external_api 類型）"
     )
-    image_fields: list[ToolImageFieldCreate] = Field(
-        default_factory=list, description="圖片擷取欄位定義（image_extract 類型）"
+    custom_table_id: int | None = Field(
+        None, description="綁定自訂資料表 id（image_extract 類型必填）"
     )
     target_url: str | None = Field(None, description="目標網址（web_scraper 類型）")
     extract_description: str | None = Field(
@@ -81,8 +73,8 @@ class ToolUpdate(BaseModel):
     body_params: list[ToolBodyParamCreate] = Field(
         default_factory=list, description="Body 參數定義（external_api 類型）"
     )
-    image_fields: list[ToolImageFieldCreate] = Field(
-        default_factory=list, description="圖片擷取欄位定義（image_extract 類型）"
+    custom_table_id: int | None = Field(
+        None, description="綁定自訂資料表 id（image_extract 類型必填）"
     )
     target_url: str | None = Field(None, description="目標網址（web_scraper 類型）")
     extract_description: str | None = Field(
@@ -106,16 +98,19 @@ class ToolBodyParamItem(BaseModel):
     sort_order: int
 
 
-class ToolImageFieldItem(BaseModel):
-    """單筆圖片擷取欄位輸出（image_extract 類型）。"""
+class ToolCustomTableFieldItem(BaseModel):
+    """自訂表格欄位預覽輸出（image_extract 類型）。"""
 
-    model_config = {"from_attributes": True}
-
-    id: int
     field_name: str
     field_type: str
-    description: str | None
-    sort_order: int
+
+
+class ToolCustomTableItem(BaseModel):
+    """綁定自訂表格輸出（image_extract 類型）。"""
+
+    custom_table_id: int
+    name: str
+    fields: list[ToolCustomTableFieldItem]
 
 
 class ToolWebScraperConfigItem(BaseModel):
@@ -143,7 +138,7 @@ class ToolItem(BaseModel):
     auth_header_name: str | None
     has_credential: bool
     body_params: list[ToolBodyParamItem] = []
-    image_fields: list[ToolImageFieldItem] = []
+    custom_table: ToolCustomTableItem | None = None
     web_scraper_config: ToolWebScraperConfigItem | None = None
 
 

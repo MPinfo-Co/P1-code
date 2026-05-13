@@ -38,9 +38,9 @@ from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
-    ToolImageField,
     ToolWebScraperConfig,
 )
+from app.db.models.fn_custom_table import CustomTableField
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -156,13 +156,16 @@ def _build_tool_definitions(
         required_params: list[str] = []
 
         if tool_type == "image_extract":
-            image_fields = (
-                db.query(ToolImageField)
-                .filter(ToolImageField.tool_id == tool.id)
-                .order_by(ToolImageField.sort_order.asc())
+            # image_extract 欄位定義改由 tb_custom_table_fields 管理
+            ct_fields = (
+                db.query(CustomTableField)
+                .filter(CustomTableField.table_id == tool.custom_table_id)
+                .order_by(CustomTableField.sort_order.asc())
                 .all()
+                if tool.custom_table_id is not None
+                else []
             )
-            for f in image_fields:
+            for f in ct_fields:
                 properties[f.field_name] = {
                     "type": f.field_type
                     if f.field_type in ("string", "number")

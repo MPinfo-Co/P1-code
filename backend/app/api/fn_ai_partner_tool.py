@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.api.schema.fn_ai_partner_tool import (
     ToolCreate,
+    ToolCustomTableFieldItem,
+    ToolCustomTableItem,
     ToolItem,
     ToolTestRequest,
     ToolTestResult,
@@ -21,9 +23,9 @@ from app.db.connector import get_db
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
-    ToolImageField,
     ToolWebScraperConfig,
 )
+from app.db.models.fn_custom_table import CustomTable, CustomTableField
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -153,21 +155,6 @@ def list_tools(
     for p in all_params:
         params_by_tool.setdefault(p.tool_id, []).append(p)
 
-    # Load image fields
-    all_image_fields = (
-        (
-            db.query(ToolImageField)
-            .filter(ToolImageField.tool_id.in_(tool_ids))
-            .order_by(ToolImageField.tool_id, ToolImageField.sort_order)
-            .all()
-        )
-        if tool_ids
-        else []
-    )
-    image_fields_by_tool: dict[int, list] = {}
-    for f in all_image_fields:
-        image_fields_by_tool.setdefault(f.tool_id, []).append(f)
-
     # Load web scraper configs
     all_scraper_configs = (
         (
@@ -182,9 +169,32 @@ def list_tools(
     for c in all_scraper_configs:
         scraper_config_by_tool[c.tool_id] = c
 
+    # Load custom table info for image_extract tools
+    custom_table_ids = [
+        t.custom_table_id
+        for t in tools
+        if t.tool_type == "image_extract" and t.custom_table_id is not None
+    ]
+    custom_tables_map: dict[int, CustomTable] = {}
+    custom_table_fields_map: dict[int, list] = {}
+    if custom_table_ids:
+        custom_tables = (
+            db.query(CustomTable).filter(CustomTable.id.in_(custom_table_ids)).all()
+        )
+        for ct in custom_tables:
+            custom_tables_map[ct.id] = ct
+        all_ct_fields = (
+            db.query(CustomTableField)
+            .filter(CustomTableField.table_id.in_(custom_table_ids))
+            .order_by(CustomTableField.table_id, CustomTableField.sort_order)
+            .all()
+        )
+        for f in all_ct_fields:
+            custom_table_fields_map.setdefault(f.table_id, []).append(f)
+
     items = []
     for t in tools:
-        tool_type = t.tool_type or "api_call"
+        tool_type = t.tool_type or "external_api"
 
         # Build web_scraper_config if applicable
         web_scraper_config = None
@@ -195,6 +205,23 @@ def list_tools(
                 extract_description=sc.extract_description,
                 max_chars=sc.max_chars,
             )
+
+        # Build custom_table if applicable
+        custom_table = None
+        if tool_type == "image_extract" and t.custom_table_id is not None:
+            ct = custom_tables_map.get(t.custom_table_id)
+            if ct is not None:
+                ct_fields = custom_table_fields_map.get(ct.id, [])
+                custom_table = ToolCustomTableItem(
+                    custom_table_id=ct.id,
+                    name=ct.name,
+                    fields=[
+                        ToolCustomTableFieldItem(
+                            field_name=f.field_name, field_type=f.field_type
+                        )
+                        for f in ct_fields
+                    ],
+                )
 
         item = ToolItem(
             id=t.id,
@@ -207,7 +234,7 @@ def list_tools(
             auth_header_name=t.auth_header_name,
             has_credential=t.credential_enc is not None,
             body_params=params_by_tool.get(t.id, []),
-            image_fields=image_fields_by_tool.get(t.id, []),
+            custom_table=custom_table,
             web_scraper_config=web_scraper_config,
         )
         items.append(item)
@@ -285,18 +312,22 @@ def add_tool(
             )
 
     elif tool_type == "image_extract":
-        # Validate image_extract fields
-        if not payload.image_fields:
+        # Validate image_extract: must have custom_table_id
+        if payload.custom_table_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
+                detail="圖片擷取工具必須綁定自訂表格",
             )
-        for field in payload.image_fields:
-            if not field.field_name or not field.field_name.strip():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
-                )
+        ct = (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.custom_table_id)
+            .first()
+        )
+        if ct is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="指定的自訂資料表不存在",
+            )
 
     elif tool_type == "web_scraper":
         # Validate web_scraper fields
@@ -328,6 +359,7 @@ def add_tool(
             name=payload.name,
             description=payload.description,
             tool_type=tool_type,
+            custom_table_id=payload.custom_table_id,
             endpoint_url=None,
             http_method=None,
             auth_type="none",
@@ -358,17 +390,6 @@ def add_tool(
                     param_type=param.param_type,
                     is_required=param.is_required,
                     description=param.description,
-                    sort_order=idx,
-                )
-            )
-    elif tool_type == "image_extract":
-        for idx, field in enumerate(payload.image_fields or []):
-            db.add(
-                ToolImageField(
-                    tool_id=tool.id,
-                    field_name=field.field_name,
-                    field_type=field.field_type,
-                    description=field.description,
                     sort_order=idx,
                 )
             )
@@ -411,7 +432,7 @@ def update_tool(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
     # tool_type is immutable — always use DB value
-    tool_type = tool.tool_type or "api_call"
+    tool_type = tool.tool_type or "external_api"
 
     # Common validation
     if not payload.name or not payload.name.strip():
@@ -455,17 +476,21 @@ def update_tool(
             )
 
     elif tool_type == "image_extract":
-        if not payload.image_fields:
+        if payload.custom_table_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
+                detail="圖片擷取工具必須綁定自訂表格",
             )
-        for field in payload.image_fields:
-            if not field.field_name or not field.field_name.strip():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
-                )
+        ct = (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.custom_table_id)
+            .first()
+        )
+        if ct is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="指定的自訂資料表不存在",
+            )
 
     elif tool_type == "web_scraper":
         if not payload.target_url or not payload.target_url.strip():
@@ -506,18 +531,8 @@ def update_tool(
             )
 
     elif tool_type == "image_extract":
-        # Replace image fields
-        db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
-        for idx, field in enumerate(payload.image_fields or []):
-            db.add(
-                ToolImageField(
-                    tool_id=tool.id,
-                    field_name=field.field_name,
-                    field_type=field.field_type,
-                    description=field.description,
-                    sort_order=idx,
-                )
-            )
+        # Update custom_table_id
+        tool.custom_table_id = payload.custom_table_id
 
     elif tool_type == "web_scraper":
         # Replace web scraper configs
@@ -561,7 +576,6 @@ def delete_tool(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
     db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
-    db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
     db.query(ToolWebScraperConfig).filter(
         ToolWebScraperConfig.tool_id == tool_id
     ).delete()
