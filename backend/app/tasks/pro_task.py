@@ -14,6 +14,9 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Callable
 
+import anthropic
+import httpx
+import sqlalchemy.exc
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -25,15 +28,42 @@ from app.tasks import claude_pro
 
 logger = get_system_logger()
 
+_ERR_ADMIN = "系統錯誤，請聯絡管理員"
+_ERR_RETRY = "分析失敗，請稍後重試"
+_ERROR_MSG_MAX_LEN = 200
+
+
+def _classify_error(exc: BaseException) -> str:
+    """Classify an exception into one of the 4 error buckets.
+
+    Returns the user-facing error message (<= 200 chars).
+    """
+    if isinstance(
+        exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)
+    ):
+        return _ERR_ADMIN
+    if isinstance(exc, sqlalchemy.exc.SQLAlchemyError):
+        return _ERR_ADMIN
+    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException)):
+        return _ERR_RETRY
+    if isinstance(exc, anthropic.RateLimitError):
+        return _ERR_RETRY
+    if isinstance(exc, anthropic.APIStatusError):
+        return _ERR_RETRY
+    if isinstance(exc, (ValueError, KeyError)):
+        return _ERR_RETRY
+    # fallback — truncate raw message to 200 chars
+    raw = str(exc)
+    return raw[:_ERROR_MSG_MAX_LEN] if len(raw) > _ERROR_MSG_MAX_LEN else raw
+
 
 def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
     """Group today's done ChunkResult events by ``match_key``.
 
     Args:
         db: Active SQLAlchemy session.
-        today: Date used to filter ``LogBatch.time_to`` (batch 結束時間落在 today
-            才收進；以結束時間歸屬可避免跨日 batch（如 23:55–00:05 開始於昨天）
-            被永遠漏掉）。
+        today: Date used to filter ``LogBatch.time_to`` (batch end time falls on today
+            to avoid cross-day batches being dropped).
 
     Returns:
         Mapping from ``match_key`` to the list of raw events sharing it.
@@ -59,16 +89,11 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
 
 def _recent_open_events_for_continuity(db: Session, today: date) -> list[dict]:
     """Return a digest of all still-open SecurityEvents before today, for
-    Sonnet continuity detection (continued_from_match_key判斷).
+    Sonnet continuity detection (continued_from_match_key check).
 
-    範圍：`event_date < today` AND `current_status` 為 `pending` 或
-    `investigating`。撈整段歷史 open 事件（不只昨天），讓 Sonnet 有足夠
-    context 判斷今天的事件是不是既有 open 事件的延續。實務上 open 事件
-    數量通常不大、prompt 不會爆。
-
-    註：SD spec `fn_expert_03_backend.md` 中描述「昨天的已確認事件」
-    為過時用語，實際 continuity 設計是看「所有 open 歷史事件」；待
-    SD spec 修正時同步更新（見 PG #206 audit 議題 #14）。
+    Range: ``event_date < today`` AND ``current_status`` is ``pending`` or
+    ``investigating``. Retrieves all historical open events (not just yesterday)
+    to give Sonnet enough context to detect continuations.
 
     Args:
         db: Active SQLAlchemy session.
@@ -123,8 +148,6 @@ def _upsert_event(db: Session, today: date, ev: dict) -> tuple[bool, bool]:
         existing.detection_count = (existing.detection_count or 0) + ev.get(
             "detection_count", 1
         )
-        # Refresh Sonnet-produced fields so 新【分析依據】、新 suggests、重新分析的標題/風險評估
-        # 都會反映到既有 row（current_status 與 created_at 保留 DB metadata）
         existing.star_rank = ev["star_rank"]
         existing.title = ev["title"]
         existing.description = ev.get("description")
@@ -237,10 +260,58 @@ def run_pro_task(
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
         logger.info("pro_task: date=%s created=%d updated=%d", today, created, updated)
-    except Exception as exc:
+    except anthropic.AuthenticationError as exc:
         db.rollback()
+        logger.exception("pro_task: Anthropic auth error — %s", exc)
         da.status = "failed"
-        da.error_message = str(exc)
+        da.error_message = _ERR_ADMIN
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
+    except anthropic.PermissionDeniedError as exc:
+        db.rollback()
+        logger.exception("pro_task: Anthropic permission error — %s", exc)
+        da.status = "failed"
+        da.error_message = _ERR_ADMIN
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except sqlalchemy.exc.SQLAlchemyError as exc:
+        logger.exception("pro_task: DB error — %s", exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        da.status = "failed"
+        da.error_message = _ERR_ADMIN
+        da.completed_at = datetime.now(timezone.utc)
+        try:
+            db.commit()
+        except Exception:
+            pass
+    except anthropic.RateLimitError as exc:
+        db.rollback()
+        logger.exception("pro_task: rate limit — %s", exc)
+        da.status = "failed"
+        da.error_message = _ERR_RETRY
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except anthropic.APIStatusError as exc:
+        db.rollback()
+        logger.exception("pro_task: API status error — %s", exc)
+        da.status = "failed"
+        da.error_message = _ERR_RETRY
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except (httpx.ConnectError, httpx.TimeoutException) as exc:
+        db.rollback()
+        logger.exception("pro_task: connection error — %s", exc)
+        da.status = "failed"
+        da.error_message = _ERR_RETRY
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
         logger.exception("pro_task: failed — %s", exc)
+        da.status = "failed"
+        da.error_message = _classify_error(exc)
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()

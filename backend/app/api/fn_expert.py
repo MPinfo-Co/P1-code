@@ -1,0 +1,302 @@
+"""/expert/analysis router — 資安專家一鍵分析觸發與狀態查詢 (fn_expert)。
+
+TDD #1: POST /expert/analysis/trigger
+TDD #2: GET  /expert/analysis/status
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from apscheduler.triggers.date import DateTrigger
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.db.connector import get_db
+from app.db.models.analysis import DailyAnalysis, LogBatch
+from app.db.models.fn_expert_setting import ExpertSetting
+from app.db.models.function_access import FunctionItems, RoleFunction
+from app.db.models.user_role import UserRole
+from app.logger_utils.log_channels import get_system_logger
+from app.utils.util_store import AuthContext, authenticate
+
+router = APIRouter(prefix="/expert", tags=["fn_expert"])
+logger = get_system_logger()
+
+FN_EXPERT_CODE = "fn_expert"
+SETTING_ID = 1
+
+
+# ---------------------------------------------------------------------------
+# Permission helper
+# ---------------------------------------------------------------------------
+
+
+def _has_fn_expert_permission(user_id: int, db: Session) -> bool:
+    """Return True if the user has fn_expert function permission."""
+    fn = (
+        db.query(FunctionItems)
+        .filter(FunctionItems.function_code == FN_EXPERT_CODE)
+        .first()
+    )
+    if fn is None:
+        return False
+    return (
+        db.query(RoleFunction)
+        .join(UserRole, RoleFunction.role_id == UserRole.role_id)
+        .filter(
+            UserRole.user_id == user_id,
+            RoleFunction.function_id == fn.function_id,
+        )
+        .first()
+        is not None
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /expert/analysis/trigger
+# ---------------------------------------------------------------------------
+
+
+@router.post("/analysis/trigger", status_code=status.HTTP_202_ACCEPTED)
+def trigger_analysis(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """觸發一鍵分析。
+
+    依 tb_expert_settings.is_enabled 決定啟動 Sonnet 或 Haiku+Sonnet pipeline。
+    投遞背景 job 前**同步**寫入 running 標記以防並發 trigger。
+    """
+    if not _has_fn_expert_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+    # 409: 分析進行中
+    running_batch = db.query(LogBatch).filter(LogBatch.status == "running").first()
+    processing_daily = (
+        db.query(DailyAnalysis).filter(DailyAnalysis.status == "processing").first()
+    )
+    if running_batch or processing_daily:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="分析進行中，請稍後再試",
+        )
+
+    # 讀取設定
+    setting = db.get(ExpertSetting, SETTING_ID)
+    is_enabled = bool(setting.is_enabled) if setting else False
+
+    now = datetime.now(timezone.utc)
+    today = now.date()
+
+    if is_enabled:
+        # UPSERT tb_daily_analysis 當日紀錄為 processing
+        da = (
+            db.query(DailyAnalysis).filter(DailyAnalysis.analysis_date == today).first()
+        )
+        if da is None:
+            da = DailyAnalysis(
+                analysis_date=today,
+                status="processing",
+                started_at=now,
+            )
+            db.add(da)
+        else:
+            da.status = "processing"
+            da.started_at = now
+        db.commit()
+
+        # 投遞 one-shot Sonnet job
+        _dispatch_sonnet_job()
+    else:
+        # 決定 time_from: 最近一筆 done 的 time_to；若無則當天 00:00:00
+        last_done = (
+            db.query(LogBatch)
+            .filter(LogBatch.status == "done")
+            .order_by(LogBatch.time_to.desc())
+            .first()
+        )
+        if last_done is not None:
+            time_from = last_done.time_to
+        else:
+            time_from = datetime(
+                today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc
+            )
+
+        time_to = now
+
+        # 同步寫入 running 標記
+        batch = LogBatch(
+            time_from=time_from,
+            time_to=time_to,
+            status="running",
+            records_fetched=0,
+            chunks_total=0,
+            chunks_done=0,
+        )
+        db.add(batch)
+        db.commit()
+        db.refresh(batch)
+
+        # 投遞 one-shot Haiku+Sonnet job
+        _dispatch_haiku_job(time_from=time_from, time_to=time_to, batch_id=batch.id)
+
+    logger.info("trigger_analysis: user=%d is_enabled=%s", auth.user_id, is_enabled)
+    return {"message": "分析已啟動"}
+
+
+# ---------------------------------------------------------------------------
+# GET /expert/analysis/status
+# ---------------------------------------------------------------------------
+
+
+@router.get("/analysis/status", status_code=status.HTTP_200_OK)
+def get_analysis_status(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """查詢分析狀態。
+
+    回傳 idle / running / success / failed 之一，附 events_created 或 error_message。
+    """
+    if not _has_fn_expert_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+    # 優先判斷是否有進行中任務
+    running_batch = db.query(LogBatch).filter(LogBatch.status == "running").first()
+    processing_daily = (
+        db.query(DailyAnalysis).filter(DailyAnalysis.status == "processing").first()
+    )
+    if running_batch or processing_daily:
+        return {
+            "message": "ok",
+            "data": {
+                "status": "running",
+                "events_created": None,
+                "error_message": None,
+            },
+        }
+
+    # 查詢 tb_daily_analysis 最近一筆
+    latest = (
+        db.query(DailyAnalysis).order_by(DailyAnalysis.analysis_date.desc()).first()
+    )
+    if latest is None:
+        return {
+            "message": "ok",
+            "data": {
+                "status": "idle",
+                "events_created": None,
+                "error_message": None,
+            },
+        }
+
+    if latest.status == "done":
+        return {
+            "message": "ok",
+            "data": {
+                "status": "success",
+                "events_created": latest.events_created,
+                "error_message": None,
+            },
+        }
+
+    if latest.status == "failed":
+        return {
+            "message": "ok",
+            "data": {
+                "status": "failed",
+                "events_created": None,
+                "error_message": latest.error_message,
+            },
+        }
+
+    # pending 或其他狀態 → idle
+    return {
+        "message": "ok",
+        "data": {
+            "status": "idle",
+            "events_created": None,
+            "error_message": None,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# One-shot job dispatchers
+# ---------------------------------------------------------------------------
+
+
+def _dispatch_sonnet_job() -> None:
+    """以 APScheduler one-shot job 投遞 _sonnet_job（立即執行）。"""
+    from app import scheduler as _scheduler_mod
+
+    sched = _scheduler_mod._scheduler
+    if sched is not None and sched.running:
+        sched.add_job(
+            _scheduler_mod._sonnet_job,
+            trigger=DateTrigger(run_date=datetime.now(timezone.utc)),
+            id=f"manual_sonnet_{datetime.now(timezone.utc).timestamp()}",
+            replace_existing=False,
+            misfire_grace_time=300,
+        )
+    else:
+        # fallback: 直接在 thread 中執行（e.g. 測試環境 scheduler 未啟動）
+        import threading
+
+        from app import scheduler as _sm
+
+        t = threading.Thread(target=_sm._sonnet_job, daemon=True)
+        t.start()
+
+
+def _dispatch_haiku_job(
+    time_from: datetime,
+    time_to: datetime,
+    batch_id: int,
+) -> None:
+    """以 APScheduler one-shot job 投遞 _haiku_job（立即執行）。
+
+    Haiku job 完成後串接 Sonnet job。
+    pipeline 由 haiku_task 使用傳入的 time_from/time_to，
+    batch row 已在 trigger API 中同步建立。
+    """
+    from app import scheduler as _scheduler_mod
+
+    def _haiku_then_sonnet() -> None:
+        from anthropic import Anthropic
+
+        from app.db.connector import SessionLocal
+        from app.tasks.haiku_task import run_haiku_task
+        from app.tasks.ssb_client import SSBClient
+
+        run_haiku_task(
+            ssb_client_factory=lambda **kw: SSBClient(**kw),
+            anthropic_client_factory=lambda **kw: Anthropic(**kw),
+            db_factory=SessionLocal,
+            time_from=time_from,
+            time_to=time_to,
+            batch_id=batch_id,
+        )
+        _scheduler_mod._sonnet_job()
+
+    sched = _scheduler_mod._scheduler
+    if sched is not None and sched.running:
+        sched.add_job(
+            _haiku_then_sonnet,
+            trigger=DateTrigger(run_date=datetime.now(timezone.utc)),
+            id=f"manual_haiku_{datetime.now(timezone.utc).timestamp()}",
+            replace_existing=False,
+            misfire_grace_time=300,
+        )
+    else:
+        import threading
+
+        t = threading.Thread(target=_haiku_then_sonnet, daemon=True)
+        t.start()
