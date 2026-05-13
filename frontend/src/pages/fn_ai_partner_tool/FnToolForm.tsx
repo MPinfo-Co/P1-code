@@ -19,13 +19,7 @@ import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
 import { useCreateTool, useUpdateTool, useTestTool } from '@/queries/useToolsQuery'
-import type {
-  ToolRow,
-  BodyParam,
-  ImageField,
-  ToolType,
-  TestToolResult,
-} from '@/queries/useToolsQuery'
+import type { ToolRow, BodyParam, TestToolResult, ToolType } from '@/queries/useToolsQuery'
 import './FnToolForm.css'
 
 interface Props {
@@ -38,7 +32,19 @@ interface Props {
 type AuthType = 'none' | 'api_key' | 'bearer'
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 type ParamType = 'string' | 'number' | 'boolean' | 'object'
-type ImageFieldType = 'string' | 'number'
+type ExtractFieldType = 'string' | 'number'
+
+interface ExtractField {
+  field_name: string
+  field_type: ExtractFieldType
+  description: string
+}
+
+const TOOL_TYPE_LABEL: Record<ToolType, string> = {
+  external_api: 'API 呼叫',
+  image_extract: '圖片擷取',
+  web_scraper: '網頁擷取',
+}
 
 export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const isEdit = !!row
@@ -46,13 +52,27 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const [name, setName] = useState(() => row?.name ?? '')
   const [description, setDescription] = useState(() => row?.description ?? '')
   const [toolType, setToolType] = useState<ToolType>(() => row?.tool_type ?? 'external_api')
+
+  // external_api fields
   const [endpointUrl, setEndpointUrl] = useState(() => row?.endpoint_url ?? '')
   const [authType, setAuthType] = useState<AuthType>(() => row?.auth_type ?? 'none')
   const [authHeaderName, setAuthHeaderName] = useState(() => row?.auth_header_name ?? '')
   const [credential, setCredential] = useState('')
   const [httpMethod, setHttpMethod] = useState<HttpMethod>(() => row?.http_method ?? 'GET')
   const [bodyParams, setBodyParams] = useState<BodyParam[]>(() => row?.body_params ?? [])
-  const [imageFields, setImageFields] = useState<ImageField[]>(() => row?.image_fields ?? [])
+
+  // image_extract fields
+  const [extractFields, setExtractFields] = useState<ExtractField[]>(
+    () => row?.image_extract_fields ?? []
+  )
+
+  // web_scraper fields
+  const [targetUrl, setTargetUrl] = useState(() => row?.web_scraper_config?.target_url ?? '')
+  const [extractDescription, setExtractDescription] = useState(
+    () => row?.web_scraper_config?.extract_description ?? ''
+  )
+  const [maxChars, setMaxChars] = useState<number>(() => row?.web_scraper_config?.max_chars ?? 4000)
+
   const [formError, setFormError] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<TestToolResult | null>(null)
   const [testError, setTestError] = useState<string | null>(null)
@@ -67,12 +87,17 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const testTool = useTestTool()
 
   const isPending = createTool.isPending || updateTool.isPending
-  const isExternalApi = toolType === 'external_api'
-  const isImageExtract = toolType === 'image_extract'
-  const showBodyParams = isExternalApi && (httpMethod === 'POST' || httpMethod === 'PUT')
+  const showBodyParams = httpMethod === 'POST' || httpMethod === 'PUT'
   const showHeaderName = authType === 'api_key'
   const showCredential = authType === 'api_key' || authType === 'bearer'
 
+  // Section visibility based on tool type
+  const showConnectionSection = toolType === 'external_api'
+  const showImageExtractSection = toolType === 'image_extract'
+  const showWebScraperSection = toolType === 'web_scraper'
+  const showTestSection = toolType === 'external_api'
+
+  // ── body params ──
   function handleAddBodyParam() {
     setBodyParams((prev) => [
       ...prev,
@@ -88,18 +113,20 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     setBodyParams((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)))
   }
 
-  function handleAddImageField() {
-    setImageFields((prev) => [...prev, { field_name: '', field_type: 'string', description: '' }])
+  // ── extract fields ──
+  function handleAddExtractField() {
+    setExtractFields((prev) => [...prev, { field_name: '', field_type: 'string', description: '' }])
   }
 
-  function handleRemoveImageField(index: number) {
-    setImageFields((prev) => prev.filter((_, i) => i !== index))
+  function handleRemoveExtractField(index: number) {
+    setExtractFields((prev) => prev.filter((_, i) => i !== index))
   }
 
-  function handleImageFieldChange(index: number, field: keyof ImageField, value: unknown) {
-    setImageFields((prev) => prev.map((f, i) => (i === index ? { ...f, [field]: value } : f)))
+  function handleExtractFieldChange(index: number, field: keyof ExtractField, value: unknown) {
+    setExtractFields((prev) => prev.map((f, i) => (i === index ? { ...f, [field]: value } : f)))
   }
 
+  // ── test ──
   async function handleTest() {
     setTestResult(null)
     setTestError(null)
@@ -129,6 +156,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     }
   }
 
+  // ── save ──
   async function handleSave() {
     setFormError(null)
     if (!name.trim()) {
@@ -136,62 +164,72 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
       return
     }
 
-    if (isExternalApi && !endpointUrl.trim()) {
-      setFormError('請填寫 API Endpoint URL')
-      return
-    }
-
-    if (isImageExtract) {
-      if (imageFields.length === 0) {
-        setFormError('圖片擷取工具至少需設定一個擷取欄位')
+    if (toolType === 'external_api') {
+      if (!endpointUrl.trim()) {
+        setFormError('請填寫 API Endpoint URL')
         return
       }
-      const hasEmptyFieldName = imageFields.some((f) => !f.field_name.trim())
-      if (hasEmptyFieldName) {
-        setFormError('請填寫欄位名稱')
+    } else if (toolType === 'image_extract') {
+      const validFields = extractFields.filter((f) => f.field_name.trim())
+      if (validFields.length === 0) {
+        setFormError('至少需設定一個擷取欄位')
+        return
+      }
+    } else if (toolType === 'web_scraper') {
+      if (!targetUrl.trim()) {
+        setFormError('目標網址為必填')
+        return
+      }
+      if (!extractDescription.trim()) {
+        setFormError('擷取描述為必填')
         return
       }
     }
 
     try {
-      if (isEdit && row) {
-        const payload = isExternalApi
-          ? {
-              name: name.trim(),
-              description: description.trim(),
-              endpoint_url: endpointUrl.trim(),
-              auth_type: authType,
-              auth_header_name: authType === 'api_key' ? authHeaderName.trim() || null : null,
-              credential: credential.trim() || undefined,
-              http_method: httpMethod,
-              body_params: showBodyParams ? bodyParams.filter((p) => p.param_name.trim()) : [],
-            }
-          : {
-              name: name.trim(),
-              description: description.trim(),
-              image_fields: imageFields,
-            }
-        await updateTool.mutateAsync({ id: row.id, payload })
-      } else {
-        const payload = isExternalApi
-          ? {
-              name: name.trim(),
-              description: description.trim(),
-              tool_type: toolType,
-              endpoint_url: endpointUrl.trim(),
-              auth_type: authType,
-              auth_header_name: authType === 'api_key' ? authHeaderName.trim() || null : null,
-              credential: credential.trim() || undefined,
-              http_method: httpMethod,
-              body_params: showBodyParams ? bodyParams.filter((p) => p.param_name.trim()) : [],
-            }
-          : {
-              name: name.trim(),
-              description: description.trim(),
-              tool_type: toolType,
-              image_fields: imageFields,
-            }
-        await createTool.mutateAsync(payload)
+      if (toolType === 'external_api') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          endpoint_url: endpointUrl.trim(),
+          auth_type: authType,
+          auth_header_name: authType === 'api_key' ? authHeaderName.trim() || null : null,
+          credential: credential.trim() || undefined,
+          http_method: httpMethod,
+          body_params: showBodyParams ? bodyParams.filter((p) => p.param_name.trim()) : [],
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'image_extract') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          image_extract_fields: extractFields.filter((f) => f.field_name.trim()),
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'web_scraper') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          target_url: targetUrl.trim(),
+          extract_description: extractDescription.trim(),
+          max_chars: maxChars > 0 ? maxChars : 4000,
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
       }
       onSuccess()
     } catch (err) {
@@ -248,7 +286,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
             </Typography>
             {isEdit ? (
               <Typography sx={{ fontSize: 14, color: '#334155', py: 0.5 }}>
-                {toolType === 'image_extract' ? '圖片擷取' : 'API 呼叫'}
+                {TOOL_TYPE_LABEL[toolType] ?? toolType}
               </Typography>
             ) : (
               <RadioGroup
@@ -266,20 +304,21 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   control={<Radio size="small" />}
                   label="圖片擷取"
                 />
+                <FormControlLabel
+                  value="web_scraper"
+                  control={<Radio size="small" />}
+                  label="網頁擷取"
+                />
               </RadioGroup>
             )}
           </Box>
 
-          <Divider />
-
-          {/* 連線資訊（工具類型為「API 呼叫」時顯示） */}
-          {isExternalApi && (
-            <Typography className="fn-tool-form-section-title">連線資訊</Typography>
-          )}
-
-          {/* 連線資訊區段（僅「API 呼叫」顯示） */}
-          {isExternalApi && (
+          {/* 連線資訊（工具類型為外部 API 呼叫時顯示） */}
+          {showConnectionSection && (
             <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">連線資訊</Typography>
+
               <Box>
                 <Typography className="fn-tool-form-label">
                   API Endpoint URL <span style={{ color: '#ef4444' }}>*</span>
@@ -442,10 +481,131 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   </Button>
                 </Box>
               )}
+            </>
+          )}
 
+          {/* 擷取欄位定義（工具類型為圖片擷取時顯示） */}
+          {showImageExtractSection && (
+            <>
               <Divider />
+              <Typography className="fn-tool-form-section-title">擷取欄位定義</Typography>
+              <Typography sx={{ fontSize: 12, color: '#64748b', mt: -1 }}>
+                至少需設定一個欄位才可儲存
+              </Typography>
+              {extractFields.map((field, index) => (
+                <Box key={index} className="fn-tool-param-row">
+                  <TextField
+                    size="small"
+                    placeholder="欄位名稱"
+                    value={field.field_name}
+                    onChange={(e) => handleExtractFieldChange(index, 'field_name', e.target.value)}
+                    sx={{ flex: 1, minWidth: 100, '& .MuiInputBase-input': { fontSize: 13 } }}
+                  />
+                  <Select
+                    size="small"
+                    value={field.field_type}
+                    onChange={(e) =>
+                      handleExtractFieldChange(
+                        index,
+                        'field_type',
+                        e.target.value as ExtractFieldType
+                      )
+                    }
+                    sx={{ minWidth: 100, fontSize: 13 }}
+                  >
+                    {(['string', 'number'] as ExtractFieldType[]).map((t) => (
+                      <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
+                        {t}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <TextField
+                    size="small"
+                    placeholder="說明"
+                    value={field.description}
+                    onChange={(e) => handleExtractFieldChange(index, 'description', e.target.value)}
+                    sx={{ flex: 2, '& .MuiInputBase-input': { fontSize: 13 } }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemoveExtractField(index)}
+                    aria-label="刪除欄位"
+                  >
+                    ×
+                  </IconButton>
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleAddExtractField}
+                sx={{ mt: 1, fontSize: 12 }}
+              >
+                ＋ 新增欄位
+              </Button>
+            </>
+          )}
 
-              {/* 測試區塊（僅API 呼叫顯示） */}
+          {/* 網頁擷取設定（工具類型為網頁擷取時顯示） */}
+          {showWebScraperSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">網頁擷取設定</Typography>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  目標網址 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={targetUrl}
+                  onChange={(e) => {
+                    setTargetUrl(e.target.value)
+                    setFormError(null)
+                  }}
+                  placeholder="https://example.com/page"
+                  sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  擷取描述 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
+                  rows={3}
+                  value={extractDescription}
+                  onChange={(e) => {
+                    setExtractDescription(e.target.value)
+                    setFormError(null)
+                  }}
+                  placeholder="描述要從頁面中擷取哪些資訊（供 AI 夥伴解讀用）"
+                  sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">最大擷取字元數</Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={maxChars}
+                  onChange={(e) => setMaxChars(Number(e.target.value))}
+                  inputProps={{ min: 1 }}
+                  sx={{ width: 160, '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+            </>
+          )}
+
+          {/* 測試區塊（工具類型為外部 API 呼叫時顯示） */}
+          {showTestSection && (
+            <>
+              <Divider />
               <Typography className="fn-tool-form-section-title">測試</Typography>
 
               {showBodyParams && bodyParams.filter((p) => p.param_name.trim()).length > 0 && (
@@ -532,63 +692,6 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   </Box>
                 </Box>
               )}
-            </>
-          )}
-
-          {/* 擷取欄位定義區段（僅「圖片擷取」顯示） */}
-          {isImageExtract && (
-            <>
-              <Typography className="fn-tool-form-section-title">擷取欄位定義</Typography>
-              <Typography sx={{ fontSize: 13, color: '#64748b', mb: 1 }}>
-                定義 AI 夥伴從圖片中擷取的欄位，至少需設定一個欄位。
-              </Typography>
-              {imageFields.map((field, index) => (
-                <Box key={index} className="fn-tool-param-row">
-                  <TextField
-                    size="small"
-                    placeholder="欄位名稱"
-                    value={field.field_name}
-                    onChange={(e) => handleImageFieldChange(index, 'field_name', e.target.value)}
-                    sx={{ flex: 1, minWidth: 120, '& .MuiInputBase-input': { fontSize: 13 } }}
-                  />
-                  <Select
-                    size="small"
-                    value={field.field_type}
-                    onChange={(e) =>
-                      handleImageFieldChange(index, 'field_type', e.target.value as ImageFieldType)
-                    }
-                    sx={{ minWidth: 100, fontSize: 13 }}
-                  >
-                    {(['string', 'number'] as ImageFieldType[]).map((t) => (
-                      <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
-                        {t}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  <TextField
-                    size="small"
-                    placeholder="說明此欄位代表的資訊"
-                    value={field.description}
-                    onChange={(e) => handleImageFieldChange(index, 'description', e.target.value)}
-                    sx={{ flex: 2, '& .MuiInputBase-input': { fontSize: 13 } }}
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={() => handleRemoveImageField(index)}
-                    aria-label="刪除欄位"
-                  >
-                    ×
-                  </IconButton>
-                </Box>
-              ))}
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleAddImageField}
-                sx={{ mt: 1, fontSize: 12 }}
-              >
-                ＋ 新增欄位
-              </Button>
             </>
           )}
         </Box>

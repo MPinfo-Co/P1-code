@@ -14,11 +14,16 @@ from app.api.schema.fn_ai_partner_tool import (
     ToolTestRequest,
     ToolTestResult,
     ToolUpdate,
-    VALID_TOOL_TYPES,
+    ToolWebScraperConfigItem,
 )
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolImageField
+from app.db.models.fn_ai_partner_tool import (
+    Tool,
+    ToolBodyParam,
+    ToolImageField,
+    ToolWebScraperConfig,
+)
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -28,6 +33,10 @@ router = APIRouter(prefix="/tool", tags=["fn_ai_partner_tool"])
 system_logger = get_system_logger()
 
 FN_TOOL_NAME = "fn_ai_partner_tool"
+
+VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
+VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
+VALID_TOOL_TYPES = {"external_api", "image_extract", "web_scraper"}
 
 
 # ---------------------------------------------------------------------------
@@ -44,10 +53,6 @@ def list_tool_options(
     tools = db.query(Tool).order_by(Tool.name.asc()).all()
     data = [{"id": t.id, "name": t.name, "description": t.description} for t in tools]
     return {"message": "查詢成功", "data": data}
-
-
-VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
-VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +138,7 @@ def list_tools(
 
     tool_ids = [t.id for t in tools]
 
-    # Fetch body params
+    # Load body params
     all_params = (
         (
             db.query(ToolBodyParam)
@@ -148,7 +153,7 @@ def list_tools(
     for p in all_params:
         params_by_tool.setdefault(p.tool_id, []).append(p)
 
-    # Fetch image fields
+    # Load image fields
     all_image_fields = (
         (
             db.query(ToolImageField)
@@ -163,12 +168,39 @@ def list_tools(
     for f in all_image_fields:
         image_fields_by_tool.setdefault(f.tool_id, []).append(f)
 
-    items = [
-        ToolItem(
+    # Load web scraper configs
+    all_scraper_configs = (
+        (
+            db.query(ToolWebScraperConfig)
+            .filter(ToolWebScraperConfig.tool_id.in_(tool_ids))
+            .all()
+        )
+        if tool_ids
+        else []
+    )
+    scraper_config_by_tool: dict[int, ToolWebScraperConfig] = {}
+    for c in all_scraper_configs:
+        scraper_config_by_tool[c.tool_id] = c
+
+    items = []
+    for t in tools:
+        tool_type = t.tool_type or "api_call"
+
+        # Build web_scraper_config if applicable
+        web_scraper_config = None
+        if tool_type == "web_scraper" and t.id in scraper_config_by_tool:
+            sc = scraper_config_by_tool[t.id]
+            web_scraper_config = ToolWebScraperConfigItem(
+                target_url=sc.target_url,
+                extract_description=sc.extract_description,
+                max_chars=sc.max_chars,
+            )
+
+        item = ToolItem(
             id=t.id,
             name=t.name,
             description=t.description,
-            tool_type=t.tool_type,
+            tool_type=tool_type,
             endpoint_url=t.endpoint_url,
             http_method=t.http_method,
             auth_type=t.auth_type,
@@ -176,9 +208,10 @@ def list_tools(
             has_credential=t.credential_enc is not None,
             body_params=params_by_tool.get(t.id, []),
             image_fields=image_fields_by_tool.get(t.id, []),
+            web_scraper_config=web_scraper_config,
         )
-        for t in tools
-    ]
+        items.append(item)
+
     return {"message": "查詢成功", "data": [i.model_dump() for i in items]}
 
 
@@ -200,7 +233,7 @@ def add_tool(
             detail="您沒有執行此操作的權限",
         )
 
-    # Basic validations
+    # Common validation
     if not payload.name or not payload.name.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填"
@@ -221,12 +254,13 @@ def add_tool(
         )
 
     if tool_type == "external_api":
+        # Validate external_api fields
         if not payload.endpoint_url or not payload.endpoint_url.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="API Endpoint URL 為必填",
             )
-        auth_type = payload.auth_type or ""
+        auth_type = payload.auth_type or "none"
         if auth_type not in VALID_AUTH_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
@@ -250,33 +284,8 @@ def add_tool(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
             )
 
-        credential_enc = _encrypt(payload.credential) if payload.credential else None
-        tool = Tool(
-            name=payload.name,
-            description=payload.description,
-            tool_type=tool_type,
-            endpoint_url=payload.endpoint_url,
-            http_method=http_method,
-            auth_type=auth_type,
-            auth_header_name=payload.auth_header_name,
-            credential_enc=credential_enc,
-        )
-        db.add(tool)
-        db.flush()
-
-        for idx, param in enumerate(payload.body_params or []):
-            db.add(
-                ToolBodyParam(
-                    tool_id=tool.id,
-                    param_name=param.param_name,
-                    param_type=param.param_type,
-                    is_required=param.is_required,
-                    description=param.description,
-                    sort_order=idx,
-                )
-            )
-
     elif tool_type == "image_extract":
+        # Validate image_extract fields
         if not payload.image_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -289,6 +298,32 @@ def add_tool(
                     detail="擷取欄位名稱不可為空",
                 )
 
+    elif tool_type == "web_scraper":
+        # Validate web_scraper fields
+        if not payload.target_url or not payload.target_url.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標網址為必填"
+            )
+        if not payload.extract_description or not payload.extract_description.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="擷取描述為必填"
+            )
+
+    # Create tool
+    if tool_type == "external_api":
+        auth_type_val = payload.auth_type or "none"
+        credential_enc = _encrypt(payload.credential) if payload.credential else None
+        tool = Tool(
+            name=payload.name,
+            description=payload.description,
+            tool_type=tool_type,
+            endpoint_url=payload.endpoint_url,
+            http_method=payload.http_method,
+            auth_type=auth_type_val,
+            auth_header_name=payload.auth_header_name,
+            credential_enc=credential_enc,
+        )
+    elif tool_type == "image_extract":
         tool = Tool(
             name=payload.name,
             description=payload.description,
@@ -299,10 +334,35 @@ def add_tool(
             auth_header_name=None,
             credential_enc=None,
         )
-        db.add(tool)
-        db.flush()
+    else:  # web_scraper
+        tool = Tool(
+            name=payload.name,
+            description=payload.description,
+            tool_type=tool_type,
+            endpoint_url=None,
+            http_method=None,
+            auth_type="none",
+            auth_header_name=None,
+            credential_enc=None,
+        )
 
-        for idx, field in enumerate(payload.image_fields):
+    db.add(tool)
+    db.flush()
+
+    if tool_type == "external_api":
+        for idx, param in enumerate(payload.body_params or []):
+            db.add(
+                ToolBodyParam(
+                    tool_id=tool.id,
+                    param_name=param.param_name,
+                    param_type=param.param_type,
+                    is_required=param.is_required,
+                    description=param.description,
+                    sort_order=idx,
+                )
+            )
+    elif tool_type == "image_extract":
+        for idx, field in enumerate(payload.image_fields or []):
             db.add(
                 ToolImageField(
                     tool_id=tool.id,
@@ -312,21 +372,15 @@ def add_tool(
                     sort_order=idx,
                 )
             )
-
-    else:
-        # web_scraper or other future types
-        tool = Tool(
-            name=payload.name,
-            description=payload.description,
-            tool_type=tool_type,
-            endpoint_url=payload.endpoint_url,
-            http_method=payload.http_method,
-            auth_type=payload.auth_type or "none",
-            auth_header_name=payload.auth_header_name,
-            credential_enc=None,
+    elif tool_type == "web_scraper":
+        db.add(
+            ToolWebScraperConfig(
+                tool_id=tool.id,
+                target_url=payload.target_url,
+                extract_description=payload.extract_description,
+                max_chars=payload.max_chars if payload.max_chars is not None else 4000,
+            )
         )
-        db.add(tool)
-        db.flush()
 
     db.commit()
     system_logger.info(f"User {auth.user_id} created tool {tool.id} ({tool.name})")
@@ -356,9 +410,10 @@ def update_tool(
     if tool is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
-    # tool_type is read from DB; ignore frontend input
-    tool_type = tool.tool_type
+    # tool_type is immutable — always use DB value
+    tool_type = tool.tool_type or "api_call"
 
+    # Common validation
     if not payload.name or not payload.name.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填"
@@ -375,16 +430,13 @@ def update_tool(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在"
         )
 
-    tool.name = payload.name
-    tool.description = payload.description
-
     if tool_type == "external_api":
         if not payload.endpoint_url or not payload.endpoint_url.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="API Endpoint URL 為必填",
             )
-        auth_type = payload.auth_type or ""
+        auth_type = payload.auth_type or "none"
         if auth_type not in VALID_AUTH_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
@@ -402,15 +454,44 @@ def update_tool(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
             )
 
+    elif tool_type == "image_extract":
+        if not payload.image_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="圖片擷取工具至少需設定一個擷取欄位",
+            )
+        for field in payload.image_fields:
+            if not field.field_name or not field.field_name.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="擷取欄位名稱不可為空",
+                )
+
+    elif tool_type == "web_scraper":
+        if not payload.target_url or not payload.target_url.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標網址為必填"
+            )
+        if not payload.extract_description or not payload.extract_description.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="擷取描述為必填"
+            )
+
+    # Update common fields
+    tool.name = payload.name
+    tool.description = payload.description
+
+    if tool_type == "external_api":
         tool.endpoint_url = payload.endpoint_url
-        tool.http_method = http_method
-        tool.auth_type = auth_type
+        tool.http_method = payload.http_method
+        tool.auth_type = payload.auth_type or "none"
         tool.auth_header_name = payload.auth_header_name
 
         if payload.credential and payload.credential.strip():
             tool.credential_enc = _encrypt(payload.credential)
         # else: keep existing credential_enc
 
+        # Replace body params
         db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
         for idx, param in enumerate(payload.body_params or []):
             db.add(
@@ -425,20 +506,9 @@ def update_tool(
             )
 
     elif tool_type == "image_extract":
-        if not payload.image_fields:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
-            )
-        for field in payload.image_fields:
-            if not field.field_name or not field.field_name.strip():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
-                )
-
+        # Replace image fields
         db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
-        for idx, field in enumerate(payload.image_fields):
+        for idx, field in enumerate(payload.image_fields or []):
             db.add(
                 ToolImageField(
                     tool_id=tool.id,
@@ -448,6 +518,20 @@ def update_tool(
                     sort_order=idx,
                 )
             )
+
+    elif tool_type == "web_scraper":
+        # Replace web scraper configs
+        db.query(ToolWebScraperConfig).filter(
+            ToolWebScraperConfig.tool_id == tool_id
+        ).delete()
+        db.add(
+            ToolWebScraperConfig(
+                tool_id=tool.id,
+                target_url=payload.target_url,
+                extract_description=payload.extract_description,
+                max_chars=payload.max_chars if payload.max_chars is not None else 4000,
+            )
+        )
 
     db.commit()
     system_logger.info(f"User {auth.user_id} updated tool {tool.id} ({tool.name})")
@@ -465,7 +549,7 @@ def delete_tool(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """Delete a tool and all related records. Requires fn_tool permission."""
+    """Delete a tool and all related body params. Requires fn_tool permission."""
     if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -478,6 +562,9 @@ def delete_tool(
 
     db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
     db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
+    db.query(ToolWebScraperConfig).filter(
+        ToolWebScraperConfig.tool_id == tool_id
+    ).delete()
     db.delete(tool)
     db.commit()
     system_logger.info(f"User {auth.user_id} deleted tool {tool_id}")

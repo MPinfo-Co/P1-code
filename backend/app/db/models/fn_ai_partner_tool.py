@@ -18,10 +18,7 @@ class Tool(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tool_type: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default="external_api",
-        server_default="external_api",
+        String(20), nullable=False, default="api_call", server_default="api_call"
     )
     endpoint_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     http_method: Mapped[str | None] = mapped_column(String(10), nullable=True)
@@ -39,7 +36,7 @@ class Tool(Base):
 
 
 class ToolBodyParam(Base):
-    """AI工具 Body 參數定義明細表（external_api 類型使用）。"""
+    """AI工具 Body 參數定義明細表。"""
 
     __tablename__ = "tb_tool_body_params"
 
