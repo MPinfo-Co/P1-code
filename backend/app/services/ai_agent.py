@@ -2,13 +2,14 @@
 
 職責：
 - 呼叫 llm_client.chat()
-- 判斷 tool_call，執行外部工具 API
+- 判斷 tool_call，執行外部工具 API 或 image_extract 直通處理
 - 帶回 tool_result 繼續對話
 - 迴圈上限 5 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
 - 工具名稱正規化（中文及非法字元 → Anthropic 合法格式）
 """
 
+import json
 import re
 from urllib.parse import quote
 
@@ -89,7 +90,7 @@ def run(
         system: 組裝完成的 system prompt。
         messages: 對話歷史（含本輪 user message）。
         tools: Anthropic tool_use 格式的工具定義清單；無工具時傳 None。
-        tool_configs: 對應 tools 的執行設定（endpoint_url, http_method, auth_type 等）；
+        tool_configs: 對應 tools 的執行設定（tool_type, endpoint_url, http_method, auth_type 等）；
                       無工具時傳 None。
 
     Returns:
@@ -181,7 +182,7 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
 
     Args:
         tool_call: {"id": ..., "name": ..., "input": {...}}
-        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params）
+        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params/tb_tool_image_fields）
 
     Returns:
         str: 工具執行結果（或錯誤訊息）
@@ -194,12 +195,22 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
     if config is None:
         return f"[工具錯誤] 找不到工具設定：{tool_name}"
 
+    # 判斷 tool_type
+    tool_type: str = config.get("tool_type", "external_api")
+
+    if tool_type == "image_extract":
+        # image_extract：跳過外部 HTTP 呼叫
+        # LLM 已在 vision 對話中看到圖片並自行填入 tool_input（結構化欄位值）
+        # 直接將本輪 tool_input 作為 tool_result
+        return json.dumps(tool_input, ensure_ascii=False)
+
+    # external_api：執行外部 HTTP 呼叫
     # URL 樣板替換
-    endpoint_url: str = config.get("endpoint_url", "")
+    endpoint_url: str = config.get("endpoint_url", "") or ""
     for key, value in tool_input.items():
         endpoint_url = endpoint_url.replace(f"{{{key}}}", quote(str(value), safe=""))
 
-    http_method: str = config.get("http_method", "GET").upper()
+    http_method: str = (config.get("http_method", "GET") or "GET").upper()
     auth_type: str = config.get("auth_type", "none")
     auth_header_name: str = config.get("auth_header_name", "") or ""
     credential: str = config.get("credential", "") or ""

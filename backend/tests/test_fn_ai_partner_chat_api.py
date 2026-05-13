@@ -675,11 +675,40 @@ def _make_tool_with_name(db: Session, name: str) -> int:
     tool = Tool(
         name=name,
         description=f"測試工具: {name}",
+        tool_type="external_api",
         endpoint_url="http://example.com/tool",
         http_method="GET",
         auth_type="none",
     )
     db.add(tool)
+    db.flush()
+    return tool.id
+
+
+def _make_image_extract_tool_in_db(db: Session, name: str, image_fields: list) -> int:
+    """建立一個 image_extract 類型的工具，含欄位定義，回傳 tool id。"""
+    from app.db.models.fn_ai_partner_tool import Tool, ToolImageField
+
+    tool = Tool(
+        name=name,
+        description=f"圖片擷取工具: {name}",
+        tool_type="image_extract",
+        endpoint_url=None,
+        http_method=None,
+        auth_type="none",
+    )
+    db.add(tool)
+    db.flush()
+    for idx, field in enumerate(image_fields):
+        db.add(
+            ToolImageField(
+                tool_id=tool.id,
+                field_name=field["field_name"],
+                field_type=field.get("field_type", "string"),
+                description=field.get("description"),
+                sort_order=idx,
+            )
+        )
     db.flush()
     return tool.id
 
@@ -787,3 +816,110 @@ def test_send_message_with_valid_english_tool_name_returns_200(client, engine):
     body = resp.json()
     assert body["message"] == "傳送成功"
     assert body["data"]["content"] == "Weather is sunny"
+
+
+# ---------------------------------------------------------------------------
+# Issue-308: image_extract 工具 (T18, T19)
+# ---------------------------------------------------------------------------
+
+
+def test_send_message_with_image_extract_tool_returns_200(client, engine):
+    """T18: 夥伴含 image_extract 工具，上傳圖片後 ai_agent 跳過外部 HTTP 呼叫，AI 回覆含摘要"""
+    user_id, role_id, _ = _setup_with_fn_ai_partner_chat(engine)
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    partner_id = _make_partner(db, "夥伴圖片擷取")
+    _bind_partner_to_role(db, role_id, partner_id)
+    tool_id = _make_image_extract_tool_in_db(
+        db,
+        "發票擷取",
+        image_fields=[
+            {
+                "field_name": "invoice_date",
+                "field_type": "string",
+                "description": "發票日期",
+            },
+            {
+                "field_name": "invoice_amount",
+                "field_type": "number",
+                "description": "發票金額",
+            },
+        ],
+    )
+    _bind_tool_to_partner(db, partner_id, tool_id)
+    conv_id = _make_conversation(db, user_id, partner_id)
+    db.commit()
+    db.close()
+
+    mock_result = {
+        "content": "根據發票圖片，擷取到以下資訊：\n\n| 欄位 | 值 |\n|---|---|\n| 發票日期 | 2026-05-13 |\n| 發票金額 | 1500 |",
+        "tool_calls": [],
+    }
+    fake_image = b"\x89PNG\r\n\x1a\n"
+    with patch("app.api.fn_ai_partner_chat.ai_agent.run", return_value=mock_result):
+        resp = client.post(
+            "/ai-partner-chat/send",
+            data={
+                "partner_id": str(partner_id),
+                "conversation_id": conv_id,
+                "message": "請擷取此發票資訊",
+            },
+            files={"image": ("invoice.png", fake_image, "image/png")},
+            headers=_auth(user_id),
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "傳送成功"
+    content = body["data"]["content"]
+    assert "|" in content  # Markdown 表格格式
+
+
+def test_send_message_unrecognizable_image_with_image_extract_returns_200(
+    client, engine
+):
+    """T19: 夥伴含 image_extract 工具，上傳無法識別的圖片，AI 回覆說明無法辨識"""
+    user_id, role_id, _ = _setup_with_fn_ai_partner_chat(engine)
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    partner_id = _make_partner(db, "夥伴圖片擷取2")
+    _bind_partner_to_role(db, role_id, partner_id)
+    tool_id = _make_image_extract_tool_in_db(
+        db,
+        "無法識別擷取工具",
+        image_fields=[
+            {
+                "field_name": "invoice_date",
+                "field_type": "string",
+                "description": "發票日期",
+            },
+        ],
+    )
+    _bind_tool_to_partner(db, partner_id, tool_id)
+    conv_id = _make_conversation(db, user_id, partner_id)
+    db.commit()
+    db.close()
+
+    mock_result = {
+        "content": "抱歉，我無法辨識此圖片中的欄位。請重新上傳清晰的圖片，或補充相關資訊。",
+        "tool_calls": [],
+    }
+    fake_blurry_image = b"\x00\x00\x00\x00"
+    with patch("app.api.fn_ai_partner_chat.ai_agent.run", return_value=mock_result):
+        resp = client.post(
+            "/ai-partner-chat/send",
+            data={
+                "partner_id": str(partner_id),
+                "conversation_id": conv_id,
+                "message": "請看這張圖",
+            },
+            files={"image": ("blurry.png", fake_blurry_image, "image/png")},
+            headers=_auth(user_id),
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "傳送成功"
+    assert (
+        "無法辨識" in body["data"]["content"] or "重新上傳" in body["data"]["content"]
+    )
