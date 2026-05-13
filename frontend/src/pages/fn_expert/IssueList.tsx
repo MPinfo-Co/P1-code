@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -19,7 +19,13 @@ import Alert from '@mui/material/Alert'
 import Pagination from '@/components/ui/Pagination'
 import { useEventsQuery } from '@/queries/useEventsQuery'
 import type { EventRow } from '@/queries/useEventsQuery'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAnalysisStatusQuery, useTriggerAnalysis } from '@/queries/useExpertAnalysisQuery'
+import type { AnalysisStatus, AnalysisStatusResponse } from '@/queries/useExpertAnalysisQuery'
+import useAuthStore from '@/stores/authStore'
 import './IssueList.css'
+
+const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 const STAR_COLOR: Record<number, string> = {
   5: '#b91c1c',
@@ -111,8 +117,21 @@ function formatDesc(text: string | null) {
   })
 }
 
+async function fetchAnalysisStatus(): Promise<AnalysisStatusResponse | null> {
+  try {
+    const token = useAuthStore.getState().token
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(`${BASE_URL}/expert/analysis/status`, { headers })
+    if (!res.ok) return null
+    return (await res.json()) as AnalysisStatusResponse
+  } catch {
+    return null
+  }
+}
+
 export default function IssueList() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterKeyword, setFilterKeyword] = useState('')
@@ -129,6 +148,87 @@ export default function IssueList() {
 
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null)
   const [popoverContent, setPopoverContent] = useState('')
+
+  // Analysis button state
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>('idle')
+  const [eventsCreated, setEventsCreated] = useState<number | null>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [conflictMsg, setConflictMsg] = useState<string | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isPollingRef = useRef(false)
+
+  const { data: initialStatus } = useAnalysisStatusQuery()
+  const triggerMutation = useTriggerAnalysis()
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    isPollingRef.current = false
+  }, [])
+
+  const pollStatus = useCallback(() => {
+    if (isPollingRef.current) return
+    isPollingRef.current = true
+    pollingRef.current = setInterval(async () => {
+      const data = await fetchAnalysisStatus()
+      if (!data) return
+      const s = data.status
+      if (s === 'success' || s === 'failed') {
+        stopPolling()
+        setAnalysisStatus(s)
+        if (s === 'success') {
+          setEventsCreated(data.events_created ?? 0)
+          queryClient.invalidateQueries({ queryKey: ['events'] })
+        } else {
+          setAnalysisError(data.error_message ?? '分析失敗，請稍後重試')
+        }
+      } else {
+        setAnalysisStatus(s)
+      }
+    }, 3000)
+  }, [stopPolling, queryClient])
+
+  // On page enter: restore UI state from status API
+  useEffect(() => {
+    if (!initialStatus) return
+    const s = initialStatus.status
+    const updaters = () => {
+      setAnalysisStatus(s)
+      if (s === 'success') {
+        setEventsCreated(initialStatus.events_created ?? 0)
+      } else if (s === 'failed') {
+        setAnalysisError(initialStatus.error_message ?? '分析失敗，請稍後重試')
+      } else if (s === 'running') {
+        pollStatus()
+      }
+    }
+    updaters()
+  }, [initialStatus, pollStatus])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling()
+    }
+  }, [stopPolling])
+
+  async function handleTriggerAnalysis() {
+    setConflictMsg(null)
+    try {
+      await triggerMutation.mutateAsync()
+      setAnalysisStatus('running')
+      setEventsCreated(null)
+      setAnalysisError(null)
+      pollStatus()
+    } catch (err) {
+      const e = err as Error & { status?: number }
+      if (e.status === 409) {
+        setConflictMsg(e.message || '分析進行中，請稍後再試')
+      }
+    }
+  }
 
   const eventsStatus =
     applied.status === '_default'
@@ -248,6 +348,37 @@ export default function IssueList() {
         <Button variant="text" size="small" onClick={resetFilters} className="issue-list-reset-btn">
           重設
         </Button>
+
+        {/* One-click analysis button */}
+        <Box sx={{ ml: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <Button
+            variant="contained"
+            size="small"
+            disabled={analysisStatus === 'running'}
+            onClick={handleTriggerAnalysis}
+            className="issue-list-analysis-btn"
+            startIcon={
+              analysisStatus === 'running' ? (
+                <CircularProgress size={14} color="inherit" />
+              ) : undefined
+            }
+          >
+            {analysisStatus === 'running' ? '分析中…' : '一鍵分析'}
+          </Button>
+          {conflictMsg && (
+            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>{conflictMsg}</Typography>
+          )}
+          {analysisStatus === 'success' && eventsCreated !== null && (
+            <Typography sx={{ fontSize: 12, color: '#10b981', mt: 0.5 }}>
+              {eventsCreated > 0 ? `新增 ${eventsCreated} 筆事件` : '本次無新增事件'}
+            </Typography>
+          )}
+          {analysisStatus === 'failed' && analysisError && (
+            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>
+              {analysisError}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       {error && (

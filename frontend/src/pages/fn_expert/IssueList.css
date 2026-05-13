@@ -211,3 +211,19 @@
   color: #64748b;
   margin-bottom: 8px;
 }
+
+.issue-list-analysis-btn {
+  font-size: 13px;
+  background-color: #2e3f6e;
+  height: 24px;
+  border-radius: 3px;
+}
+
+.issue-list-analysis-btn:hover:not(:disabled) {
+  background-color: #1e2d52;
+}
+
+.issue-list-analysis-btn:disabled {
+  background-color: #94a3b8;
+  color: white;
+}
