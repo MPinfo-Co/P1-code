@@ -22,6 +22,62 @@ class AgentMaxIterationError(Exception):
     """agentic loop 達到迴圈上限（5 次），上層捕捉後回傳 503。"""
 
 
+def _normalize_property_keys(
+    tools: list[dict],
+) -> tuple[list[dict], dict[str, dict[str, str]]]:
+    """對每個工具的 input_schema.properties 執行 key 正規化。
+
+    Anthropic 要求 properties key 符合 ^[a-zA-Z0-9_.-]{1,64}$，中文或含空格的
+    欄位名稱必須轉換。轉換後的 safe_key 以 f_{i} 命名，原始名稱合併至 description
+    讓 LLM 仍能理解語意。
+
+    Args:
+        tools: 已完成 name 正規化的工具定義清單。
+
+    Returns:
+        (normalized_tools, prop_mapping)
+        - normalized_tools: properties key 已替換的工具定義清單。
+        - prop_mapping: {tool_name: {safe_key: original_key}} 還原用映射表。
+    """
+    prop_mapping: dict[str, dict[str, str]] = {}
+    normalized: list[dict] = []
+
+    for tool in tools:
+        tool_name: str = tool["name"]
+        schema: dict = tool.get("input_schema", {})
+        props: dict = schema.get("properties", {})
+        required: list = schema.get("required", [])
+
+        key_map: dict[str, str] = {}
+        new_props: dict = {}
+        new_required: list = []
+
+        for i, (orig_key, prop_def) in enumerate(props.items()):
+            if re.match(r"^[a-zA-Z0-9_.\-]{1,64}$", orig_key):
+                safe_key = orig_key
+            else:
+                safe_key = f"f_{i}"
+                prop_def = dict(prop_def)
+                existing_desc = prop_def.get("description", "")
+                prop_def["description"] = (
+                    f"{orig_key}：{existing_desc}" if existing_desc else orig_key
+                )
+
+            key_map[safe_key] = orig_key
+            new_props[safe_key] = prop_def
+            if orig_key in required:
+                new_required.append(safe_key)
+
+        new_tool = dict(tool)
+        new_tool["input_schema"] = {**schema, "properties": new_props, "required": new_required}
+        normalized.append(new_tool)
+
+        if any(k != v for k, v in key_map.items()):
+            prop_mapping[tool_name] = key_map
+
+    return normalized, prop_mapping
+
+
 def _normalize_tool_names(
     tools: list[dict],
 ) -> tuple[list[dict], dict[str, str]]:
@@ -108,8 +164,10 @@ def run(
     current_messages = list(messages)
 
     # 工具名稱正規化：建立 normalized_tools 及 正規化後名稱 → 原始名稱 對映表
+    prop_key_mapping: dict[str, dict[str, str]] = {}
     if tools:
         normalized_tools, name_mapping = _normalize_tool_names(tools)
+        normalized_tools, prop_key_mapping = _normalize_property_keys(normalized_tools)
     else:
         normalized_tools = tools
         name_mapping: dict[str, str] = {}
@@ -164,7 +222,7 @@ def run(
         # 執行每個 tool_call（使用還原後的原始名稱查找 tool_configs）
         tool_results = []
         for tc in restored_tool_calls:
-            tool_result_content = _execute_tool(tc, tool_configs or [])
+            tool_result_content = _execute_tool(tc, tool_configs or [], prop_key_mapping)
             tool_results.append(
                 {
                     "type": "tool_result",
@@ -177,7 +235,11 @@ def run(
         current_messages.append({"role": "user", "content": tool_results})
 
 
-def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
+def _execute_tool(
+    tool_call: dict,
+    tool_configs: list[dict],
+    prop_key_mapping: dict[str, dict[str, str]] | None = None,
+) -> str:
     """執行單一工具呼叫，回傳結果字串。
 
     Args:
@@ -201,8 +263,10 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
     if tool_type == "image_extract":
         # image_extract：跳過外部 HTTP 呼叫
         # LLM 已在 vision 對話中看到圖片並自行填入 tool_input（結構化欄位值）
-        # 直接將本輪 tool_input 作為 tool_result
-        return json.dumps(tool_input, ensure_ascii=False)
+        # 還原 safe_key → 原始中文 key，再回傳
+        key_map = (prop_key_mapping or {}).get(tool_name, {})
+        remapped = {key_map.get(k, k): v for k, v in tool_input.items()}
+        return json.dumps(remapped, ensure_ascii=False)
 
     # external_api：執行外部 HTTP 呼叫
     # URL 樣板替換
