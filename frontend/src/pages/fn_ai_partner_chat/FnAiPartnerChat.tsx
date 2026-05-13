@@ -12,10 +12,12 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
+import Popover from '@mui/material/Popover'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SendIcon from '@mui/icons-material/Send'
 import ImageIcon from '@mui/icons-material/Image'
 import CloseIcon from '@mui/icons-material/Close'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined'
 import {
   useAiPartnerHistoryQuery,
@@ -41,6 +43,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const [sendError, setSendError] = useState<string | null>(null)
   const [isConfirmNewOpen, setIsConfirmNewOpen] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [helpAnchor, setHelpAnchor] = useState<HTMLButtonElement | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -157,7 +160,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
@@ -170,6 +173,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
 
   function handleConfirmNewChat() {
     setIsConfirmNewOpen(false)
+    setMessages([])
+    setSuggestions([])
+    setConversationId(null)
+    setSendError(null)
     newChat.mutate(partner.id, {
       onSuccess: (data) => {
         setConversationId(data.conversation_id)
@@ -177,7 +184,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         setSuggestions(data.suggestions)
         setInputText('')
         handleRemoveImage()
-        setSendError(null)
+      },
+      onError: (err) => {
+        const msg = err instanceof Error ? err.message : '建立新對話失敗，請稍後再試'
+        setSendError(msg)
       },
     })
   }
@@ -226,7 +236,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             '&:hover': { bgcolor: '#f0f0ff' },
           }}
         >
-          開始新對話
+          新對話
         </Button>
       </Box>
 
@@ -380,6 +390,51 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           style={{ display: 'none' }}
           onChange={handleImageSelect}
         />
+        <IconButton
+          size="small"
+          onClick={(e) => setHelpAnchor(e.currentTarget)}
+          sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+        >
+          <HelpOutlineIcon fontSize="small" />
+        </IconButton>
+        <Popover
+          open={Boolean(helpAnchor)}
+          anchorEl={helpAnchor}
+          onClose={() => setHelpAnchor(null)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { borderRadius: 2, boxShadow: 3, p: 2, maxWidth: 280 } } }}
+        >
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', mb: 1.5 }}>
+            操作技巧
+          </Typography>
+          {[
+            { keys: 'Shift + Enter', desc: '送出訊息' },
+            { keys: 'Enter', desc: '換行' },
+            { keys: '📷 圖片圖示', desc: '上傳圖片，AI 可分析圖片內容' },
+            { keys: '💡 燈泡圖示', desc: '開啟 AI 推薦的下一步問題' },
+            { keys: '新對話', desc: '清除目前記錄，重新開始對話' },
+          ].map(({ keys, desc }) => (
+            <Box key={keys} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'flex-start' }}>
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#6366f1',
+                  bgcolor: '#f0f0ff',
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: 1,
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.8,
+                }}
+              >
+                {keys}
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>{desc}</Typography>
+            </Box>
+          ))}
+        </Popover>
 
         <Box
           sx={{
@@ -472,7 +527,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: 16 }}>開始新對話</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: 16 }}>新對話</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14 }}>確定要清除目前對話並重新開始嗎？</Typography>
         </DialogContent>

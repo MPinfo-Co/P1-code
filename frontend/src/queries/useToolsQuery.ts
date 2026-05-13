@@ -11,16 +11,26 @@ export interface BodyParam {
   description: string
 }
 
+export interface ImageField {
+  field_name: string
+  field_type: 'string' | 'number'
+  description: string
+}
+
+export type ToolType = 'external_api' | 'image_extract'
+
 export interface ToolRow {
   id: number
   name: string
   description: string
+  tool_type: ToolType
   endpoint_url: string
   http_method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   auth_type: 'none' | 'api_key' | 'bearer'
   auth_header_name: string | null
   has_credential: boolean
   body_params?: BodyParam[]
+  image_fields?: ImageField[]
 }
 
 export interface ToolQueryParams {
@@ -30,23 +40,26 @@ export interface ToolQueryParams {
 export interface CreateToolPayload {
   name: string
   description: string
-  endpoint_url: string
-  auth_type: 'none' | 'api_key' | 'bearer'
+  tool_type: ToolType
+  endpoint_url?: string
+  auth_type?: 'none' | 'api_key' | 'bearer'
   auth_header_name?: string | null
   credential?: string
-  http_method: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  body_params: BodyParam[]
+  http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  body_params?: BodyParam[]
+  image_fields?: ImageField[]
 }
 
 export interface UpdateToolPayload {
   name: string
   description: string
-  endpoint_url: string
-  auth_type: 'none' | 'api_key' | 'bearer'
+  endpoint_url?: string
+  auth_type?: 'none' | 'api_key' | 'bearer'
   auth_header_name?: string | null
   credential?: string
-  http_method: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  body_params: BodyParam[]
+  http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  body_params?: BodyParam[]
+  image_fields?: ImageField[]
 }
 
 export interface TestToolPayload {

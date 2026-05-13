@@ -12,8 +12,9 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
+import Chip from '@mui/material/Chip'
 import { useToolsQuery, useDeleteTool } from '@/queries/useToolsQuery'
-import type { ToolRow } from '@/queries/useToolsQuery'
+import type { ToolRow, ToolType } from '@/queries/useToolsQuery'
 import FnToolForm from './FnToolForm'
 import './FnToolList.css'
 
@@ -69,6 +70,25 @@ export default function FnToolList() {
     }
   }
 
+  function renderToolTypeChip(toolType: ToolType) {
+    if (toolType === 'image_extract') {
+      return (
+        <Chip
+          label="圖片擷取"
+          size="small"
+          sx={{ fontSize: 12, bgcolor: '#dcfce7', color: '#166534', fontWeight: 600 }}
+        />
+      )
+    }
+    return (
+      <Chip
+        label="API 呼叫"
+        size="small"
+        sx={{ fontSize: 12, bgcolor: '#dbeafe', color: '#1d4ed8', fontWeight: 600 }}
+      />
+    )
+  }
+
   const columns: GridColDef[] = [
     {
       field: 'name',
@@ -77,6 +97,12 @@ export default function FnToolList() {
       renderCell: ({ value }) => (
         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
       ),
+    },
+    {
+      field: 'tool_type',
+      headerName: '工具類型',
+      width: 140,
+      renderCell: (params) => renderToolTypeChip((params.value as ToolType) ?? 'external_api'),
     },
     {
       field: 'description',

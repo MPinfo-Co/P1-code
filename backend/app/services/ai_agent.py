@@ -2,13 +2,14 @@
 
 職責：
 - 呼叫 llm_client.chat()
-- 判斷 tool_call，執行外部工具 API
+- 判斷 tool_call，執行外部工具 API 或 image_extract 直通處理
 - 帶回 tool_result 繼續對話
 - 迴圈上限 5 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
 - 工具名稱正規化（中文及非法字元 → Anthropic 合法格式）
 """
 
+import json
 import re
 from urllib.parse import quote
 
@@ -19,6 +20,62 @@ from app.services.llm_client import LLMClientError, chat  # noqa: F401 (re-expor
 
 class AgentMaxIterationError(Exception):
     """agentic loop 達到迴圈上限（5 次），上層捕捉後回傳 503。"""
+
+
+def _normalize_property_keys(
+    tools: list[dict],
+) -> tuple[list[dict], dict[str, dict[str, str]]]:
+    """對每個工具的 input_schema.properties 執行 key 正規化。
+
+    Anthropic 要求 properties key 符合 ^[a-zA-Z0-9_.-]{1,64}$，中文或含空格的
+    欄位名稱必須轉換。轉換後的 safe_key 以 f_{i} 命名，原始名稱合併至 description
+    讓 LLM 仍能理解語意。
+
+    Args:
+        tools: 已完成 name 正規化的工具定義清單。
+
+    Returns:
+        (normalized_tools, prop_mapping)
+        - normalized_tools: properties key 已替換的工具定義清單。
+        - prop_mapping: {tool_name: {safe_key: original_key}} 還原用映射表。
+    """
+    prop_mapping: dict[str, dict[str, str]] = {}
+    normalized: list[dict] = []
+
+    for tool in tools:
+        tool_name: str = tool["name"]
+        schema: dict = tool.get("input_schema", {})
+        props: dict = schema.get("properties", {})
+        required: list = schema.get("required", [])
+
+        key_map: dict[str, str] = {}
+        new_props: dict = {}
+        new_required: list = []
+
+        for i, (orig_key, prop_def) in enumerate(props.items()):
+            if re.match(r"^[a-zA-Z0-9_.\-]{1,64}$", orig_key):
+                safe_key = orig_key
+            else:
+                safe_key = f"f_{i}"
+                prop_def = dict(prop_def)
+                existing_desc = prop_def.get("description", "")
+                prop_def["description"] = (
+                    f"{orig_key}：{existing_desc}" if existing_desc else orig_key
+                )
+
+            key_map[safe_key] = orig_key
+            new_props[safe_key] = prop_def
+            if orig_key in required:
+                new_required.append(safe_key)
+
+        new_tool = dict(tool)
+        new_tool["input_schema"] = {**schema, "properties": new_props, "required": new_required}
+        normalized.append(new_tool)
+
+        if any(k != v for k, v in key_map.items()):
+            prop_mapping[tool_name] = key_map
+
+    return normalized, prop_mapping
 
 
 def _normalize_tool_names(
@@ -89,7 +146,7 @@ def run(
         system: 組裝完成的 system prompt。
         messages: 對話歷史（含本輪 user message）。
         tools: Anthropic tool_use 格式的工具定義清單；無工具時傳 None。
-        tool_configs: 對應 tools 的執行設定（endpoint_url, http_method, auth_type 等）；
+        tool_configs: 對應 tools 的執行設定（tool_type, endpoint_url, http_method, auth_type 等）；
                       無工具時傳 None。
 
     Returns:
@@ -107,8 +164,10 @@ def run(
     current_messages = list(messages)
 
     # 工具名稱正規化：建立 normalized_tools 及 正規化後名稱 → 原始名稱 對映表
+    prop_key_mapping: dict[str, dict[str, str]] = {}
     if tools:
         normalized_tools, name_mapping = _normalize_tool_names(tools)
+        normalized_tools, prop_key_mapping = _normalize_property_keys(normalized_tools)
     else:
         normalized_tools = tools
         name_mapping: dict[str, str] = {}
@@ -163,7 +222,7 @@ def run(
         # 執行每個 tool_call（使用還原後的原始名稱查找 tool_configs）
         tool_results = []
         for tc in restored_tool_calls:
-            tool_result_content = _execute_tool(tc, tool_configs or [])
+            tool_result_content = _execute_tool(tc, tool_configs or [], prop_key_mapping)
             tool_results.append(
                 {
                     "type": "tool_result",
@@ -176,12 +235,16 @@ def run(
         current_messages.append({"role": "user", "content": tool_results})
 
 
-def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
+def _execute_tool(
+    tool_call: dict,
+    tool_configs: list[dict],
+    prop_key_mapping: dict[str, dict[str, str]] | None = None,
+) -> str:
     """執行單一工具呼叫，回傳結果字串。
 
     Args:
         tool_call: {"id": ..., "name": ..., "input": {...}}
-        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params）
+        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params/tb_tool_image_fields）
 
     Returns:
         str: 工具執行結果（或錯誤訊息）
@@ -194,12 +257,24 @@ def _execute_tool(tool_call: dict, tool_configs: list[dict]) -> str:
     if config is None:
         return f"[工具錯誤] 找不到工具設定：{tool_name}"
 
+    # 判斷 tool_type
+    tool_type: str = config.get("tool_type", "external_api")
+
+    if tool_type == "image_extract":
+        # image_extract：跳過外部 HTTP 呼叫
+        # LLM 已在 vision 對話中看到圖片並自行填入 tool_input（結構化欄位值）
+        # 還原 safe_key → 原始中文 key，再回傳
+        key_map = (prop_key_mapping or {}).get(tool_name, {})
+        remapped = {key_map.get(k, k): v for k, v in tool_input.items()}
+        return json.dumps(remapped, ensure_ascii=False)
+
+    # external_api：執行外部 HTTP 呼叫
     # URL 樣板替換
-    endpoint_url: str = config.get("endpoint_url", "")
+    endpoint_url: str = config.get("endpoint_url", "") or ""
     for key, value in tool_input.items():
         endpoint_url = endpoint_url.replace(f"{{{key}}}", quote(str(value), safe=""))
 
-    http_method: str = config.get("http_method", "GET").upper()
+    http_method: str = (config.get("http_method", "GET") or "GET").upper()
     auth_type: str = config.get("auth_type", "none")
     auth_header_name: str = config.get("auth_header_name", "") or ""
     credential: str = config.get("credential", "") or ""

@@ -15,7 +15,7 @@ from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
 from app.db.models.events import EventHistory, SecurityEvent
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolImageField
 from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_feedback import Feedback
@@ -59,6 +59,7 @@ _SEED_TABLES = [
     RoleFunction.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
+    ToolImageField.__table__,
     AiPartnerConfig.__table__,
     AiPartnerTool.__table__,
     Conversation.__table__,

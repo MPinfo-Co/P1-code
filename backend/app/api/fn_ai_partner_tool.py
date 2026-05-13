@@ -14,10 +14,11 @@ from app.api.schema.fn_ai_partner_tool import (
     ToolTestRequest,
     ToolTestResult,
     ToolUpdate,
+    VALID_TOOL_TYPES,
 )
 from app.config.settings import settings
 from app.db.connector import get_db
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolImageField
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -131,6 +132,8 @@ def list_tools(
     tools = query.order_by(Tool.created_at.asc()).all()
 
     tool_ids = [t.id for t in tools]
+
+    # Fetch body params
     all_params = (
         (
             db.query(ToolBodyParam)
@@ -145,17 +148,34 @@ def list_tools(
     for p in all_params:
         params_by_tool.setdefault(p.tool_id, []).append(p)
 
+    # Fetch image fields
+    all_image_fields = (
+        (
+            db.query(ToolImageField)
+            .filter(ToolImageField.tool_id.in_(tool_ids))
+            .order_by(ToolImageField.tool_id, ToolImageField.sort_order)
+            .all()
+        )
+        if tool_ids
+        else []
+    )
+    image_fields_by_tool: dict[int, list] = {}
+    for f in all_image_fields:
+        image_fields_by_tool.setdefault(f.tool_id, []).append(f)
+
     items = [
         ToolItem(
             id=t.id,
             name=t.name,
             description=t.description,
+            tool_type=t.tool_type,
             endpoint_url=t.endpoint_url,
             http_method=t.http_method,
             auth_type=t.auth_type,
             auth_header_name=t.auth_header_name,
             has_credential=t.credential_enc is not None,
             body_params=params_by_tool.get(t.id, []),
+            image_fields=image_fields_by_tool.get(t.id, []),
         )
         for t in tools
     ]
@@ -180,7 +200,7 @@ def add_tool(
             detail="您沒有執行此操作的權限",
         )
 
-    # Validation
+    # Basic validations
     if not payload.name or not payload.name.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填"
@@ -193,57 +213,120 @@ def add_tool(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在"
         )
-    if not payload.endpoint_url or not payload.endpoint_url.strip():
+
+    tool_type = payload.tool_type or "external_api"
+    if tool_type not in VALID_TOOL_TYPES:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填"
-        )
-    if payload.auth_type not in VALID_AUTH_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
-        )
-    if payload.auth_type == "api_key" and (
-        not payload.auth_header_name or not payload.auth_header_name.strip()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="API Key 模式下 Header 名稱為必填",
-        )
-    if payload.auth_type in {"api_key", "bearer"} and (
-        not payload.credential or not payload.credential.strip()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="憑證為必填"
-        )
-    if payload.http_method not in VALID_HTTP_METHODS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="工具類型不合法"
         )
 
-    # Create tool
-    credential_enc = _encrypt(payload.credential) if payload.credential else None
-    tool = Tool(
-        name=payload.name,
-        description=payload.description,
-        endpoint_url=payload.endpoint_url,
-        http_method=payload.http_method,
-        auth_type=payload.auth_type,
-        auth_header_name=payload.auth_header_name,
-        credential_enc=credential_enc,
-    )
-    db.add(tool)
-    db.flush()
-
-    for idx, param in enumerate(payload.body_params or []):
-        db.add(
-            ToolBodyParam(
-                tool_id=tool.id,
-                param_name=param.param_name,
-                param_type=param.param_type,
-                is_required=param.is_required,
-                description=param.description,
-                sort_order=idx,
+    if tool_type == "external_api":
+        if not payload.endpoint_url or not payload.endpoint_url.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API Endpoint URL 為必填",
             )
+        auth_type = payload.auth_type or ""
+        if auth_type not in VALID_AUTH_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
+            )
+        if auth_type == "api_key" and (
+            not payload.auth_header_name or not payload.auth_header_name.strip()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API Key 模式下 Header 名稱為必填",
+            )
+        if auth_type in {"api_key", "bearer"} and (
+            not payload.credential or not payload.credential.strip()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="憑證為必填"
+            )
+        http_method = payload.http_method or ""
+        if http_method not in VALID_HTTP_METHODS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
+            )
+
+        credential_enc = _encrypt(payload.credential) if payload.credential else None
+        tool = Tool(
+            name=payload.name,
+            description=payload.description,
+            tool_type=tool_type,
+            endpoint_url=payload.endpoint_url,
+            http_method=http_method,
+            auth_type=auth_type,
+            auth_header_name=payload.auth_header_name,
+            credential_enc=credential_enc,
         )
+        db.add(tool)
+        db.flush()
+
+        for idx, param in enumerate(payload.body_params or []):
+            db.add(
+                ToolBodyParam(
+                    tool_id=tool.id,
+                    param_name=param.param_name,
+                    param_type=param.param_type,
+                    is_required=param.is_required,
+                    description=param.description,
+                    sort_order=idx,
+                )
+            )
+
+    elif tool_type == "image_extract":
+        if not payload.image_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="圖片擷取工具至少需設定一個擷取欄位",
+            )
+        for field in payload.image_fields:
+            if not field.field_name or not field.field_name.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="擷取欄位名稱不可為空",
+                )
+
+        tool = Tool(
+            name=payload.name,
+            description=payload.description,
+            tool_type=tool_type,
+            endpoint_url=None,
+            http_method=None,
+            auth_type="none",
+            auth_header_name=None,
+            credential_enc=None,
+        )
+        db.add(tool)
+        db.flush()
+
+        for idx, field in enumerate(payload.image_fields):
+            db.add(
+                ToolImageField(
+                    tool_id=tool.id,
+                    field_name=field.field_name,
+                    field_type=field.field_type,
+                    description=field.description,
+                    sort_order=idx,
+                )
+            )
+
+    else:
+        # web_scraper or other future types
+        tool = Tool(
+            name=payload.name,
+            description=payload.description,
+            tool_type=tool_type,
+            endpoint_url=payload.endpoint_url,
+            http_method=payload.http_method,
+            auth_type=payload.auth_type or "none",
+            auth_header_name=payload.auth_header_name,
+            credential_enc=None,
+        )
+        db.add(tool)
+        db.flush()
 
     db.commit()
     system_logger.info(f"User {auth.user_id} created tool {tool.id} ({tool.name})")
@@ -273,7 +356,9 @@ def update_tool(
     if tool is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
-    # Validation
+    # tool_type is read from DB; ignore frontend input
+    tool_type = tool.tool_type
+
     if not payload.name or not payload.name.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱為必填"
@@ -289,51 +374,80 @@ def update_tool(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="工具名稱已存在"
         )
-    if not payload.endpoint_url or not payload.endpoint_url.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="API Endpoint URL 為必填"
-        )
-    if payload.auth_type not in VALID_AUTH_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
-        )
-    if payload.auth_type == "api_key" and (
-        not payload.auth_header_name or not payload.auth_header_name.strip()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="API Key 模式下 Header 名稱為必填",
-        )
-    if payload.http_method not in VALID_HTTP_METHODS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
-        )
 
-    # Update fields
     tool.name = payload.name
     tool.description = payload.description
-    tool.endpoint_url = payload.endpoint_url
-    tool.http_method = payload.http_method
-    tool.auth_type = payload.auth_type
-    tool.auth_header_name = payload.auth_header_name
 
-    if payload.credential and payload.credential.strip():
-        tool.credential_enc = _encrypt(payload.credential)
-    # else: keep existing credential_enc
-
-    # Replace body params
-    db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
-    for idx, param in enumerate(payload.body_params or []):
-        db.add(
-            ToolBodyParam(
-                tool_id=tool.id,
-                param_name=param.param_name,
-                param_type=param.param_type,
-                is_required=param.is_required,
-                description=param.description,
-                sort_order=idx,
+    if tool_type == "external_api":
+        if not payload.endpoint_url or not payload.endpoint_url.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API Endpoint URL 為必填",
             )
-        )
+        auth_type = payload.auth_type or ""
+        if auth_type not in VALID_AUTH_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="認證方式不合法"
+            )
+        if auth_type == "api_key" and (
+            not payload.auth_header_name or not payload.auth_header_name.strip()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API Key 模式下 Header 名稱為必填",
+            )
+        http_method = payload.http_method or ""
+        if http_method not in VALID_HTTP_METHODS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP Method 不合法"
+            )
+
+        tool.endpoint_url = payload.endpoint_url
+        tool.http_method = http_method
+        tool.auth_type = auth_type
+        tool.auth_header_name = payload.auth_header_name
+
+        if payload.credential and payload.credential.strip():
+            tool.credential_enc = _encrypt(payload.credential)
+        # else: keep existing credential_enc
+
+        db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
+        for idx, param in enumerate(payload.body_params or []):
+            db.add(
+                ToolBodyParam(
+                    tool_id=tool.id,
+                    param_name=param.param_name,
+                    param_type=param.param_type,
+                    is_required=param.is_required,
+                    description=param.description,
+                    sort_order=idx,
+                )
+            )
+
+    elif tool_type == "image_extract":
+        if not payload.image_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="圖片擷取工具至少需設定一個擷取欄位",
+            )
+        for field in payload.image_fields:
+            if not field.field_name or not field.field_name.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="擷取欄位名稱不可為空",
+                )
+
+        db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
+        for idx, field in enumerate(payload.image_fields):
+            db.add(
+                ToolImageField(
+                    tool_id=tool.id,
+                    field_name=field.field_name,
+                    field_type=field.field_type,
+                    description=field.description,
+                    sort_order=idx,
+                )
+            )
 
     db.commit()
     system_logger.info(f"User {auth.user_id} updated tool {tool.id} ({tool.name})")
@@ -351,7 +465,7 @@ def delete_tool(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """Delete a tool and all related body params. Requires fn_tool permission."""
+    """Delete a tool and all related records. Requires fn_tool permission."""
     if not _has_fn_tool_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -363,6 +477,7 @@ def delete_tool(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="工具不存在")
 
     db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool_id).delete()
+    db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
     db.delete(tool)
     db.commit()
     system_logger.info(f"User {auth.user_id} deleted tool {tool_id}")
