@@ -269,7 +269,7 @@ def _execute_web_scraper(config: dict, tool_input: dict) -> str:  # noqa: ARG001
         return f"無法連線至目標網址：{exc}"
 
     # Step 2: BeautifulSoup 清除 script/style/img 取純文字
-    soup = BeautifulSoup(html_content, "lxml")
+    soup = BeautifulSoup(html_content, "html.parser")
     for tag in soup(["script", "style", "img"]):
         tag.decompose()
     plain_text = soup.get_text(separator="\n", strip=True)
