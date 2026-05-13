@@ -423,10 +423,9 @@ def test_new_conversation_returns_201(client, engine):
         "tool_calls": [
             {
                 "id": "tc1",
-                "name": "provide_greeting_and_suggestions",
+                "name": "provide_greeting",
                 "input": {
                     "greeting": "你好！我是 AI 夥伴。",
-                    "suggestions": ["問題1", "問題2", "問題3"],
                 },
             }
         ],
@@ -447,7 +446,7 @@ def test_new_conversation_returns_201(client, engine):
     assert len(data["messages"]) == 1
     assert data["messages"][0]["role"] == "assistant"
     assert data["messages"][0]["content"] == "你好！我是 AI 夥伴。"
-    assert data["suggestions"] == ["問題1", "問題2", "問題3"]
+    assert data["suggestions"] == []  # 建議問題改為背景非同步生成，新對話立即回傳空陣列
 
 
 def test_new_conversation_keeps_old_records(client, engine):
