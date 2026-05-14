@@ -144,7 +144,7 @@ def trigger_analysis(
         # 投遞 one-shot Haiku+Sonnet job
         _dispatch_haiku_job(time_from=time_from, time_to=time_to, batch_id=batch.id)
 
-    logger.info("trigger_analysis: user=%d is_enabled=%s", auth.user_id, is_enabled)
+    logger.info(f"trigger_analysis: user={auth.user_id} is_enabled={is_enabled}")
     return {"message": "分析已啟動"}
 
 

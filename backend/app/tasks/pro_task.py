@@ -260,23 +260,23 @@ def run_pro_task(
         da.status = "done"
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
-        logger.info("pro_task: date=%s created=%d updated=%d", today, created, updated)
+        logger.info(f"pro_task: date={today} created={created} updated={updated}")
     except anthropic.AuthenticationError as exc:
         db.rollback()
-        logger.exception("pro_task: Anthropic auth error — %s", exc)
+        logger.exception(f"pro_task: Anthropic auth error — {exc}")
         da.status = "failed"
         da.error_message = _ERR_ADMIN
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
     except anthropic.PermissionDeniedError as exc:
         db.rollback()
-        logger.exception("pro_task: Anthropic permission error — %s", exc)
+        logger.exception(f"pro_task: Anthropic permission error — {exc}")
         da.status = "failed"
         da.error_message = _ERR_ADMIN
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
     except sqlalchemy.exc.SQLAlchemyError as exc:
-        logger.exception("pro_task: DB error — %s", exc)
+        logger.exception(f"pro_task: DB error — {exc}")
         try:
             db.rollback()
         except Exception:
@@ -290,28 +290,28 @@ def run_pro_task(
             pass
     except anthropic.RateLimitError as exc:
         db.rollback()
-        logger.exception("pro_task: rate limit — %s", exc)
+        logger.exception(f"pro_task: rate limit — {exc}")
         da.status = "failed"
         da.error_message = _ERR_RETRY
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
     except anthropic.APIStatusError as exc:
         db.rollback()
-        logger.exception("pro_task: API status error — %s", exc)
+        logger.exception(f"pro_task: API status error — {exc}")
         da.status = "failed"
         da.error_message = _ERR_RETRY
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
         db.rollback()
-        logger.exception("pro_task: connection error — %s", exc)
+        logger.exception(f"pro_task: connection error — {exc}")
         da.status = "failed"
         da.error_message = _ERR_RETRY
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
     except Exception as exc:
         db.rollback()
-        logger.exception("pro_task: failed — %s", exc)
+        logger.exception(f"pro_task: failed — {exc}")
         da.status = "failed"
         da.error_message = _classify_error(exc)
         da.completed_at = datetime.now(timezone.utc)
