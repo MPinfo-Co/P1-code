@@ -1,7 +1,7 @@
 """add fn_custom_table tables and write/read custom table tool configs
 
 Revision ID: g1h2i3j4k5l6
-Revises: f3a1c8b92e05
+Revises: a3b5c7d9e1f2
 Create Date: 2026-05-14 00:00:00.000000
 
 TDD #1: 調整 tb_custom_table_records：移除 source_message_id、移除 user_id；將 updated_by 改為 NOT NULL
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "g1h2i3j4k5l6"
-down_revision: Union[str, Sequence[str], None] = "f3a1c8b92e05"
+down_revision: Union[str, Sequence[str], None] = "a3b5c7d9e1f2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

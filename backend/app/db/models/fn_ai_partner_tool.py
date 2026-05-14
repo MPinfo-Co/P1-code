@@ -18,7 +18,10 @@ class Tool(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tool_type: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="external_api", server_default="external_api"
+        String(20),
+        nullable=False,
+        default="external_api",
+        server_default="external_api",
     )
     endpoint_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     http_method: Mapped[str | None] = mapped_column(String(10), nullable=True)
