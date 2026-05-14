@@ -325,33 +325,27 @@ export default function FnExpertSetting() {
           <Divider sx={{ mb: 1.5 }} />
 
           {/* 手動抓取 log 資料 */}
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#475569', mb: 1.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
             手動抓取 log 資料
           </Typography>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography sx={{ fontSize: 13, color: '#64748b', width: 36 }}>開始</Typography>
-              <TextField
-                type="datetime-local"
-                value={logFetchFrom}
-                onChange={(e) => setLogFetchFrom(e.target.value)}
-                size="small"
-                sx={{ flex: 1 }}
-                inputProps={{ step: 60 }}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography sx={{ fontSize: 13, color: '#64748b', width: 36 }}>結束</Typography>
-              <TextField
-                type="datetime-local"
-                value={logFetchTo}
-                onChange={(e) => setLogFetchTo(e.target.value)}
-                size="small"
-                sx={{ flex: 1 }}
-                inputProps={{ step: 60 }}
-              />
-            </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: 13, color: '#64748b' }}>開始</Typography>
+            <TextField
+              type="datetime-local"
+              value={logFetchFrom}
+              onChange={(e) => setLogFetchFrom(e.target.value)}
+              size="small"
+              inputProps={{ step: 60 }}
+            />
+            <Typography sx={{ fontSize: 13, color: '#64748b' }}>結束</Typography>
+            <TextField
+              type="datetime-local"
+              value={logFetchTo}
+              onChange={(e) => setLogFetchTo(e.target.value)}
+              size="small"
+              inputProps={{ step: 60 }}
+            />
           </Box>
 
           <Button
