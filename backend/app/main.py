@@ -13,6 +13,7 @@ from app.logger_utils import get_system_logger
 from app.scheduler import start_scheduler, stop_scheduler
 from app.api.auth import router as auth_router
 from app.api.fn_ai_partner_chat import router as fn_ai_partner_chat_router
+from app.api.fn_home import router as fn_home_router
 from app.api.company_data import router as company_data_router
 from app.api.events import router as events_router
 from app.api.fn_ai_partner_config import router as fn_ai_partner_config_router
@@ -77,6 +78,7 @@ def create_app():
     server.add_middleware(RequestResponseHandlerMiddleware)
 
     server.include_router(auth_router)
+    server.include_router(fn_home_router)
     server.include_router(fn_ai_partner_chat_router)
     server.include_router(company_data_router)
     server.include_router(events_router)
