@@ -15,6 +15,13 @@ class AiPartner(Base):
     __tablename__ = "tb_ai_partners"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_builtin: Mapped[bool] = mapped_column(
@@ -39,6 +46,13 @@ class AiPartnerConfig(Base):
     __tablename__ = "tb_ai_partner_configs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_enabled: Mapped[bool] = mapped_column(
@@ -61,4 +75,11 @@ class AiPartnerTool(Base):
     )
     tool_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_tools.id"), primary_key=True
+    )
+    tenant_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("tb_tenants.id"),
+        nullable=False,
+        default=1,
+        server_default="1",
     )

@@ -1,5 +1,6 @@
 # ruff: noqa: F401, F403
 from .base import Base
+from .fn_tenant import *
 from .analysis import *
 from .events import *
 from .fn_ai_partner_config import *
