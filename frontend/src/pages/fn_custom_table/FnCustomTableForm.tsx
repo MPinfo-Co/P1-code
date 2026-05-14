@@ -65,7 +65,7 @@ function FnCustomTableFormInner({
   function handleAddField() {
     setFields((prev) => [
       ...prev,
-      { field_name: '', field_type: 'string', field_description: '', isOriginal: false },
+      { field_name: '', field_type: 'string', description: '', isOriginal: false },
     ])
   }
 
@@ -96,12 +96,12 @@ function FnCustomTableFormInner({
     }
 
     const payload = {
-      table_name: tableName.trim(),
+      name: tableName.trim(),
       description: description.trim(),
       fields: fields.map((f) => ({
         field_name: f.field_name.trim(),
         field_type: f.field_type,
-        field_description: f.field_description?.trim() ?? '',
+        description: f.description?.trim() ?? '',
       })),
     }
 
@@ -239,8 +239,8 @@ function FnCustomTableFormInner({
                 <TextField
                   size="small"
                   placeholder="欄位說明"
-                  value={field.field_description}
-                  onChange={(e) => handleFieldChange(index, 'field_description', e.target.value)}
+                  value={field.description}
+                  onChange={(e) => handleFieldChange(index, 'description', e.target.value)}
                   sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
                 />
                 {field.isOriginal ? (
@@ -296,14 +296,14 @@ export default function FnCustomTableForm({ open, row, onClose, onSuccess }: Pro
   let initialFields: FieldRow[] = []
 
   if (isEdit && row) {
-    initialTableName = row.table_name
+    initialTableName = row.name
     initialDescription = row.description ?? ''
     const option = tableOptions.find((o) => o.id === row.id)
     if (option) {
       initialFields = option.fields.map((f) => ({
         field_name: f.field_name,
         field_type: f.field_type,
-        field_description: f.field_description ?? '',
+        description: f.description ?? '',
         isOriginal: true,
       }))
     }

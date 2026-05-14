@@ -9,7 +9,7 @@ const BASE_URL = import.meta.env.VITE_API_URL
 export interface CustomTableField {
   field_name: string
   field_type: 'string' | 'number'
-  field_description: string
+  description: string
 }
 
 export interface CustomTableFieldDef {
@@ -33,14 +33,14 @@ export interface CustomTableRecordsData {
 
 export interface CustomTableRow {
   id: number
-  table_name: string
+  name: string
   description: string
   field_count: number
 }
 
 export interface CustomTableOption {
   id: number
-  table_name: string
+  name: string
   fields: CustomTableField[]
 }
 
@@ -49,13 +49,13 @@ export interface CustomTableQueryParams {
 }
 
 export interface CreateCustomTablePayload {
-  table_name: string
+  name: string
   description: string
   fields: CustomTableField[]
 }
 
 export interface UpdateCustomTablePayload {
-  table_name: string
+  name: string
   description: string
   fields: CustomTableField[]
 }
@@ -69,7 +69,13 @@ function getToken() {
 async function handleResponse(res: Response) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail ?? err.message ?? '操作失敗')
+    const detail = err.detail
+    if (typeof detail === 'string') throw new Error(detail)
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0] as Record<string, unknown>
+      throw new Error(String(first.msg ?? '驗證失敗'))
+    }
+    throw new Error(String(err.message ?? '操作失敗'))
   }
 }
 

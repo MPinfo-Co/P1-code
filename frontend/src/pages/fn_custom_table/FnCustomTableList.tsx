@@ -68,7 +68,7 @@ export default function FnCustomTableList() {
 
   const columns: GridColDef<CustomTableRow>[] = [
     {
-      field: 'table_name',
+      field: 'name',
       headerName: '表格名稱',
       flex: 1.5,
       renderCell: (params) => (
@@ -205,7 +205,7 @@ export default function FnCustomTableList() {
           }
           sx={{ mb: 1 }}
         >
-          確定要刪除「{confirmRow.table_name}」？此操作無法還原
+          確定要刪除「{confirmRow.name}」？此操作無法還原
         </Alert>
       )}
 
