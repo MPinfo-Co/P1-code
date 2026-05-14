@@ -1,0 +1,30 @@
+.records-bar {
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.records-bar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  flex: 1;
+}
+
+.records-bar-btn {
+  height: 24px;
+  font-size: 12px;
+  border-radius: 3px;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.records-bar-btn-danger {
+  height: 24px;
+  font-size: 12px;
+  border-radius: 3px;
+}

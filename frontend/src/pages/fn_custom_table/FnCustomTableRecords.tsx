@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
+import './FnCustomTableRecords.css'
 import {
   useCustomTableRecordsQuery,
   useDeleteCustomTableRecord,
@@ -98,36 +99,23 @@ export default function FnCustomTableRecords() {
 
   return (
     <Box sx={{ p: '14px 20px', bgcolor: '#f0f4f8', minHeight: '100vh' }}>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          bgcolor: '#f1f5f9',
-          px: '12px',
-          py: '3px',
-          mb: '5px',
-          borderRadius: 1,
-        }}
-      >
+      <Box className="records-bar">
+        <Typography className="records-bar-title">資料查看</Typography>
         <Button
           size="small"
           variant="outlined"
+          className="records-bar-btn"
           onClick={() => navigate('/custom_table')}
-          sx={{ height: 24, fontSize: 12, borderRadius: '3px' }}
         >
           返回
         </Button>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', ml: 1 }}>
-          資料查看
-        </Typography>
         <Button
           size="small"
-          variant="contained"
+          variant="outlined"
           color="error"
+          className="records-bar-btn-danger"
           onClick={() => setConfirmDeleteAll(true)}
           disabled={rows.length === 0}
-          sx={{ height: 24, fontSize: 12, borderRadius: '3px', ml: 'auto' }}
         >
           全部刪除
         </Button>
