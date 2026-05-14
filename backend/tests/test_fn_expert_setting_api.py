@@ -584,3 +584,20 @@ def test_ssb_test_no_permission_returns_403(client, engine):
     )
     assert resp.status_code == 403
     assert resp.json()["detail"] == "您沒有執行此操作的權限"
+
+
+def test_save_settings_triggers_sync_immediately(client, engine):
+    """PUT 成功後應主動呼 _sync_settings，讓排程變動立即生效。"""
+    from unittest.mock import patch
+
+    admin_id, _, _ = _setup_admin(engine)
+
+    with patch("app.scheduler._sync_settings") as mock_sync:
+        resp = client.put(
+            "/expert/settings",
+            json=_valid_save_payload(),
+            headers=_auth_headers(admin_id),
+        )
+
+    assert resp.status_code == 200
+    mock_sync.assert_called_once()

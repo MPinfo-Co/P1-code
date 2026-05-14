@@ -185,6 +185,16 @@ def save_expert_settings(
 
     db.commit()
     system_logger.info(f"User {auth.user_id} saved expert settings")
+
+    # 儲存後立即 reload runtime cache，讓兩個排程開關 / interval / 時間
+    # 變動馬上生效（不必等下一輪 _sync_settings interval 才 reload）。
+    try:
+        from app import scheduler as _scheduler_mod
+
+        _scheduler_mod._sync_settings()
+    except Exception:
+        system_logger.exception("post-save _sync_settings failed")
+
     return {"message": "設定已儲存"}
 
 
