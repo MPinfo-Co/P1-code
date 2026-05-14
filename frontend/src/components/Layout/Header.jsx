@@ -1,10 +1,11 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
 import { useNavigationQuery } from '../../queries/useNavigationQuery'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
+import Box from '@mui/material/Box'
 
 export default function Header() {
   const { logout } = useAuth()
@@ -31,12 +32,21 @@ export default function Header() {
         <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
           {title}
         </Typography>
-        <Button
-          onClick={logout}
-          sx={{ color: '#64748b', fontWeight: 600, '&:hover': { bgcolor: 'transparent' } }}
-        >
-          登出
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
+            component={Link}
+            to="/"
+            sx={{ color: '#64748b', fontWeight: 600, '&:hover': { bgcolor: 'transparent' } }}
+          >
+            首頁
+          </Button>
+          <Button
+            onClick={logout}
+            sx={{ color: '#64748b', fontWeight: 600, '&:hover': { bgcolor: 'transparent' } }}
+          >
+            登出
+          </Button>
+        </Box>
       </Toolbar>
     </AppBar>
   )

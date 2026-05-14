@@ -1,10 +1,74 @@
 .home-root {
   padding: 14px 20px;
+  background: #f0f4f8;
+  min-height: 100%;
 }
 
-.home-message {
+.home-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+
+.home-partners-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.home-empty-text {
   font-size: 13px;
   color: #94a3b8;
-  text-align: center;
-  margin-top: 16px;
+  margin-top: 8px;
+}
+
+.partner-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.partner-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.partner-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  padding-right: 32px;
+}
+
+.partner-card-desc {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.partner-card-favorite-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.partner-card-favorite-btn:hover {
+  background: #f1f5f9;
 }
