@@ -41,7 +41,13 @@ FN_TOOL_NAME = "fn_ai_partner_tool"
 
 VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
 VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
-VALID_TOOL_TYPES = {"external_api", "image_extract", "web_scraper", "write_custom_table", "read_custom_table"}
+VALID_TOOL_TYPES = {
+    "external_api",
+    "image_extract",
+    "web_scraper",
+    "write_custom_table",
+    "read_custom_table",
+}
 VALID_SCOPES = {"self", "all"}
 
 
@@ -236,6 +242,7 @@ def list_tools(
             wc = write_config_by_tool[t.id]
             write_custom_table_config = ToolWriteCustomTableConfigItem(
                 target_table_id=wc.target_table_id,
+                description=wc.description,
             )
 
         # Build read_custom_table_config if applicable
@@ -343,13 +350,13 @@ def add_tool(
         if not payload.image_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
+                detail="圖片擷取工具至少須定義一個欄位",
             )
         for field in payload.image_fields:
             if not field.field_name or not field.field_name.strip():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
+                    detail="欄位名稱不可為空",
                 )
 
     elif tool_type == "web_scraper":
@@ -369,7 +376,12 @@ def add_tool(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
             )
-        if db.query(CustomTable).filter(CustomTable.id == payload.target_table_id).first() is None:
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
             )
@@ -380,7 +392,12 @@ def add_tool(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
             )
-        if db.query(CustomTable).filter(CustomTable.id == payload.target_table_id).first() is None:
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
             )
@@ -457,6 +474,7 @@ def add_tool(
             ToolWriteCustomTableConfig(
                 tool_id=tool.id,
                 target_table_id=payload.target_table_id,
+                description=payload.write_description,
             )
         )
     elif tool_type == "read_custom_table":
@@ -545,13 +563,13 @@ def update_tool(
         if not payload.image_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
+                detail="圖片擷取工具至少須定義一個欄位",
             )
         for field in payload.image_fields:
             if not field.field_name or not field.field_name.strip():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
+                    detail="欄位名稱不可為空",
                 )
 
     elif tool_type == "web_scraper":
@@ -569,7 +587,12 @@ def update_tool(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
             )
-        if db.query(CustomTable).filter(CustomTable.id == payload.target_table_id).first() is None:
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
             )
@@ -579,7 +602,12 @@ def update_tool(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
             )
-        if db.query(CustomTable).filter(CustomTable.id == payload.target_table_id).first() is None:
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
             )
@@ -654,6 +682,7 @@ def update_tool(
             ToolWriteCustomTableConfig(
                 tool_id=tool.id,
                 target_table_id=payload.target_table_id,
+                description=payload.write_description,
             )
         )
 

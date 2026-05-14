@@ -364,7 +364,9 @@ def _execute_write_custom_table(
         )
         db.add(record)
         db.commit()
-        return json.dumps({"success": True, "message": "資料已寫入"}, ensure_ascii=False)
+        return json.dumps(
+            {"success": True, "message": "資料已寫入"}, ensure_ascii=False
+        )
     except Exception as exc:
         db.rollback()
         return f"[工具執行失敗] 寫入資料時發生錯誤：{exc}"
@@ -403,9 +405,7 @@ def _execute_read_custom_table(
             return "[工具錯誤] read_custom_table scope=self 需要 user_id"
         query = query.filter(CustomTableRecord.updated_by == user_id)
 
-    records = (
-        query.order_by(CustomTableRecord.updated_at.desc()).limit(limit).all()
-    )
+    records = query.order_by(CustomTableRecord.updated_at.desc()).limit(limit).all()
 
     result = [r.data for r in records]
     return json.dumps(result, ensure_ascii=False, default=str)

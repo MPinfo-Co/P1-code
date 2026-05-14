@@ -202,6 +202,7 @@ def _build_tool_definitions(
             # write_custom_table：LLM 填入欄位值（依 tb_custom_table_fields 組裝 properties）
             if write_config:
                 from app.db.models.fn_custom_table import CustomTableField
+
                 fields = (
                     db.query(CustomTableField)
                     .filter(CustomTableField.table_id == write_config.target_table_id)
@@ -210,7 +211,9 @@ def _build_tool_definitions(
                 )
                 for f in fields:
                     properties[f.field_name] = {
-                        "type": f.field_type if f.field_type in ("string", "number") else "string",
+                        "type": f.field_type
+                        if f.field_type in ("string", "number")
+                        else "string",
                         "description": f.description or f.field_name,
                     }
                     required_params.append(f.field_name)
@@ -223,7 +226,9 @@ def _build_tool_definitions(
                     }
                 )
             else:
-                tool_configs.append({"name": safe_name, "tool_type": tool_type, "user_id": user_id})
+                tool_configs.append(
+                    {"name": safe_name, "tool_type": tool_type, "user_id": user_id}
+                )
 
         elif tool_type == "read_custom_table":
             read_config = (
@@ -236,7 +241,9 @@ def _build_tool_definitions(
                 {
                     "name": safe_name,
                     "tool_type": tool_type,
-                    "target_table_id": read_config.target_table_id if read_config else None,
+                    "target_table_id": read_config.target_table_id
+                    if read_config
+                    else None,
                     "limit": read_config.limit if read_config else 20,
                     "scope": read_config.scope if read_config else "self",
                     "user_id": user_id,
@@ -686,7 +693,9 @@ def send_message(
         history_msgs.append({"role": "user", "content": user_content})
 
     # 組裝工具定義（含 user_id 供 write/read_custom_table 使用）
-    tool_defs, tool_configs = _build_tool_definitions(partner_id, db, user_id=auth.user_id)
+    tool_defs, tool_configs = _build_tool_definitions(
+        partner_id, db, user_id=auth.user_id
+    )
     model = settings.anthropic_model
 
     try:
@@ -781,7 +790,9 @@ def new_conversation(
         .first()
     )
     system_prompt = _build_system_prompt(partner)
-    tool_defs_for_greeting, _ = _build_tool_definitions(payload.partner_id, db, user_id=auth.user_id)
+    tool_defs_for_greeting, _ = _build_tool_definitions(
+        payload.partner_id, db, user_id=auth.user_id
+    )
 
     # 問候專用 LLM 呼叫（不含建議問題，速度更快）
     greeting_tool = {

@@ -107,6 +107,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("tool_id", sa.Integer(), nullable=False),
         sa.Column("target_table_id", sa.Integer(), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
         sa.ForeignKeyConstraint(["tool_id"], ["tb_tools.id"]),
         sa.ForeignKeyConstraint(["target_table_id"], ["tb_custom_tables.id"]),
         sa.PrimaryKeyConstraint("id"),

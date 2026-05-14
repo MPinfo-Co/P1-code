@@ -29,7 +29,9 @@ os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "AI夥伴", sort_order: int = 1) -> int:
+def _make_function_folder(
+    db: Session, name: str = "AI夥伴", sort_order: int = 1
+) -> int:
     folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
@@ -180,7 +182,9 @@ def test_list_tools_contains_read_custom_table_config(client, engine):
     """對應 T36"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
     table_id = _create_custom_table(engine, "讀取資料表T36")
-    _add_read_custom_table_tool(engine, "ReadTableTool", table_id, limit=15, scope="all")
+    _add_read_custom_table_tool(
+        engine, "ReadTableTool", table_id, limit=15, scope="all"
+    )
 
     resp = client.get("/tool", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
@@ -391,7 +395,9 @@ def test_update_write_custom_table_tool_returns_200(client, engine):
         "description": "更新說明",
         "target_table_id": table_id2,
     }
-    resp = client.patch(f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
@@ -416,7 +422,9 @@ def test_update_read_custom_table_tool_returns_200(client, engine):
     """對應 T44"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
     table_id = _create_custom_table(engine, "讀取資料表T44")
-    tool_id = _add_read_custom_table_tool(engine, "ReadToolT44", table_id, limit=20, scope="self")
+    tool_id = _add_read_custom_table_tool(
+        engine, "ReadToolT44", table_id, limit=20, scope="self"
+    )
 
     patch_payload = {
         "name": "ReadToolT44",
@@ -424,7 +432,9 @@ def test_update_read_custom_table_tool_returns_200(client, engine):
         "limit": 5,
         "scope": "all",
     }
-    resp = client.patch(f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
@@ -456,7 +466,9 @@ def test_update_write_custom_table_nonexistent_table_returns_400(client, engine)
         "name": "WriteToolT44F1",
         "target_table_id": 99999,
     }
-    resp = client.patch(f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "目標資料表不存在"
 
@@ -477,7 +489,9 @@ def test_update_read_custom_table_invalid_scope_returns_400(client, engine):
         "target_table_id": table_id,
         "scope": "invalid_value",
     }
-    resp = client.patch(f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id))
+    resp = client.patch(
+        f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
+    )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "資料範圍值不合法"
 

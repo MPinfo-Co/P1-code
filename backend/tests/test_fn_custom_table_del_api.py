@@ -7,7 +7,7 @@ import os
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models.fn_custom_table import CustomTable, CustomTableField, CustomTableRecord
+from app.db.models.fn_custom_table import CustomTable, CustomTableField
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolReadCustomTableConfig,
@@ -29,7 +29,9 @@ os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 # ---------------------------------------------------------------------------
 
 
-def _make_function_folder(db: Session, name: str = "自訂資料表", sort_order: int = 1) -> int:
+def _make_function_folder(
+    db: Session, name: str = "自訂資料表", sort_order: int = 1
+) -> int:
     folder = FunctionFolder(folder_code=name, folder_label=name, sort_order=sort_order)
     db.add(folder)
     db.flush()
@@ -161,7 +163,10 @@ def test_delete_table_referenced_by_write_tool_returns_400(client, engine):
 
     resp = client.delete(f"/custom_table/{table_id}", headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除"
+    assert (
+        resp.json()["detail"]
+        == "此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除"
+    )
 
     # Table should still exist in DB
     Session_ = sessionmaker(bind=engine)
@@ -183,7 +188,10 @@ def test_delete_table_referenced_by_read_tool_returns_400(client, engine):
 
     resp = client.delete(f"/custom_table/{table_id}", headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除"
+    assert (
+        resp.json()["detail"]
+        == "此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除"
+    )
 
     # Table should still exist in DB
     Session_ = sessionmaker(bind=engine)
@@ -211,9 +219,7 @@ def test_delete_table_not_referenced_returns_200(client, engine):
     db = Session_()
     assert db.query(CustomTable).filter(CustomTable.id == table_id).first() is None
     assert (
-        db.query(CustomTableField)
-        .filter(CustomTableField.table_id == table_id)
-        .count()
+        db.query(CustomTableField).filter(CustomTableField.table_id == table_id).count()
         == 0
     )
     db.close()

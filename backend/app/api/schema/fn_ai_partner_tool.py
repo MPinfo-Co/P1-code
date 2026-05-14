@@ -56,7 +56,11 @@ class ToolCreate(BaseModel):
         None, description="最大擷取字元數（web_scraper 類型，預設 4000）"
     )
     target_table_id: int | None = Field(
-        None, description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）"
+        None,
+        description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）",
+    )
+    write_description: str | None = Field(
+        None, description="工具說明（write_custom_table 類型）"
     )
     limit: int | None = Field(
         None, description="最多回傳筆數（read_custom_table 類型，預設 20）"
@@ -101,7 +105,11 @@ class ToolUpdate(BaseModel):
         None, description="最大擷取字元數（web_scraper 類型）"
     )
     target_table_id: int | None = Field(
-        None, description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）"
+        None,
+        description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）",
+    )
+    write_description: str | None = Field(
+        None, description="工具說明（write_custom_table 類型）"
     )
     limit: int | None = Field(
         None, description="最多回傳筆數（read_custom_table 類型）"
@@ -152,6 +160,7 @@ class ToolWriteCustomTableConfigItem(BaseModel):
     model_config = {"from_attributes": True}
 
     target_table_id: int
+    description: str | None
 
 
 class ToolReadCustomTableConfigItem(BaseModel):

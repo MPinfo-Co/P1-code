@@ -166,21 +166,29 @@ def list_custom_tables(
     record_counts: dict[int, int] = {row[0]: row[1] for row in record_counts_rows}
 
     # Check tool references for all tables
-    referenced_write = set(
-        row[0]
-        for row in db.query(ToolWriteCustomTableConfig.target_table_id)
-        .filter(ToolWriteCustomTableConfig.target_table_id.in_(table_ids))
-        .distinct()
-        .all()
-    ) if table_ids else set()
+    referenced_write = (
+        set(
+            row[0]
+            for row in db.query(ToolWriteCustomTableConfig.target_table_id)
+            .filter(ToolWriteCustomTableConfig.target_table_id.in_(table_ids))
+            .distinct()
+            .all()
+        )
+        if table_ids
+        else set()
+    )
 
-    referenced_read = set(
-        row[0]
-        for row in db.query(ToolReadCustomTableConfig.target_table_id)
-        .filter(ToolReadCustomTableConfig.target_table_id.in_(table_ids))
-        .distinct()
-        .all()
-    ) if table_ids else set()
+    referenced_read = (
+        set(
+            row[0]
+            for row in db.query(ToolReadCustomTableConfig.target_table_id)
+            .filter(ToolReadCustomTableConfig.target_table_id.in_(table_ids))
+            .distinct()
+            .all()
+        )
+        if table_ids
+        else set()
+    )
 
     referenced_ids = referenced_write | referenced_read
 
@@ -486,9 +494,7 @@ def delete_record(
         .first()
     )
     if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="記錄不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="記錄不存在")
     db.delete(record)
     db.commit()
     return {"message": "刪除成功"}
