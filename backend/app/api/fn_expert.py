@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from apscheduler.triggers.date import DateTrigger
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.connector import get_db
@@ -51,6 +52,61 @@ def _has_fn_expert_permission(user_id: int, db: Session) -> bool:
         .first()
         is not None
     )
+
+
+# ---------------------------------------------------------------------------
+# Request schemas
+# ---------------------------------------------------------------------------
+
+
+class TriggerRequest(BaseModel):
+    time_from: datetime
+    time_to: datetime
+
+
+# ---------------------------------------------------------------------------
+# POST /expert/log/trigger
+# ---------------------------------------------------------------------------
+
+
+@router.post("/log/trigger", status_code=status.HTTP_202_ACCEPTED)
+def trigger_log_fetch(
+    body: TriggerRequest,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """手動觸發 Haiku 拉 SSB log。"""
+    if not _has_fn_expert_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+    running = db.query(LogBatch).filter(LogBatch.status == "running").first()
+    if running:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="抓 log 進行中，請稍後再試",
+        )
+
+    batch = LogBatch(
+        time_from=body.time_from,
+        time_to=body.time_to,
+        status="running",
+        records_fetched=0,
+        chunks_total=0,
+        chunks_done=0,
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+
+    _dispatch_haiku_job(
+        time_from=body.time_from, time_to=body.time_to, batch_id=batch.id
+    )
+
+    logger.info(f"trigger_log_fetch: user={auth.user_id} batch={batch.id}")
+    return {"message": "已啟動抓 log"}
 
 
 # ---------------------------------------------------------------------------

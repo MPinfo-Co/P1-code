@@ -130,13 +130,17 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> int:
     return user_id
 
 
-def _seed_setting(engine, is_enabled: bool = False) -> None:
+def _seed_setting(
+    engine, is_enabled: bool = False, haiku_enabled: bool = False
+) -> None:
+    """is_enabled 映射到 sonnet_enabled（舊語意），haiku_enabled 映射到 haiku_enabled。"""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     setting = ExpertSetting(
         id=1,
-        is_enabled=is_enabled,
-        frequency="daily",
+        haiku_enabled=haiku_enabled,
+        haiku_interval_minutes=30,
+        sonnet_enabled=is_enabled,
         schedule_time="02:00",
         ssb_host="https://192.168.10.48",
         ssb_port=443,
@@ -859,3 +863,46 @@ def test_run_pro_task_filters_chunks_by_time_range(db_session):
             grouped = mock_agg.call_args.kwargs["grouped_events"]
             assert "k1" in grouped
             assert "skip" not in grouped
+
+
+# ---------------------------------------------------------------------------
+# POST /expert/log/trigger tests (Task 7)
+# ---------------------------------------------------------------------------
+
+
+def test_log_trigger_returns_202_starts_haiku(client, engine):
+    """POST /expert/log/trigger 應同步寫 LogBatch running、投遞 Haiku job。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine, haiku_enabled=False)  # 手動觸發跟排程開關無關
+
+    body = {
+        "time_from": "2026-05-14T00:00:00Z",
+        "time_to": "2026-05-14T10:00:00Z",
+    }
+
+    with patch("app.api.fn_expert._dispatch_haiku_job") as mock_haiku:
+        resp = client.post(
+            "/expert/log/trigger", json=body, headers=_auth_headers(user_id)
+        )
+
+    assert resp.status_code == 202
+    assert resp.json()["message"] == "已啟動抓 log"
+    mock_haiku.assert_called_once()
+
+
+def test_log_trigger_409_when_already_running(client, engine):
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    _seed_log_batch(engine, status="running")
+
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+    resp = client.post("/expert/log/trigger", json=body, headers=_auth_headers(user_id))
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "抓 log 進行中，請稍後再試"
+
+
+def test_log_trigger_401_not_logged_in(client):
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+    resp = client.post("/expert/log/trigger", json=body)
+    assert resp.status_code == 401
