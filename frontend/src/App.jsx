@@ -18,6 +18,7 @@ import FnAiPartnerConfigList from './pages/fn_ai_partner_config/FnAiPartnerConfi
 import FnAiPartnerChatPage from './pages/fn_ai_partner_chat/FnAiPartnerChatPage'
 import FnFeedbackSubmit from './pages/fn_feedback/FnFeedbackSubmit'
 import FnFeedbackList from './pages/fn_feedback/FnFeedbackList'
+import FnCustomTableList from './pages/fn_custom_table/FnCustomTableList'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -133,6 +134,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_feedback">
               <FnFeedbackList />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="custom_table"
+          element={
+            <PermissionGuard fnKey="fn_custom_table">
+              <FnCustomTableList />
             </PermissionGuard>
           }
         />
