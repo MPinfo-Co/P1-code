@@ -493,7 +493,7 @@ def test_pro_task_anthropic_auth_error_writes_admin_message(db_session):
         db_session.add(da)
         db_session.commit()
 
-        with patch("app.tasks.pro_task._collect_today_events") as mock_collect:
+        with patch("app.tasks.pro_task._collect_events_in_range") as mock_collect:
             mock_collect.side_effect = anthropic.AuthenticationError.__new__(
                 anthropic.AuthenticationError
             )
@@ -527,7 +527,7 @@ def test_pro_task_rate_limit_error_writes_retry_message(db_session):
         db_session.add(da)
         db_session.commit()
 
-        with patch("app.tasks.pro_task._collect_today_events") as mock_collect:
+        with patch("app.tasks.pro_task._collect_events_in_range") as mock_collect:
             mock_collect.side_effect = anthropic.RateLimitError.__new__(
                 anthropic.RateLimitError
             )
@@ -652,7 +652,7 @@ def test_run_pro_task_manual_mode_bypasses_is_enabled_guard(db_session):
         mock_sched.get_runtime.return_value = rt
 
         today = date.today()
-        with patch("app.tasks.pro_task._collect_today_events") as mock_collect:
+        with patch("app.tasks.pro_task._collect_events_in_range") as mock_collect:
             mock_collect.return_value = {}
             run_pro_task(
                 today=today,
@@ -749,3 +749,82 @@ def test_classify_error_fallback_returns_retry_message():
     exc = _UnknownError("internal IP 192.168.1.1 leaked, sensitive=true")
     assert haiku_classify(exc) == "分析失敗，請稍後重試"
     assert pro_classify(exc) == "分析失敗，請稍後重試"
+
+
+def test_run_pro_task_filters_chunks_by_time_range(db_session):
+    """run_pro_task 應只彙整 LogBatch.time_to 落在 time_from~time_to 區間的 chunks。"""
+    from datetime import datetime, timezone
+    from app.db.models.analysis import ChunkResult, LogBatch
+    from app.tasks.pro_task import run_pro_task
+
+    in_range = LogBatch(
+        time_from=datetime(2026, 5, 14, 8, 0, tzinfo=timezone.utc),
+        time_to=datetime(2026, 5, 14, 10, 0, tzinfo=timezone.utc),
+        status="done",
+        records_fetched=0,
+        chunks_total=1,
+        chunks_done=1,
+    )
+    out_of_range = LogBatch(
+        time_from=datetime(2026, 5, 13, 8, 0, tzinfo=timezone.utc),
+        time_to=datetime(2026, 5, 13, 10, 0, tzinfo=timezone.utc),
+        status="done",
+        records_fetched=0,
+        chunks_total=1,
+        chunks_done=1,
+    )
+    db_session.add_all([in_range, out_of_range])
+    db_session.flush()
+    db_session.add_all(
+        [
+            ChunkResult(
+                batch_id=in_range.id,
+                chunk_index=0,
+                chunk_size=1,
+                status="done",
+                events=[
+                    {
+                        "match_key": "k1",
+                        "star_rank": 3,
+                        "title": "t",
+                        "affected_summary": "a",
+                        "affected_detail": "d",
+                    }
+                ],
+            ),
+            ChunkResult(
+                batch_id=out_of_range.id,
+                chunk_index=0,
+                chunk_size=1,
+                status="done",
+                events=[
+                    {
+                        "match_key": "skip",
+                        "star_rank": 3,
+                        "title": "skip",
+                        "affected_summary": "x",
+                        "affected_detail": "x",
+                    }
+                ],
+            ),
+        ]
+    )
+    db_session.commit()
+
+    with patch("app.tasks.pro_task.scheduler") as mock_sched:
+        rt = MagicMock()
+        rt.is_enabled = True
+        mock_sched.get_runtime.return_value = rt
+
+        with patch("app.tasks.pro_task.claude_pro.aggregate_daily") as mock_agg:
+            mock_agg.return_value = []
+            run_pro_task(
+                anthropic_client_factory=lambda: MagicMock(),
+                db_factory=lambda: db_session,
+                manual_mode=True,
+                time_from=datetime(2026, 5, 14, 0, 0, tzinfo=timezone.utc),
+                time_to=datetime(2026, 5, 14, 23, 59, tzinfo=timezone.utc),
+            )
+            grouped = mock_agg.call_args.kwargs["grouped_events"]
+            assert "k1" in grouped
+            assert "skip" not in grouped

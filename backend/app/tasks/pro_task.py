@@ -17,7 +17,6 @@ from typing import Callable
 import anthropic
 import httpx
 import sqlalchemy.exc
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import scheduler
@@ -55,13 +54,19 @@ def _classify_error(exc: BaseException) -> str:
     return _ERR_RETRY
 
 
-def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
-    """Group today's done ChunkResult events by ``match_key``.
+def _collect_events_in_range(
+    db: Session,
+    time_from: datetime,
+    time_to: datetime,
+) -> dict[str, list[dict]]:
+    """Group done ChunkResult events by match_key within a time range.
+
+    Filter on LogBatch.time_to falling in [time_from, time_to].
 
     Args:
         db: Active SQLAlchemy session.
-        today: Date used to filter ``LogBatch.time_to`` (batch end time falls on today
-            to avoid cross-day batches being dropped).
+        time_from: Start of the time range (inclusive).
+        time_to: End of the time range (inclusive).
 
     Returns:
         Mapping from ``match_key`` to the list of raw events sharing it.
@@ -71,7 +76,8 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
         db.query(ChunkResult)
         .join(LogBatch, ChunkResult.batch_id == LogBatch.id)
         .filter(
-            func.date(LogBatch.time_to) == today,
+            LogBatch.time_to >= time_from,
+            LogBatch.time_to <= time_to,
             ChunkResult.status == "done",
         )
         .all()
@@ -182,6 +188,8 @@ def run_pro_task(
     anthropic_client_factory: Callable,
     db_factory: Callable[[], Session],
     manual_mode: bool = False,
+    time_from: datetime | None = None,
+    time_to: datetime | None = None,
 ) -> None:
     """Execute one Sonnet daily aggregation cycle.
 
@@ -201,6 +209,10 @@ def run_pro_task(
         manual_mode: When True, bypass the ``is_enabled`` schedule gate.
             Used by one-click analysis trigger so Sonnet runs even without
             a configured schedule.
+        time_from: Start of the chunk collection range (inclusive). Defaults
+            to today 00:00:00 UTC when not provided (preserves old behaviour).
+        time_to: End of the chunk collection range (inclusive). Defaults to
+            today 23:59:59 UTC when not provided (preserves old behaviour).
 
     Returns:
         None. All output is written to ``tb_daily_analysis`` and
@@ -213,6 +225,16 @@ def run_pro_task(
 
     today = today or datetime.now(timezone.utc).date()
     db = db_factory()
+
+    # 預設區間：當天 00:00 ~ 23:59:59（對齊舊行為）
+    if time_from is None:
+        time_from = datetime(
+            today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc
+        )
+    if time_to is None:
+        time_to = datetime(
+            today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc
+        )
 
     da = DailyAnalysis(
         analysis_date=today,
@@ -228,7 +250,7 @@ def run_pro_task(
         da = db.query(DailyAnalysis).filter_by(analysis_date=today).one()
 
     try:
-        grouped = _collect_today_events(db, today)
+        grouped = _collect_events_in_range(db, time_from, time_to)
         da.chunk_results_count = sum(len(v) for v in grouped.values())
         if not grouped:
             da.status = "done"
