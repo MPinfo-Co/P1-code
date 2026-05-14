@@ -242,7 +242,6 @@ def list_tools(
             wc = write_config_by_tool[t.id]
             write_custom_table_config = ToolWriteCustomTableConfigItem(
                 target_table_id=wc.target_table_id,
-                description=wc.description,
             )
 
         # Build read_custom_table_config if applicable
@@ -474,7 +473,6 @@ def add_tool(
             ToolWriteCustomTableConfig(
                 tool_id=tool.id,
                 target_table_id=payload.target_table_id,
-                description=payload.write_description,
             )
         )
     elif tool_type == "read_custom_table":
@@ -682,7 +680,6 @@ def update_tool(
             ToolWriteCustomTableConfig(
                 tool_id=tool.id,
                 target_table_id=payload.target_table_id,
-                description=payload.write_description,
             )
         )
 

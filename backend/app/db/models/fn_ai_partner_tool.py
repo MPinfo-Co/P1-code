@@ -103,7 +103,6 @@ class ToolWriteCustomTableConfig(Base):
     target_table_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_custom_tables.id"), nullable=False, index=True
     )
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ToolReadCustomTableConfig(Base):

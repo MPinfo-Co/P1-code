@@ -63,6 +63,7 @@ export default function FnToolList() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<ToolRow | null>(null)
+  const [formKey, setFormKey] = useState(0)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingRow, setDeletingRow] = useState<ToolRow | null>(null)
@@ -79,11 +80,13 @@ export default function FnToolList() {
 
   function handleAddClick() {
     setEditingRow(null)
+    setFormKey((k) => k + 1)
     setIsFormOpen(true)
   }
 
   function handleEditClick(row: ToolRow) {
     setEditingRow(row)
+    setFormKey((k) => k + 1)
     setIsFormOpen(true)
   }
 
@@ -218,7 +221,7 @@ export default function FnToolList() {
       )}
 
       <FnToolForm
-        key={editingRow?.id ?? 'new'}
+        key={formKey}
         open={isFormOpen}
         row={editingRow}
         onClose={() => setIsFormOpen(false)}

@@ -17,11 +17,15 @@ export interface WebScraperConfig {
   max_chars: number
 }
 
-export type ToolType = 'external_api' | 'image_extract' | 'web_scraper' | 'write_custom_table' | 'read_custom_table'
+export type ToolType =
+  | 'external_api'
+  | 'image_extract'
+  | 'web_scraper'
+  | 'write_custom_table'
+  | 'read_custom_table'
 
 export interface WriteCustomTableConfig {
   target_table_id: number
-  description: string
 }
 
 export interface ReadCustomTableConfig {
@@ -41,7 +45,7 @@ export interface ToolRow {
   auth_header_name: string | null
   has_credential: boolean
   body_params?: BodyParam[]
-  image_extract_fields?: {
+  image_fields?: {
     field_name: string
     field_type: 'string' | 'number'
     description: string
@@ -74,7 +78,7 @@ export interface CreateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  image_extract_fields?: {
+  image_fields?: {
     field_name: string
     field_type: 'string' | 'number'
     description: string
@@ -95,7 +99,7 @@ export interface UpdateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  image_extract_fields?: {
+  image_fields?: {
     field_name: string
     field_type: 'string' | 'number'
     description: string

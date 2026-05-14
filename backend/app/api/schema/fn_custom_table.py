@@ -73,6 +73,18 @@ class CustomTableOptionItem(BaseModel):
     fields: list[CustomTableOptionFieldItem]
 
 
+class CustomTableDetailOut(BaseModel):
+    """單一資料表詳細輸出（含欄位清單）。"""
+
+    model_config = {"from_attributes": True}
+
+    id: int
+    name: str
+    description: str | None
+    has_records: bool
+    fields: list[CustomTableFieldItem]
+
+
 class CustomTableRecordItem(BaseModel):
     """單筆 record 輸出。"""
 
@@ -87,5 +99,6 @@ class CustomTableRecordItem(BaseModel):
 class CustomTableRecordsOut(BaseModel):
     """資料查看頁輸出：欄位定義 + records 清單。"""
 
+    table_name: str
     fields: list[CustomTableFieldItem]
     records: list[CustomTableRecordItem]

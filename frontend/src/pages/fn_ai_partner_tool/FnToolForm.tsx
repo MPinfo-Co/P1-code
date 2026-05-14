@@ -69,9 +69,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const [bodyParams, setBodyParams] = useState<BodyParam[]>(() => row?.body_params ?? [])
 
   // image_extract fields
-  const [extractFields, setExtractFields] = useState<ExtractField[]>(
-    () => row?.image_extract_fields ?? []
-  )
+  const [extractFields, setExtractFields] = useState<ExtractField[]>(() => row?.image_fields ?? [])
 
   // web_scraper fields
   const [targetUrl, setTargetUrl] = useState(() => row?.web_scraper_config?.target_url ?? '')
@@ -250,7 +248,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
           name: name.trim(),
           description: description.trim(),
           tool_type: toolType,
-          image_extract_fields: extractFields.filter((f) => f.field_name.trim()),
+          image_fields: extractFields.filter((f) => f.field_name.trim()),
         }
         if (isEdit && row) {
           await updateTool.mutateAsync({ id: row.id, payload })

@@ -286,7 +286,10 @@ def _execute_tool(
         return _execute_web_scraper(config, tool_input)
 
     if tool_type == "write_custom_table":
-        return _execute_write_custom_table(config, tool_input, db)
+        # 還原 safe_key → 原始欄位名稱（中文欄位名稱在正規化時被替換為 f_{i}）
+        key_map = (prop_key_mapping or {}).get(tool_name, {})
+        remapped_input = {key_map.get(k, k): v for k, v in tool_input.items()}
+        return _execute_write_custom_table(config, remapped_input, db)
 
     if tool_type == "read_custom_table":
         return _execute_read_custom_table(config, db)

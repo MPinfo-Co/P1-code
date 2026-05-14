@@ -1,5 +1,5 @@
 // src/pages/fn_custom_table/FnCustomTableForm.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
@@ -15,7 +15,11 @@ import MenuItem from '@mui/material/MenuItem'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
-import { useCreateCustomTable, useUpdateCustomTable } from '@/queries/useCustomTableQuery'
+import {
+  useCreateCustomTable,
+  useUpdateCustomTable,
+  useCustomTableByIdQuery,
+} from '@/queries/useCustomTableQuery'
 import type { CustomTableRow, CustomTableField } from '@/queries/useCustomTableQuery'
 import './FnCustomTableForm.css'
 
@@ -37,10 +41,26 @@ export default function FnCustomTableForm({ open, row, onClose, onSuccess }: Pro
 
   const [tableName, setTableName] = useState(() => row?.name ?? '')
   const [tableDescription, setTableDescription] = useState(() => row?.description ?? '')
-  const [fields, setFields] = useState<EditableField[]>(() => {
-    if (!row) return [{ field_name: '', field_type: 'string', description: '' }]
-    return (row as CustomTableRow & { fields?: EditableField[] }).fields ?? []
-  })
+  const [fields, setFields] = useState<EditableField[]>(() =>
+    isEdit ? [] : [{ field_name: '', field_type: 'string', description: '' }]
+  )
+
+  const { data: detail, isLoading: isDetailLoading } = useCustomTableByIdQuery(
+    isEdit && open ? row.id : null
+  )
+
+  // Populate fields once detail data arrives
+  useEffect(() => {
+    if (!detail) return
+    setFields(
+      detail.fields.map((f) => ({
+        field_name: f.field_name,
+        field_type: f.field_type,
+        description: f.description ?? '',
+        isLocked: detail.has_records,
+      }))
+    )
+  }, [detail])
 
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -154,6 +174,12 @@ export default function FnCustomTableForm({ open, row, onClose, onSuccess }: Pro
           <Typography sx={{ fontSize: 12, color: '#64748b', mt: -1 }}>
             至少須定義一個欄位才可儲存
           </Typography>
+
+          {isEdit && isDetailLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={20} />
+            </Box>
+          ) : null}
 
           {fields.map((field, index) => (
             <Box key={index} className="fn-custom-table-field-row">

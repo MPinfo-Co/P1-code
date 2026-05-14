@@ -31,6 +31,7 @@ export default function FnCustomTableList() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<CustomTableRow | null>(null)
+  const [formKey, setFormKey] = useState(0)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingRow, setDeletingRow] = useState<CustomTableRow | null>(null)
@@ -47,11 +48,13 @@ export default function FnCustomTableList() {
 
   function handleAddClick() {
     setEditingRow(null)
+    setFormKey((k) => k + 1)
     setIsFormOpen(true)
   }
 
   function handleEditClick(row: CustomTableRow) {
     setEditingRow(row)
+    setFormKey((k) => k + 1)
     setIsFormOpen(true)
   }
 
@@ -218,7 +221,7 @@ export default function FnCustomTableList() {
       )}
 
       <FnCustomTableForm
-        key={editingRow?.id ?? 'new'}
+        key={formKey}
         open={isFormOpen}
         row={editingRow}
         onClose={() => setIsFormOpen(false)}

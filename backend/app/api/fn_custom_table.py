@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schema.fn_custom_table import (
     CustomTableCreate,
+    CustomTableDetailOut,
     CustomTableFieldItem,
     CustomTableItem,
     CustomTableOptionItem,
@@ -205,6 +206,50 @@ def list_custom_tables(
         data.append(item.model_dump())
 
     return {"message": "查詢成功", "data": data}
+
+
+# ---------------------------------------------------------------------------
+# GET /custom_table/{table_id}
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{table_id}", status_code=status.HTTP_200_OK)
+def get_custom_table(
+    table_id: int,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """Get a single custom table with its fields and has_records flag."""
+    if not _has_fn_custom_table_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+    table = db.query(CustomTable).filter(CustomTable.id == table_id).first()
+    if table is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="資料表不存在"
+        )
+    fields = (
+        db.query(CustomTableField)
+        .filter(CustomTableField.table_id == table_id)
+        .order_by(CustomTableField.sort_order.asc())
+        .all()
+    )
+    has_records = (
+        db.query(CustomTableRecord)
+        .filter(CustomTableRecord.table_id == table_id)
+        .first()
+        is not None
+    )
+    detail = CustomTableDetailOut(
+        id=table.id,
+        name=table.name,
+        description=table.description,
+        has_records=has_records,
+        fields=[CustomTableFieldItem.model_validate(f) for f in fields],
+    )
+    return {"message": "查詢成功", "data": detail.model_dump()}
 
 
 # ---------------------------------------------------------------------------
@@ -459,6 +504,7 @@ def list_records(
         .all()
     )
     return CustomTableRecordsOut(
+        table_name=table.name,
         fields=[CustomTableFieldItem.model_validate(f) for f in fields],
         records=[CustomTableRecordItem.model_validate(r) for r in records],
     )

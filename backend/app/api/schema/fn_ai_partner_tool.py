@@ -160,7 +160,6 @@ class ToolWriteCustomTableConfigItem(BaseModel):
     model_config = {"from_attributes": True}
 
     target_table_id: int
-    description: str | None
 
 
 class ToolReadCustomTableConfigItem(BaseModel):
