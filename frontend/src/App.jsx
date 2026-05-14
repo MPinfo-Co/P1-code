@@ -50,14 +50,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<Navigate to="/home" replace />} />
-        <Route
-          path="home"
-          element={
-            <PermissionGuard fnKey="fn_home">
-              <Home />
-            </PermissionGuard>
-          }
-        />
+        <Route path="home" element={<Home />} />
         <Route
           path="expert"
           element={
