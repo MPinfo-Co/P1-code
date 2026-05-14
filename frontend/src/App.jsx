@@ -49,7 +49,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Home />} />
+        <Route index element={<Navigate to="/home" replace />} />
+        <Route path="home" element={<Home />} />
         <Route
           path="expert"
           element={

@@ -55,7 +55,7 @@ export default function Sidebar() {
     >
       {/* Brand */}
       <Box
-        onClick={() => navigate('/fn_partner')}
+        onClick={() => navigate('/')}
         sx={{
           px: 3,
           height: 40,
