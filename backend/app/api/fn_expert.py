@@ -169,74 +169,72 @@ def get_analysis_status(
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """查詢分析狀態。
-
-    回傳 idle / running / success / failed 之一，附 events_created 或 error_message。
-    """
+    """查詢 Haiku（拉 log）與 Sonnet（彙整）各自的狀態。"""
     if not _has_fn_expert_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
         )
 
-    # 優先判斷是否有進行中任務
-    running_batch = db.query(LogBatch).filter(LogBatch.status == "running").first()
-    processing_daily = (
+    return {
+        "message": "ok",
+        "data": {
+            "haiku": _resolve_haiku_status(db),
+            "sonnet": _resolve_sonnet_status(db),
+        },
+    }
+
+
+def _resolve_haiku_status(db: Session) -> dict:
+    running = db.query(LogBatch).filter(LogBatch.status == "running").first()
+    if running:
+        return {"status": "running", "records_fetched": None, "error_message": None}
+
+    latest = db.query(LogBatch).order_by(LogBatch.time_to.desc()).first()
+    if latest is None:
+        return {"status": "idle", "records_fetched": None, "error_message": None}
+
+    if latest.status == "done":
+        return {
+            "status": "success",
+            "records_fetched": latest.records_fetched,
+            "error_message": None,
+        }
+    if latest.status == "failed":
+        return {
+            "status": "failed",
+            "records_fetched": None,
+            "error_message": latest.error_message,
+        }
+    return {"status": "idle", "records_fetched": None, "error_message": None}
+
+
+def _resolve_sonnet_status(db: Session) -> dict:
+    processing = (
         db.query(DailyAnalysis).filter(DailyAnalysis.status == "processing").first()
     )
-    if running_batch or processing_daily:
-        return {
-            "message": "ok",
-            "data": {
-                "status": "running",
-                "events_created": None,
-                "error_message": None,
-            },
-        }
+    if processing:
+        return {"status": "running", "events_created": None, "error_message": None}
 
-    # 查詢 tb_daily_analysis 最近一筆
     latest = (
         db.query(DailyAnalysis).order_by(DailyAnalysis.analysis_date.desc()).first()
     )
     if latest is None:
-        return {
-            "message": "ok",
-            "data": {
-                "status": "idle",
-                "events_created": None,
-                "error_message": None,
-            },
-        }
+        return {"status": "idle", "events_created": None, "error_message": None}
 
     if latest.status == "done":
         return {
-            "message": "ok",
-            "data": {
-                "status": "success",
-                "events_created": latest.events_created,
-                "error_message": None,
-            },
+            "status": "success",
+            "events_created": latest.events_created,
+            "error_message": None,
         }
-
     if latest.status == "failed":
         return {
-            "message": "ok",
-            "data": {
-                "status": "failed",
-                "events_created": None,
-                "error_message": latest.error_message,
-            },
-        }
-
-    # pending 或其他狀態 → idle
-    return {
-        "message": "ok",
-        "data": {
-            "status": "idle",
+            "status": "failed",
             "events_created": None,
-            "error_message": None,
-        },
-    }
+            "error_message": latest.error_message,
+        }
+    return {"status": "idle", "events_created": None, "error_message": None}
 
 
 # ---------------------------------------------------------------------------

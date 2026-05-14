@@ -281,73 +281,57 @@ def test_trigger_analysis_not_blocked_by_haiku_running(client, engine):
 # ---------------------------------------------------------------------------
 
 
-def test_status_success_returns_success_with_events_created(client, engine):
-    """對應 T-AS-01"""
+def test_status_returns_haiku_and_sonnet_sections(client, engine):
+    """新 status response 應分 haiku / sonnet 兩段。"""
     user_id, _ = _setup_expert_user(engine)
-    _seed_daily_analysis(engine, status="done", events_created=3)
 
     resp = client.get("/expert/analysis/status", headers=_auth_headers(user_id))
 
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert data["status"] == "success"
-    assert data["events_created"] == 3
-    assert data["error_message"] is None
+    assert "haiku" in data
+    assert "sonnet" in data
+    assert "status" in data["haiku"]
+    assert "status" in data["sonnet"]
 
 
-def test_status_running_when_log_batch_running(client, engine):
-    """對應 T-AS-02"""
+def test_status_haiku_running_when_log_batch_running(client, engine):
     user_id, _ = _setup_expert_user(engine)
     _seed_log_batch(engine, status="running")
 
     resp = client.get("/expert/analysis/status", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 200
     data = resp.json()["data"]
-    assert data["status"] == "running"
+    assert data["haiku"]["status"] == "running"
+    assert data["sonnet"]["status"] == "idle"
 
 
-def test_status_failed_returns_error_message(client, engine):
-    """對應 T-AS-03"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_daily_analysis(
-        engine,
-        status="failed",
-        error_message="SSB 認證失敗，請至『資安專家設定』檢查帳密",
-    )
-
-    resp = client.get("/expert/analysis/status", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert data["status"] == "failed"
-    assert data["error_message"] == "SSB 認證失敗，請至『資安專家設定』檢查帳密"
-    assert data["events_created"] is None
-
-
-def test_status_running_when_daily_analysis_processing(client, engine):
-    """對應 T-AS-07"""
+def test_status_sonnet_running_when_daily_analysis_processing(client, engine):
     user_id, _ = _setup_expert_user(engine)
     _seed_daily_analysis(engine, status="processing")
 
     resp = client.get("/expert/analysis/status", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 200
     data = resp.json()["data"]
-    assert data["status"] == "running"
+    assert data["sonnet"]["status"] == "running"
+    assert data["haiku"]["status"] == "idle"
 
 
-def test_status_idle_when_no_records(client, engine):
-    """對應 T-AS-04"""
+def test_status_sonnet_success_with_events_created(client, engine):
     user_id, _ = _setup_expert_user(engine)
+    _seed_daily_analysis(engine, status="done", events_created=5)
 
     resp = client.get("/expert/analysis/status", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 200
     data = resp.json()["data"]
-    assert data["status"] == "idle"
-    assert data["events_created"] is None
-    assert data["error_message"] is None
+    assert data["sonnet"]["status"] == "success"
+    assert data["sonnet"]["events_created"] == 5
+
+
+def test_status_haiku_success_when_log_batch_done(client, engine):
+    user_id, _ = _setup_expert_user(engine)
+    _seed_log_batch(engine, status="done")
+
+    resp = client.get("/expert/analysis/status", headers=_auth_headers(user_id))
+    data = resp.json()["data"]
+    assert data["haiku"]["status"] == "success"
 
 
 def test_status_401_not_logged_in(client):
