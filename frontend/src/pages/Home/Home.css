@@ -54,6 +54,25 @@
   line-height: 1.4;
 }
 
+.partner-card-desc--hover {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.92) 70%, transparent);
+  color: white;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 28px 12px 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.partner-card:hover .partner-card-desc--hover {
+  opacity: 1;
+}
+
 .partner-card-favorite-btn {
   position: absolute;
   top: 10px;

@@ -37,13 +37,15 @@ function PartnerCard({ partner, onFavoriteToggle, isToggling }: PartnerCardProps
         type="button"
       >
         {partner.is_favorite ? (
-          <FavoriteIcon sx={{ fontSize: 20, color: '#ef4444' }} />
+          <FavoriteIcon sx={{ fontSize: 20, color: '#2e3f6e' }} />
         ) : (
           <FavoriteBorderIcon sx={{ fontSize: 20, color: '#94a3b8' }} />
         )}
       </button>
       <div className="partner-card-name">{partner.name}</div>
-      {partner.description && <div className="partner-card-desc">{partner.description}</div>}
+      {partner.description && (
+        <div className="partner-card-desc partner-card-desc--hover">{partner.description}</div>
+      )}
     </div>
   )
 }
