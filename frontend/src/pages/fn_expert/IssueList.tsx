@@ -117,6 +117,17 @@ function formatDesc(text: string | null) {
   })
 }
 
+function todayStart(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`
+}
+function nowLocal(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function fetchAnalysisStatus(): Promise<AnalysisStatusResponse | null> {
   try {
     const token = useAuthStore.getState().token
@@ -155,6 +166,8 @@ export default function IssueList() {
   const [eventsCreated, setEventsCreated] = useState<number | null>(null)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [conflictMsg, setConflictMsg] = useState<string | null>(null)
+  const [analysisFrom, setAnalysisFrom] = useState(todayStart())
+  const [analysisTo, setAnalysisTo] = useState(nowLocal())
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isPollingRef = useRef(false)
 
@@ -175,15 +188,15 @@ export default function IssueList() {
     pollingRef.current = setInterval(async () => {
       const data = await fetchAnalysisStatus()
       if (!data) return
-      const s = data.status
+      const s = data.sonnet.status
       if (s === 'success' || s === 'failed') {
         stopPolling()
         setAnalysisStatus(s)
         if (s === 'success') {
-          setEventsCreated(data.events_created ?? 0)
+          setEventsCreated(data.sonnet.events_created ?? 0)
           queryClient.invalidateQueries({ queryKey: ['events'] })
         } else {
-          setAnalysisError(data.error_message ?? '分析失敗，請稍後重試')
+          setAnalysisError(data.sonnet.error_message ?? '彙整失敗，請稍後重試')
         }
       } else {
         setAnalysisStatus(s)
@@ -194,18 +207,15 @@ export default function IssueList() {
   // On page enter: restore UI state from status API
   useEffect(() => {
     if (!initialStatus) return
-    const s = initialStatus.status
-    const updaters = () => {
-      setAnalysisStatus(s)
-      if (s === 'success') {
-        setEventsCreated(initialStatus.events_created ?? 0)
-      } else if (s === 'failed') {
-        setAnalysisError(initialStatus.error_message ?? '分析失敗，請稍後重試')
-      } else if (s === 'running') {
-        pollStatus()
-      }
+    const s = initialStatus.sonnet.status
+    setAnalysisStatus(s)
+    if (s === 'success') {
+      setEventsCreated(initialStatus.sonnet.events_created ?? 0)
+    } else if (s === 'failed') {
+      setAnalysisError(initialStatus.sonnet.error_message ?? '彙整失敗，請稍後重試')
+    } else if (s === 'running') {
+      pollStatus()
     }
-    updaters()
   }, [initialStatus, pollStatus])
 
   // Cleanup polling on unmount
@@ -218,7 +228,9 @@ export default function IssueList() {
   async function handleTriggerAnalysis() {
     setConflictMsg(null)
     try {
-      await triggerMutation.mutateAsync()
+      const fromISO = new Date(analysisFrom).toISOString()
+      const toISO = new Date(analysisTo).toISOString()
+      await triggerMutation.mutateAsync({ time_from: fromISO, time_to: toISO })
       setAnalysisStatus('running')
       setEventsCreated(null)
       setAnalysisError(null)
@@ -226,7 +238,7 @@ export default function IssueList() {
     } catch (err) {
       const e = err as Error & { status?: number }
       if (e.status === 409) {
-        setConflictMsg(e.message || '分析進行中，請稍後再試')
+        setConflictMsg(e.message || '彙整進行中，請稍後再試')
       }
     }
   }
@@ -351,33 +363,63 @@ export default function IssueList() {
         </Button>
 
         {/* One-click analysis button */}
-        <Box sx={{ ml: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={analysisStatus === 'running'}
-            onClick={handleTriggerAnalysis}
-            className="issue-list-analysis-btn"
-            startIcon={
-              analysisStatus === 'running' ? (
-                <CircularProgress size={14} color="inherit" />
-              ) : undefined
-            }
-          >
-            {analysisStatus === 'running' ? '分析中…' : '一鍵分析'}
-          </Button>
+        <Box
+          sx={{
+            ml: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 0.5,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ fontSize: 11, color: '#64748b' }}>彙整範圍</Typography>
+            <TextField
+              size="small"
+              type="datetime-local"
+              value={analysisFrom}
+              onChange={(e) => setAnalysisFrom(e.target.value)}
+              sx={{
+                '& .MuiInputBase-root': { height: 28 },
+                '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
+              }}
+            />
+            <Typography sx={{ fontSize: 11 }}>~</Typography>
+            <TextField
+              size="small"
+              type="datetime-local"
+              value={analysisTo}
+              onChange={(e) => setAnalysisTo(e.target.value)}
+              sx={{
+                '& .MuiInputBase-root': { height: 28 },
+                '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
+              }}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              disabled={analysisStatus === 'running'}
+              onClick={handleTriggerAnalysis}
+              className="issue-list-analysis-btn"
+              startIcon={
+                analysisStatus === 'running' ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : undefined
+              }
+            >
+              {analysisStatus === 'running' ? '分析中…' : '一鍵分析'}
+            </Button>
+          </Box>
           {conflictMsg && (
-            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>{conflictMsg}</Typography>
+            <Typography sx={{ fontSize: 12, color: '#ef4444' }}>{conflictMsg}</Typography>
           )}
           {analysisStatus === 'success' && eventsCreated !== null && (
-            <Typography sx={{ fontSize: 12, color: '#10b981', mt: 0.5 }}>
+            <Typography sx={{ fontSize: 12, color: '#10b981' }}>
               {eventsCreated > 0 ? `新增 ${eventsCreated} 筆事件` : '本次無新增事件'}
             </Typography>
           )}
           {analysisStatus === 'failed' && analysisError && (
-            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>
-              {analysisError}
-            </Typography>
+            <Typography sx={{ fontSize: 12, color: '#ef4444' }}>{analysisError}</Typography>
           )}
         </Box>
       </Box>
