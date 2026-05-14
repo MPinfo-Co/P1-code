@@ -14,6 +14,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "b4c5d6e7f8a9"
 down_revision: Union[str, Sequence[str], None] = "a3b5c7d9e1f2"
@@ -74,7 +75,7 @@ def upgrade() -> None:
         sa.Column("table_id", sa.Integer(), nullable=False),
         sa.Column(
             "data",
-            sa.dialects.postgresql.JSONB(astext_type=sa.Text()),
+            postgresql.JSONB(astext_type=sa.Text()),
             server_default=sa.text("'{}'"),
             nullable=False,
         ),
