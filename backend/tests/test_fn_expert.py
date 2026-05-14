@@ -132,20 +132,17 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> int:
 
 def _seed_setting(
     engine,
-    is_enabled: bool = False,
     haiku_enabled: bool = False,
-    sonnet_enabled: bool | None = None,
+    sonnet_enabled: bool = False,
+    haiku_interval_minutes: int = 30,
 ) -> None:
-    """is_enabled 映射到 sonnet_enabled（舊語意），haiku_enabled 映射到 haiku_enabled。
-    sonnet_enabled 若明確傳入則優先使用，否則沿用 is_enabled 語意。"""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    _sonnet = sonnet_enabled if sonnet_enabled is not None else is_enabled
     setting = ExpertSetting(
         id=1,
         haiku_enabled=haiku_enabled,
-        haiku_interval_minutes=30,
-        sonnet_enabled=_sonnet,
+        haiku_interval_minutes=haiku_interval_minutes,
+        sonnet_enabled=sonnet_enabled,
         schedule_time="02:00",
         ssb_host="https://192.168.10.48",
         ssb_port=443,
@@ -214,7 +211,7 @@ def test_trigger_401_not_logged_in(client):
 def test_trigger_403_no_permission(client, engine):
     """對應 T-AT-07"""
     user_id = _setup_plain_user(engine, "noperm1@test.com")
-    _seed_setting(engine, is_enabled=False)
+    _seed_setting(engine, sonnet_enabled=False)
 
     body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
     resp = client.post(

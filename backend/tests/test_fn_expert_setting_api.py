@@ -132,10 +132,10 @@ def _seed_setting(engine, password_enc: str | None = None) -> int:
     db = Session_()
     setting = ExpertSetting(
         id=SETTING_ID,
-        is_enabled=False,
-        frequency="daily",
+        haiku_enabled=False,
+        haiku_interval_minutes=30,
+        sonnet_enabled=False,
         schedule_time="02:00",
-        weekday=None,
         ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="center",
@@ -151,10 +151,10 @@ def _seed_setting(engine, password_enc: str | None = None) -> int:
 
 def _valid_save_payload(**overrides) -> dict:
     base = {
-        "is_enabled": False,
-        "frequency": "daily",
+        "haiku_enabled": False,
+        "haiku_interval_minutes": 30,
+        "sonnet_enabled": False,
         "schedule_time": "02:00",
-        "weekday": None,
         "ssb_host": "https://192.168.10.48",
         "ssb_port": 443,
         "ssb_logspace": "center",
@@ -195,10 +195,10 @@ def test_get_settings_with_existing_data_returns_200(client, engine):
     body = resp.json()
     assert body["message"] == "查詢成功"
     data = body["data"]
-    assert "is_enabled" in data
-    assert "frequency" in data
+    assert "haiku_enabled" in data
+    assert "haiku_interval_minutes" in data
+    assert "sonnet_enabled" in data
     assert "schedule_time" in data
-    assert "weekday" in data
     assert "ssb_host" in data
     assert "ssb_port" in data
     assert "ssb_logspace" in data
@@ -214,11 +214,11 @@ def test_get_settings_no_existing_data_returns_defaults(client, engine):
     assert resp.status_code == 200
     body = resp.json()
     data = body["data"]
-    assert data["is_enabled"] is False
-    assert data["frequency"] == "daily"
-    # schedule_time / weekday / ssb_host etc 預設皆為 None
+    assert data["haiku_enabled"] is False
+    assert data["haiku_interval_minutes"] == 30
+    assert data["sonnet_enabled"] is False
+    # schedule_time / ssb_host etc 預設皆為 None
     assert data["schedule_time"] is None
-    assert data["weekday"] is None
     assert data["ssb_host"] is None
     assert data["ssb_logspace"] is None
     assert data["ssb_username"] is None
@@ -258,26 +258,28 @@ def test_save_settings_daily_returns_200(client, engine):
     assert resp.json()["message"] == "設定已儲存"
 
 
-def test_save_settings_weekly_without_weekday_returns_400(client, engine):
-    """對應 T5"""
+def test_save_settings_invalid_schedule_time_with_sonnet_enabled_returns_400(
+    client, engine
+):
+    """對應 T5 — sonnet 啟用時 schedule_time 格式錯誤應回 400"""
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
         "/expert/settings",
-        json=_valid_save_payload(frequency="weekly", weekday=None),
+        json=_valid_save_payload(sonnet_enabled=True, schedule_time="99:99"),
         headers=_auth_headers(admin_id),
     )
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "每週頻率需指定星期幾"
+    assert resp.json()["detail"] == "觸發時間格式錯誤"
 
 
 def test_save_settings_invalid_schedule_time_format_returns_400(client, engine):
-    """對應 T6"""
+    """對應 T6 — sonnet 啟用時 schedule_time 格式錯誤應回 400"""
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
         "/expert/settings",
-        json=_valid_save_payload(schedule_time="25:00"),
+        json=_valid_save_payload(sonnet_enabled=True, schedule_time="25:00"),
         headers=_auth_headers(admin_id),
     )
     assert resp.status_code == 400
@@ -353,13 +355,13 @@ def test_save_settings_empty_host_returns_400(client, engine):
     assert resp.json()["detail"] == "Host 為必填欄位"
 
 
-def test_save_settings_is_enabled_true_persists(client, engine):
+def test_save_settings_sonnet_enabled_true_persists(client, engine):
     """對應 T20"""
     admin_id, _, _ = _setup_admin(engine)
 
     resp = client.put(
         "/expert/settings",
-        json=_valid_save_payload(is_enabled=True),
+        json=_valid_save_payload(sonnet_enabled=True),
         headers=_auth_headers(admin_id),
     )
     assert resp.status_code == 200
@@ -368,21 +370,21 @@ def test_save_settings_is_enabled_true_persists(client, engine):
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     setting = db.get(ExpertSetting, SETTING_ID)
-    assert setting.is_enabled is True
+    assert setting.sonnet_enabled is True
     db.close()
 
 
-def test_save_settings_is_enabled_false_persists(client, engine):
+def test_save_settings_haiku_enabled_persists(client, engine):
     """對應 T21"""
     admin_id, _, _ = _setup_admin(engine)
     client.put(
         "/expert/settings",
-        json=_valid_save_payload(is_enabled=True),
+        json=_valid_save_payload(haiku_enabled=True),
         headers=_auth_headers(admin_id),
     )
     resp = client.put(
         "/expert/settings",
-        json=_valid_save_payload(is_enabled=False),
+        json=_valid_save_payload(haiku_enabled=False),
         headers=_auth_headers(admin_id),
     )
     assert resp.status_code == 200
@@ -390,7 +392,7 @@ def test_save_settings_is_enabled_false_persists(client, engine):
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     setting = db.get(ExpertSetting, SETTING_ID)
-    assert setting.is_enabled is False
+    assert setting.haiku_enabled is False
     db.close()
 
 
