@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.db.connector import get_db
 from app.db.models.analysis import DailyAnalysis, LogBatch
-from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils.log_channels import get_system_logger
@@ -116,13 +115,13 @@ def trigger_log_fetch(
 
 @router.post("/analysis/trigger", status_code=status.HTTP_202_ACCEPTED)
 def trigger_analysis(
+    body: TriggerRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """觸發一鍵分析。
+    """手動觸發 Sonnet 彙整指定時段內的 chunk_results。
 
-    依 tb_expert_settings.is_enabled 決定啟動 Sonnet 或 Haiku+Sonnet pipeline。
-    投遞背景 job 前**同步**寫入 running 標記以防並發 trigger。
+    不再讀 is_enabled 分歧、不再順帶觸發 Haiku，純粹只跑 Sonnet。
     """
     if not _has_fn_expert_permission(auth.user_id, db):
         raise HTTPException(
@@ -130,77 +129,33 @@ def trigger_analysis(
             detail="您沒有執行此操作的權限",
         )
 
-    # 409: 分析進行中
-    running_batch = db.query(LogBatch).filter(LogBatch.status == "running").first()
-    processing_daily = (
+    # 409: Sonnet 進行中（不看 LogBatch；Haiku 不擋 Sonnet，互鎖規則）
+    processing = (
         db.query(DailyAnalysis).filter(DailyAnalysis.status == "processing").first()
     )
-    if running_batch or processing_daily:
+    if processing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="分析進行中，請稍後再試",
+            detail="彙整進行中，請稍後再試",
         )
 
-    # 讀取設定
-    setting = db.get(ExpertSetting, SETTING_ID)
-    is_enabled = bool(setting.is_enabled) if setting else False
-
+    # 同步寫 processing 標記，UPSERT 當日紀錄
     now = datetime.now(timezone.utc)
     today = now.date()
-
-    if is_enabled:
-        # UPSERT tb_daily_analysis 當日紀錄為 processing
-        da = (
-            db.query(DailyAnalysis).filter(DailyAnalysis.analysis_date == today).first()
-        )
-        if da is None:
-            da = DailyAnalysis(
-                analysis_date=today,
-                status="processing",
-                started_at=now,
-            )
-            db.add(da)
-        else:
-            da.status = "processing"
-            da.started_at = now
-        db.commit()
-
-        # 投遞 one-shot Sonnet job
-        _dispatch_sonnet_job()
+    da = db.query(DailyAnalysis).filter(DailyAnalysis.analysis_date == today).first()
+    if da is None:
+        da = DailyAnalysis(analysis_date=today, status="processing", started_at=now)
+        db.add(da)
     else:
-        # 決定 time_from: 最近一筆 done 的 time_to；若無則當天 00:00:00
-        last_done = (
-            db.query(LogBatch)
-            .filter(LogBatch.status == "done")
-            .order_by(LogBatch.time_to.desc())
-            .first()
-        )
-        if last_done is not None:
-            time_from = last_done.time_to
-        else:
-            time_from = datetime(
-                today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc
-            )
+        da.status = "processing"
+        da.started_at = now
+    db.commit()
 
-        time_to = now
+    _dispatch_sonnet_job(time_from=body.time_from, time_to=body.time_to)
 
-        # 同步寫入 running 標記
-        batch = LogBatch(
-            time_from=time_from,
-            time_to=time_to,
-            status="running",
-            records_fetched=0,
-            chunks_total=0,
-            chunks_done=0,
-        )
-        db.add(batch)
-        db.commit()
-        db.refresh(batch)
-
-        # 投遞 one-shot Haiku+Sonnet job
-        _dispatch_haiku_job(time_from=time_from, time_to=time_to, batch_id=batch.id)
-
-    logger.info(f"trigger_analysis: user={auth.user_id} is_enabled={is_enabled}")
+    logger.info(
+        f"trigger_analysis: user={auth.user_id} from={body.time_from} to={body.time_to}"
+    )
     return {"message": "分析已啟動"}
 
 
@@ -314,8 +269,11 @@ def _run_sonnet_manual() -> None:
         logger.exception("manual sonnet run failed")
 
 
-def _dispatch_sonnet_job() -> None:
-    """投遞一次性 Sonnet 任務（is_enabled=True 路徑）。"""
+def _dispatch_sonnet_job(time_from: datetime, time_to: datetime) -> None:
+    """投遞一次性 Sonnet 任務。
+
+    接受 time_from/time_to 但暫時不 forward 給 _run_sonnet_manual（P4-T9 補上）。
+    """
     from app import scheduler as _scheduler_mod
 
     sched = _scheduler_mod._scheduler
@@ -328,7 +286,6 @@ def _dispatch_sonnet_job() -> None:
             misfire_grace_time=300,
         )
     else:
-        # fallback: 直接在 thread 中執行（e.g. 測試環境 scheduler 未啟動）
         import threading
 
         t = threading.Thread(target=_run_sonnet_manual, daemon=True)

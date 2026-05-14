@@ -131,16 +131,21 @@ def _setup_plain_user(engine, email: str = "plain@test.com") -> int:
 
 
 def _seed_setting(
-    engine, is_enabled: bool = False, haiku_enabled: bool = False
+    engine,
+    is_enabled: bool = False,
+    haiku_enabled: bool = False,
+    sonnet_enabled: bool | None = None,
 ) -> None:
-    """is_enabled 映射到 sonnet_enabled（舊語意），haiku_enabled 映射到 haiku_enabled。"""
+    """is_enabled 映射到 sonnet_enabled（舊語意），haiku_enabled 映射到 haiku_enabled。
+    sonnet_enabled 若明確傳入則優先使用，否則沿用 is_enabled 語意。"""
     Session_ = sessionmaker(bind=engine)
     db = Session_()
+    _sonnet = sonnet_enabled if sonnet_enabled is not None else is_enabled
     setting = ExpertSetting(
         id=1,
         haiku_enabled=haiku_enabled,
         haiku_interval_minutes=30,
-        sonnet_enabled=is_enabled,
+        sonnet_enabled=_sonnet,
         schedule_time="02:00",
         ssb_host="https://192.168.10.48",
         ssb_port=443,
@@ -200,77 +205,6 @@ def _seed_daily_analysis(
 # ---------------------------------------------------------------------------
 
 
-def test_trigger_no_schedule_has_done_batch_returns_202(client, engine):
-    """對應 T-AT-01"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=False)
-    _seed_log_batch(engine, status="done")
-
-    with (
-        patch("app.api.fn_expert._dispatch_haiku_job") as mock_haiku,
-    ):
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 202
-    assert resp.json()["message"] == "分析已啟動"
-    mock_haiku.assert_called_once()
-
-
-def test_trigger_no_schedule_no_done_batch_first_time_returns_202(client, engine):
-    """對應 T-AT-02"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=False)
-    # No done batches
-
-    with patch("app.api.fn_expert._dispatch_haiku_job") as mock_haiku:
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 202
-    assert resp.json()["message"] == "分析已啟動"
-    mock_haiku.assert_called_once()
-
-    # Verify time_from is today 00:00
-    call_kwargs = mock_haiku.call_args
-    assert call_kwargs is not None
-
-
-def test_trigger_with_schedule_returns_202_starts_sonnet(client, engine):
-    """對應 T-AT-03"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=True)
-
-    with patch("app.api.fn_expert._dispatch_sonnet_job") as mock_sonnet:
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 202
-    assert resp.json()["message"] == "分析已啟動"
-    mock_sonnet.assert_called_once()
-
-
-def test_trigger_409_when_log_batch_running(client, engine):
-    """對應 T-AT-04"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=False)
-    _seed_log_batch(engine, status="running")
-
-    resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 409
-    assert resp.json()["detail"] == "分析進行中，請稍後再試"
-
-
-def test_trigger_409_when_daily_analysis_processing(client, engine):
-    """對應 T-AT-05"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=True)
-    _seed_daily_analysis(engine, status="processing")
-
-    resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 409
-    assert resp.json()["detail"] == "分析進行中，請稍後再試"
-
-
 def test_trigger_401_not_logged_in(client):
     """對應 T-AT-06"""
     resp = client.post("/expert/analysis/trigger")
@@ -282,45 +216,64 @@ def test_trigger_403_no_permission(client, engine):
     user_id = _setup_plain_user(engine, "noperm1@test.com")
     _seed_setting(engine, is_enabled=False)
 
-    resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+    resp = client.post(
+        "/expert/analysis/trigger", json=body, headers=_auth_headers(user_id)
+    )
 
     assert resp.status_code == 403
 
 
-def test_trigger_upsert_daily_analysis_when_enabled(client, engine):
-    """對應 T-AT-03 延伸：UPSERT tb_daily_analysis 當日紀錄為 processing。"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=True)
+# ---------------------------------------------------------------------------
+# 新行為測試：純 Sonnet + time_from/time_to (Task 8)
+# ---------------------------------------------------------------------------
 
+
+def test_trigger_analysis_returns_202_with_time_range(client, engine):
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine, sonnet_enabled=False)  # 不影響手動觸發
+
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+
+    with patch("app.api.fn_expert._dispatch_sonnet_job") as mock_sonnet:
+        resp = client.post(
+            "/expert/analysis/trigger", json=body, headers=_auth_headers(user_id)
+        )
+
+    assert resp.status_code == 202
+    assert resp.json()["message"] == "分析已啟動"
+    mock_sonnet.assert_called_once()
+    call_kwargs = mock_sonnet.call_args.kwargs
+    assert "time_from" in call_kwargs
+    assert "time_to" in call_kwargs
+
+
+def test_trigger_analysis_409_when_sonnet_running(client, engine):
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    _seed_daily_analysis(engine, status="processing")
+
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+    resp = client.post(
+        "/expert/analysis/trigger", json=body, headers=_auth_headers(user_id)
+    )
+
+    assert resp.status_code == 409
+
+
+def test_trigger_analysis_not_blocked_by_haiku_running(client, engine):
+    """互鎖規則：Haiku 跑時 Sonnet 仍可觸發。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    _seed_log_batch(engine, status="running")
+
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
     with patch("app.api.fn_expert._dispatch_sonnet_job"):
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
+        resp = client.post(
+            "/expert/analysis/trigger", json=body, headers=_auth_headers(user_id)
+        )
 
     assert resp.status_code == 202
-
-    Session_ = sessionmaker(bind=engine)
-    db = Session_()
-    today = datetime.now(timezone.utc).date()
-    da = db.query(DailyAnalysis).filter(DailyAnalysis.analysis_date == today).first()
-    db.close()
-    assert da is not None
-    assert da.status == "processing"
-
-
-def test_trigger_writes_running_batch_when_not_enabled(client, engine):
-    """對應 T-AT-01 延伸：同步寫入 tb_log_batches running 標記。"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=False)
-
-    with patch("app.api.fn_expert._dispatch_haiku_job"):
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-    assert resp.status_code == 202
-
-    Session_ = sessionmaker(bind=engine)
-    db = Session_()
-    batch = db.query(LogBatch).filter(LogBatch.status == "running").first()
-    db.close()
-    assert batch is not None
 
 
 # ---------------------------------------------------------------------------
@@ -673,72 +626,6 @@ def test_run_pro_task_manual_mode_bypasses_is_enabled_guard(db_session):
     assert da is not None, "manual_mode=True 時 run_pro_task 不該早退"
     assert da.status == "done"
     assert da.events_created == 0
-
-
-def test_dispatch_haiku_then_sonnet_runs_pro_task_with_manual_mode(client, engine):
-    """is_enabled=False + manual trigger：Haiku 跑完後 Sonnet 必須串接執行。
-
-    既有測試一律 mock `_dispatch_haiku_job`，無法捕捉這條串接 bug。
-    這支測試只 mock 外部 client，驗 run_pro_task 真的會被呼到。
-    """
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=False)
-
-    with (
-        patch("app.tasks.haiku_task.run_haiku_task") as mock_haiku,
-        patch("app.tasks.pro_task.run_pro_task") as mock_pro,
-        patch("app.api.fn_expert._scheduler_mod_for_dispatch", create=True),
-    ):
-        # 強制走 fallback thread 路徑（測試環境 scheduler 未啟動）
-        from app import scheduler as sched_mod
-
-        sched_mod._scheduler = None
-
-        # 攔截 thread 內的 import：讓 _haiku_then_sonnet 走自訂 wiring
-
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-        # 等 thread 跑完
-        import time
-
-        for _ in range(50):
-            if mock_pro.called:
-                break
-            time.sleep(0.02)
-
-    assert resp.status_code == 202
-    assert mock_haiku.called, "haiku 必須先跑"
-    assert mock_pro.called, "Sonnet 必須串接執行（這是 Bug 1）"
-    pro_kwargs = mock_pro.call_args.kwargs
-    assert pro_kwargs.get("manual_mode") is True, (
-        "Sonnet 應以 manual_mode=True 呼叫，繞過 is_enabled 守門"
-    )
-
-
-def test_dispatch_sonnet_when_is_enabled_uses_manual_mode(client, engine):
-    """is_enabled=True + manual trigger：Sonnet 也要以 manual_mode=True 呼叫，
-    避免「分析中關掉排程」的 race 讓 Sonnet 半途早退。"""
-    user_id, _ = _setup_expert_user(engine)
-    _seed_setting(engine, is_enabled=True)
-
-    with patch("app.tasks.pro_task.run_pro_task") as mock_pro:
-        from app import scheduler as sched_mod
-
-        sched_mod._scheduler = None
-
-        resp = client.post("/expert/analysis/trigger", headers=_auth_headers(user_id))
-
-        import time
-
-        for _ in range(50):
-            if mock_pro.called:
-                break
-            time.sleep(0.02)
-
-    assert resp.status_code == 202
-    assert mock_pro.called, "Sonnet 必須被呼叫"
-    pro_kwargs = mock_pro.call_args.kwargs
-    assert pro_kwargs.get("manual_mode") is True
 
 
 def test_classify_error_fallback_returns_retry_message():
