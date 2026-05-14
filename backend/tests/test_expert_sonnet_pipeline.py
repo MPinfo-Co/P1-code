@@ -71,7 +71,7 @@ def _fake_anthropic(events: list[dict]) -> MagicMock:
 
 
 def _enable_scheduler():
-    scheduler._runtime = scheduler.RuntimeSettings(is_enabled=True)
+    scheduler._runtime = scheduler.RuntimeSettings(sonnet_enabled=True)
 
 
 # ---------------------------------------------------------------------------

@@ -65,7 +65,7 @@ def _seed_chunks(db, today: date, events: list[dict]) -> None:
 )
 def test_pro_writes_daily_analysis_and_events(db_session):
     """When chunks exist for today, pro_task must produce one DailyAnalysis + one SecurityEvent."""
-    scheduler._runtime = scheduler.RuntimeSettings(is_enabled=True)
+    scheduler._runtime = scheduler.RuntimeSettings(sonnet_enabled=True)
     today = date.today()
     _seed_chunks(
         db_session,
@@ -116,7 +116,7 @@ def test_pro_writes_daily_analysis_and_events(db_session):
 
 def test_pro_does_nothing_when_no_chunks(db_session):
     """When no chunks for today, pro_task must not create any SecurityEvent."""
-    scheduler._runtime = scheduler.RuntimeSettings(is_enabled=True)
+    scheduler._runtime = scheduler.RuntimeSettings(sonnet_enabled=True)
     today = date.today()
     ant = FakeAnthropic(events=[])
 
@@ -132,8 +132,8 @@ def test_pro_does_nothing_when_no_chunks(db_session):
 
 
 def test_pro_skips_when_disabled(db_session):
-    """When runtime is_enabled=False, pro_task must not call Anthropic or write to DB."""
-    scheduler._runtime = scheduler.RuntimeSettings(is_enabled=False)
+    """When runtime sonnet_enabled=False, pro_task must not call Anthropic or write to DB."""
+    scheduler._runtime = scheduler.RuntimeSettings(sonnet_enabled=False)
     today = date.today()
     ant = FakeAnthropic(events=[])
 
