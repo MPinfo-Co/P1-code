@@ -157,9 +157,7 @@ export default function FnCustomTableForm({ open, row, onClose, onSuccess }: Pro
 
           {fields.map((field, index) => (
             <Box key={index} className="fn-custom-table-field-row">
-              {field.isLocked && (
-                <LockOutlinedIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
-              )}
+              {field.isLocked && <LockOutlinedIcon sx={{ fontSize: 16, color: '#94a3b8' }} />}
               <TextField
                 size="small"
                 placeholder="欄位名稱"
@@ -171,7 +169,9 @@ export default function FnCustomTableForm({ open, row, onClose, onSuccess }: Pro
               <Select
                 size="small"
                 value={field.field_type}
-                onChange={(e) => handleFieldChange(index, 'field_type', e.target.value as FieldType)}
+                onChange={(e) =>
+                  handleFieldChange(index, 'field_type', e.target.value as FieldType)
+                }
                 disabled={field.isLocked}
                 sx={{ minWidth: 100, fontSize: 13 }}
               >

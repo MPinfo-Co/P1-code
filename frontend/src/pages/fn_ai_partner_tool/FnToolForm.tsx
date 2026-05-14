@@ -18,7 +18,12 @@ import MenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
-import { useCreateTool, useUpdateTool, useTestTool, useCustomTableOptionsQuery } from '@/queries/useToolsQuery'
+import {
+  useCreateTool,
+  useUpdateTool,
+  useTestTool,
+  useCustomTableOptionsQuery,
+} from '@/queries/useToolsQuery'
 import type { ToolRow, BodyParam, TestToolResult, ToolType } from '@/queries/useToolsQuery'
 import './FnToolForm.css'
 
@@ -84,7 +89,9 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const [readTargetTableId, setReadTargetTableId] = useState<number | ''>(
     () => row?.read_custom_table_config?.target_table_id ?? ''
   )
-  const [readLimit, setReadLimit] = useState<number>(() => row?.read_custom_table_config?.limit ?? 20)
+  const [readLimit, setReadLimit] = useState<number>(
+    () => row?.read_custom_table_config?.limit ?? 20
+  )
   const [readScope, setReadScope] = useState<'self' | 'all'>(
     () => row?.read_custom_table_config?.scope ?? 'self'
   )
@@ -712,7 +719,8 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                       p: 1,
                     }}
                   >
-                    {(customTableOptions.find((o) => o.id === writeTargetTableId)?.fields ?? []).length === 0 ? (
+                    {(customTableOptions.find((o) => o.id === writeTargetTableId)?.fields ?? [])
+                      .length === 0 ? (
                       <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無欄位資訊</Typography>
                     ) : (
                       customTableOptions
@@ -777,7 +785,8 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                       p: 1,
                     }}
                   >
-                    {(customTableOptions.find((o) => o.id === readTargetTableId)?.fields ?? []).length === 0 ? (
+                    {(customTableOptions.find((o) => o.id === readTargetTableId)?.fields ?? [])
+                      .length === 0 ? (
                       <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無欄位資訊</Typography>
                     ) : (
                       customTableOptions
@@ -826,11 +835,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                     control={<Radio size="small" />}
                     label="自己的資料"
                   />
-                  <FormControlLabel
-                    value="all"
-                    control={<Radio size="small" />}
-                    label="全部資料"
-                  />
+                  <FormControlLabel value="all" control={<Radio size="small" />} label="全部資料" />
                 </RadioGroup>
               </Box>
             </>

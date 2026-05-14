@@ -90,9 +90,7 @@ export default function FnCustomTableList() {
       field: 'field_count',
       headerName: '欄位數量',
       width: 120,
-      renderCell: ({ value }) => (
-        <Typography sx={{ fontSize: 13 }}>{value} 個欄位</Typography>
-      ),
+      renderCell: ({ value }) => <Typography sx={{ fontSize: 13 }}>{value} 個欄位</Typography>,
     },
     {
       field: 'description',
@@ -126,10 +124,7 @@ export default function FnCustomTableList() {
             修改
           </Button>
           {row.is_tool_referenced ? (
-            <Tooltip
-              title="此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除"
-              arrow
-            >
+            <Tooltip title="此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除" arrow>
               <span>
                 <Button
                   size="small"
