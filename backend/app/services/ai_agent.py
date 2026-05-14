@@ -2,7 +2,7 @@
 
 職責：
 - 呼叫 llm_client.chat()
-- 判斷 tool_call，執行外部工具 API（external_api / image_extract / web_scraper）
+- 判斷 tool_call，執行外部工具 API（external_api / image_extract / web_scraper / write_custom_table / read_custom_table）
 - 帶回 tool_result 繼續對話
 - 迴圈上限 5 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
@@ -15,6 +15,7 @@ from urllib.parse import quote
 
 import httpx
 from bs4 import BeautifulSoup
+from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.services.llm_client import LLMClientError, chat  # noqa: F401 (re-export for convenience)
@@ -144,6 +145,7 @@ def run(
     messages: list[dict],
     tools: list[dict] | None = None,
     tool_configs: list[dict] | None = None,
+    db: Session | None = None,
 ) -> dict:
     """執行完整 agentic loop，回傳最終 AI 回覆與 tool_use 結果。
 
@@ -154,6 +156,7 @@ def run(
         tools: Anthropic tool_use 格式的工具定義清單；無工具時傳 None。
         tool_configs: 對應 tools 的執行設定（tool_type, endpoint_url, http_method, auth_type 等）；
                       無工具時傳 None。
+        db: SQLAlchemy Session，write_custom_table / read_custom_table 工具執行時需要。
 
     Returns:
         dict: {
@@ -229,7 +232,7 @@ def run(
         tool_results = []
         for tc in restored_tool_calls:
             tool_result_content = _execute_tool(
-                tc, tool_configs or [], prop_key_mapping
+                tc, tool_configs or [], prop_key_mapping, db=db
             )
             tool_results.append(
                 {
@@ -247,12 +250,15 @@ def _execute_tool(
     tool_call: dict,
     tool_configs: list[dict],
     prop_key_mapping: dict[str, dict[str, str]] | None = None,
+    db: Session | None = None,
 ) -> str:
     """執行單一工具呼叫，回傳結果字串。
 
     Args:
         tool_call: {"id": ..., "name": ..., "input": {...}}
-        tool_configs: 工具執行設定清單（來自 tb_tools + tb_tool_body_params/tb_tool_image_fields）
+        tool_configs: 工具執行設定清單（來自 tb_tools + 各子表）
+        prop_key_mapping: 屬性 key 正規化映射表
+        db: SQLAlchemy Session，write/read_custom_table 工具需要
 
     Returns:
         str: 工具執行結果（或錯誤訊息）
@@ -278,6 +284,12 @@ def _execute_tool(
 
     if tool_type == "web_scraper":
         return _execute_web_scraper(config, tool_input)
+
+    if tool_type == "write_custom_table":
+        return _execute_write_custom_table(config, tool_input, db)
+
+    if tool_type == "read_custom_table":
+        return _execute_read_custom_table(config, db)
 
     # external_api：執行外部 HTTP 呼叫
     # URL 樣板替換
@@ -307,6 +319,96 @@ def _execute_tool(
             return resp.text
     except Exception as exc:
         return f"[工具執行失敗] {exc}"
+
+
+def _execute_write_custom_table(
+    config: dict,
+    tool_input: dict,
+    db: Session | None,
+) -> str:
+    """執行 write_custom_table 類型工具呼叫。
+
+    流程：
+    1. 從 config 取 target_table_id 與 user_id（當前使用者）
+    2. 依 tb_custom_table_fields 欄位定義，將 tool_input 轉換為 data JSONB
+    3. INSERT 一筆 tb_custom_table_records，自動填入 updated_by=user_id
+    """
+    if db is None:
+        return "[工具錯誤] write_custom_table 需要資料庫連線"
+
+    from app.db.models.fn_custom_table import CustomTableField, CustomTableRecord
+
+    target_table_id: int = config.get("target_table_id")
+    user_id: int = config.get("user_id")
+
+    if not target_table_id or not user_id:
+        return "[工具錯誤] write_custom_table 設定不完整（缺少 target_table_id 或 user_id）"
+
+    # 取欄位定義（確認有效欄位，供 AI tool_input 填值）
+    fields = (
+        db.query(CustomTableField)
+        .filter(CustomTableField.table_id == target_table_id)
+        .order_by(CustomTableField.sort_order.asc())
+        .all()
+    )
+
+    # 將 tool_input 對應到欄位名稱（使用 field_name 作為 key）
+    valid_field_names = {f.field_name for f in fields}
+    data: dict = {k: v for k, v in tool_input.items() if k in valid_field_names}
+
+    try:
+        record = CustomTableRecord(
+            table_id=target_table_id,
+            data=data,
+            updated_by=user_id,
+        )
+        db.add(record)
+        db.commit()
+        return json.dumps({"success": True, "message": "資料已寫入"}, ensure_ascii=False)
+    except Exception as exc:
+        db.rollback()
+        return f"[工具執行失敗] 寫入資料時發生錯誤：{exc}"
+
+
+def _execute_read_custom_table(
+    config: dict,
+    db: Session | None,
+) -> str:
+    """執行 read_custom_table 類型工具呼叫。
+
+    流程：
+    1. 從 config 取 target_table_id、limit、scope、user_id
+    2. 依 scope 過濾 tb_custom_table_records（self=只取當前使用者，all=全部）
+    3. 排序 updated_at DESC，取前 limit 筆，回傳 JSON 陣列
+    """
+    if db is None:
+        return "[工具錯誤] read_custom_table 需要資料庫連線"
+
+    from app.db.models.fn_custom_table import CustomTableRecord
+
+    target_table_id: int = config.get("target_table_id")
+    limit: int = int(config.get("limit", 20))
+    scope: str = config.get("scope", "self")
+    user_id: int = config.get("user_id")
+
+    if not target_table_id:
+        return "[工具錯誤] read_custom_table 設定不完整（缺少 target_table_id）"
+
+    query = db.query(CustomTableRecord).filter(
+        CustomTableRecord.table_id == target_table_id
+    )
+
+    if scope == "self":
+        if not user_id:
+            return "[工具錯誤] read_custom_table scope=self 需要 user_id"
+        query = query.filter(CustomTableRecord.updated_by == user_id)
+
+    records = (
+        query.order_by(CustomTableRecord.updated_at.desc()).limit(limit).all()
+    )
+
+    result = [r.data for r in records]
+    return json.dumps(result, ensure_ascii=False, default=str)
 
 
 def _execute_web_scraper(config: dict, tool_input: dict) -> str:  # noqa: ARG001

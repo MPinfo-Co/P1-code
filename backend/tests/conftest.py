@@ -19,7 +19,14 @@ from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
     ToolImageField,
+    ToolReadCustomTableConfig,
     ToolWebScraperConfig,
+    ToolWriteCustomTableConfig,
+)
+from app.db.models.fn_custom_table import (
+    CustomTable,
+    CustomTableField,
+    CustomTableRecord,
 )
 from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
@@ -62,10 +69,15 @@ _SEED_TABLES = [
     FunctionFolder.__table__,
     Function.__table__,
     RoleFunction.__table__,
+    CustomTable.__table__,
+    CustomTableField.__table__,
+    CustomTableRecord.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
     ToolImageField.__table__,
     ToolWebScraperConfig.__table__,
+    ToolWriteCustomTableConfig.__table__,
+    ToolReadCustomTableConfig.__table__,
     AiPartnerConfig.__table__,
     AiPartnerTool.__table__,
     Conversation.__table__,

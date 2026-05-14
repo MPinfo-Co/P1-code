@@ -27,7 +27,7 @@ class ToolCreate(BaseModel):
     description: str | None = Field(None, description="工具說明")
     tool_type: str = Field(
         default="external_api",
-        description="工具類型：external_api / image_extract / web_scraper",
+        description="工具類型：external_api / image_extract / web_scraper / write_custom_table / read_custom_table",
     )
     endpoint_url: str | None = Field(
         None, description="API Endpoint URL（external_api 類型）"
@@ -54,6 +54,15 @@ class ToolCreate(BaseModel):
     )
     max_chars: int | None = Field(
         None, description="最大擷取字元數（web_scraper 類型，預設 4000）"
+    )
+    target_table_id: int | None = Field(
+        None, description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）"
+    )
+    limit: int | None = Field(
+        None, description="最多回傳筆數（read_custom_table 類型，預設 20）"
+    )
+    scope: str | None = Field(
+        None, description="資料範圍（read_custom_table 類型：self / all，預設 self）"
     )
 
 
@@ -90,6 +99,15 @@ class ToolUpdate(BaseModel):
     )
     max_chars: int | None = Field(
         None, description="最大擷取字元數（web_scraper 類型）"
+    )
+    target_table_id: int | None = Field(
+        None, description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）"
+    )
+    limit: int | None = Field(
+        None, description="最多回傳筆數（read_custom_table 類型）"
+    )
+    scope: str | None = Field(
+        None, description="資料範圍（read_custom_table 類型：self / all）"
     )
 
 
@@ -128,6 +146,24 @@ class ToolWebScraperConfigItem(BaseModel):
     max_chars: int
 
 
+class ToolWriteCustomTableConfigItem(BaseModel):
+    """寫入自訂資料表設定輸出（write_custom_table 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    target_table_id: int
+
+
+class ToolReadCustomTableConfigItem(BaseModel):
+    """讀取自訂資料表設定輸出（read_custom_table 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    target_table_id: int
+    limit: int
+    scope: str
+
+
 class ToolItem(BaseModel):
     """工具清單單項輸出。"""
 
@@ -145,6 +181,8 @@ class ToolItem(BaseModel):
     body_params: list[ToolBodyParamItem] = []
     image_fields: list[ToolImageFieldItem] = []
     web_scraper_config: ToolWebScraperConfigItem | None = None
+    write_custom_table_config: ToolWriteCustomTableConfigItem | None = None
+    read_custom_table_config: ToolReadCustomTableConfigItem | None = None
 
 
 class ToolTestRequest(BaseModel):

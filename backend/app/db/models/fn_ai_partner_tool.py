@@ -1,4 +1,4 @@
-"""ORM models for fn_ai_partner_tool: tb_tools, tb_tool_body_params, tb_tool_image_fields, tb_tool_web_scraper_configs."""
+"""ORM models for fn_ai_partner_tool: tb_tools, tb_tool_body_params, tb_tool_image_fields, tb_tool_web_scraper_configs, tb_tool_write_custom_table_configs, tb_tool_read_custom_table_configs."""
 
 from datetime import datetime
 
@@ -85,4 +85,38 @@ class ToolWebScraperConfig(Base):
     extract_description: Mapped[str] = mapped_column(Text, nullable=False)
     max_chars: Mapped[int] = mapped_column(
         Integer, nullable=False, default=4000, server_default="4000"
+    )
+
+
+class ToolWriteCustomTableConfig(Base):
+    """AI工具寫入自訂資料表設定表（write_custom_table 類型使用）。"""
+
+    __tablename__ = "tb_tool_write_custom_table_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tool_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tools.id"), nullable=False, index=True
+    )
+    target_table_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_custom_tables.id"), nullable=False, index=True
+    )
+
+
+class ToolReadCustomTableConfig(Base):
+    """AI工具讀取自訂資料表設定表（read_custom_table 類型使用）。"""
+
+    __tablename__ = "tb_tool_read_custom_table_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tool_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_tools.id"), nullable=False, index=True
+    )
+    target_table_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_custom_tables.id"), nullable=False, index=True
+    )
+    limit: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=20, server_default="20"
+    )
+    scope: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="self", server_default="self"
     )
