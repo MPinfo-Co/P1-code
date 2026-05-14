@@ -43,9 +43,7 @@ function PartnerCard({ partner, onFavoriteToggle, isToggling }: PartnerCardProps
         )}
       </button>
       <div className="partner-card-name">{partner.name}</div>
-      {partner.description && (
-        <div className="partner-card-desc">{partner.description}</div>
-      )}
+      {partner.description && <div className="partner-card-desc">{partner.description}</div>}
     </div>
   )
 }
