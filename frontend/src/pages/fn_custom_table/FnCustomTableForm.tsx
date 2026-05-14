@@ -304,7 +304,7 @@ export default function FnCustomTableForm({ open, row, onClose, onSuccess }: Pro
         field_name: f.field_name,
         field_type: f.field_type,
         description: f.description ?? '',
-        isOriginal: true,
+        isOriginal: row.record_count > 0,
       }))
     }
   }

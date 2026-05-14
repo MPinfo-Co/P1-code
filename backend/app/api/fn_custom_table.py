@@ -134,6 +134,17 @@ def list_custom_tables(
     )
     field_counts: dict[int, int] = {row[0]: row[1] for row in field_counts_rows}
 
+    # Count records per table
+    record_counts_rows = (
+        db.query(CustomTableRecord.table_id, func.count(CustomTableRecord.id))
+        .filter(CustomTableRecord.table_id.in_(table_ids))
+        .group_by(CustomTableRecord.table_id)
+        .all()
+        if table_ids
+        else []
+    )
+    record_counts: dict[int, int] = {row[0]: row[1] for row in record_counts_rows}
+
     data = []
     for t in tables:
         item = CustomTableItem(
@@ -141,6 +152,7 @@ def list_custom_tables(
             name=t.name,
             description=t.description,
             field_count=field_counts.get(t.id, 0),
+            record_count=record_counts.get(t.id, 0),
         )
         data.append(item.model_dump())
 

@@ -54,6 +54,7 @@ class CustomTableItem(BaseModel):
     name: str
     description: str | None
     field_count: int
+    record_count: int
 
 
 class CustomTableOptionFieldItem(BaseModel):

@@ -36,6 +36,7 @@ export interface CustomTableRow {
   name: string
   description: string
   field_count: number
+  record_count: number
 }
 
 export interface CustomTableOption {
