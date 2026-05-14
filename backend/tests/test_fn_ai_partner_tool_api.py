@@ -661,7 +661,7 @@ def test_add_image_extract_empty_fields_returns_400(client, engine):
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "圖片擷取工具至少需設定一個擷取欄位"
+    assert resp.json()["detail"] == "圖片擷取工具至少須定義一個欄位"
 
 
 def test_add_image_extract_empty_field_name_returns_400(client, engine):
@@ -677,7 +677,7 @@ def test_add_image_extract_empty_field_name_returns_400(client, engine):
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "擷取欄位名稱不可為空"
+    assert resp.json()["detail"] == "欄位名稱不可為空"
 
 
 def test_list_tools_contains_image_fields(client, engine):
@@ -777,7 +777,7 @@ def test_update_image_extract_empty_fields_returns_400(client, engine):
         f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "圖片擷取工具至少需設定一個擷取欄位"
+    assert resp.json()["detail"] == "圖片擷取工具至少須定義一個欄位"
 
 
 # ---------------------------------------------------------------------------

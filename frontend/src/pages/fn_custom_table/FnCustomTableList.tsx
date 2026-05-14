@@ -1,5 +1,6 @@
-// src/pages/fn_ai_partner_tool/FnToolList.tsx
+// src/pages/fn_custom_table/FnCustomTableList.tsx
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { DataGrid } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
 import Box from '@mui/material/Box'
@@ -12,65 +13,32 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
-import Chip from '@mui/material/Chip'
-import { useToolsQuery, useDeleteTool } from '@/queries/useToolsQuery'
-import type { ToolRow, ToolType } from '@/queries/useToolsQuery'
-import FnToolForm from './FnToolForm'
-import './FnToolList.css'
-
-const TOOL_TYPE_LABEL: Record<ToolType, string> = {
-  external_api: 'API 呼叫',
-  image_extract: '圖片擷取',
-  web_scraper: '網頁擷取',
-  write_custom_table: '寫入資料',
-  read_custom_table: '讀取資料',
-}
-
-const TOOL_TYPE_COLOR: Record<ToolType, { bg: string; color: string; border: string }> = {
-  external_api: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-  image_extract: { bg: '#f0fdf4', color: '#166534', border: '#86efac' },
-  web_scraper: { bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
-  write_custom_table: { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff' },
-  read_custom_table: { bg: '#fff1f2', color: '#be123c', border: '#fecdd3' },
-}
-
-function ToolTypeBadge({ toolType }: { toolType: ToolType }) {
-  const label = TOOL_TYPE_LABEL[toolType] ?? toolType
-  const style = TOOL_TYPE_COLOR[toolType] ?? { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' }
-  return (
-    <Chip
-      label={label}
-      size="small"
-      sx={{
-        bgcolor: style.bg,
-        color: style.color,
-        border: `1px solid ${style.border}`,
-        fontWeight: 500,
-        fontSize: 12,
-        height: 22,
-      }}
-    />
-  )
-}
+import Tooltip from '@mui/material/Tooltip'
+import { useCustomTableQuery, useDeleteCustomTable } from '@/queries/useCustomTableQuery'
+import type { CustomTableRow } from '@/queries/useCustomTableQuery'
+import FnCustomTableForm from './FnCustomTableForm'
+import './FnCustomTableList.css'
 
 interface AppliedFilter {
   keyword?: string
 }
 
-export default function FnToolList() {
+export default function FnCustomTableList() {
+  const navigate = useNavigate()
+
   const [filterKeyword, setFilterKeyword] = useState('')
   const [appliedFilter, setAppliedFilter] = useState<AppliedFilter>({})
 
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingRow, setEditingRow] = useState<ToolRow | null>(null)
+  const [editingRow, setEditingRow] = useState<CustomTableRow | null>(null)
   const [formKey, setFormKey] = useState(0)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [deletingRow, setDeletingRow] = useState<ToolRow | null>(null)
+  const [deletingRow, setDeletingRow] = useState<CustomTableRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: tools = [], isLoading, error } = useToolsQuery(appliedFilter)
-  const deleteTool = useDeleteTool()
+  const { data: tables = [], isLoading, error } = useCustomTableQuery(appliedFilter)
+  const deleteCustomTable = useDeleteCustomTable()
 
   function handleApply() {
     const filter: AppliedFilter = {}
@@ -84,13 +52,17 @@ export default function FnToolList() {
     setIsFormOpen(true)
   }
 
-  function handleEditClick(row: ToolRow) {
+  function handleEditClick(row: CustomTableRow) {
     setEditingRow(row)
     setFormKey((k) => k + 1)
     setIsFormOpen(true)
   }
 
-  function handleDeleteClick(row: ToolRow) {
+  function handleViewRecordsClick(row: CustomTableRow) {
+    navigate(`/custom_table/${row.id}/records`)
+  }
+
+  function handleDeleteClick(row: CustomTableRow) {
     setDeletingRow(row)
     setDeleteError(null)
     setIsDeleteDialogOpen(true)
@@ -100,7 +72,7 @@ export default function FnToolList() {
     if (!deletingRow) return
     setDeleteError(null)
     try {
-      await deleteTool.mutateAsync(deletingRow.id)
+      await deleteCustomTable.mutateAsync(deletingRow.id)
       setIsDeleteDialogOpen(false)
       setDeletingRow(null)
     } catch (err) {
@@ -111,21 +83,21 @@ export default function FnToolList() {
   const columns: GridColDef[] = [
     {
       field: 'name',
-      headerName: '工具名稱',
+      headerName: '表格名稱',
       flex: 1,
       renderCell: ({ value }) => (
         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{value}</Typography>
       ),
     },
     {
-      field: 'tool_type',
-      headerName: '工具類型',
-      width: 150,
-      renderCell: ({ value }) => (value ? <ToolTypeBadge toolType={value as ToolType} /> : null),
+      field: 'field_count',
+      headerName: '欄位數量',
+      width: 120,
+      renderCell: ({ value }) => <Typography sx={{ fontSize: 13 }}>{value} 個欄位</Typography>,
     },
     {
       field: 'description',
-      headerName: '工具說明',
+      headerName: '說明',
       flex: 2,
       renderCell: ({ value }) => (
         <Typography sx={{ fontSize: 13, color: '#64748b' }}>{value}</Typography>
@@ -134,26 +106,49 @@ export default function FnToolList() {
     {
       field: 'actions',
       headerName: '執行動作',
-      width: 160,
+      width: 220,
       sortable: false,
-      renderCell: ({ row }: { row: ToolRow }) => (
-        <Box className="fn-tool-actions-cell">
+      renderCell: ({ row }: { row: CustomTableRow }) => (
+        <Box className="fn-custom-table-actions-cell">
           <Button
             size="small"
             variant="outlined"
-            className="fn-tool-action-btn"
+            className="fn-custom-table-action-btn"
+            onClick={() => handleViewRecordsClick(row)}
+          >
+            查看資料
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            className="fn-custom-table-action-btn"
             onClick={() => handleEditClick(row)}
           >
             修改
           </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            className="fn-tool-action-btn-error"
-            onClick={() => handleDeleteClick(row)}
-          >
-            刪除
-          </Button>
+          {row.is_tool_referenced ? (
+            <Tooltip title="此資料表已被 AI 工具引用，請先移除相關工具的引用後再刪除" arrow>
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  className="fn-custom-table-action-btn-error"
+                  disabled
+                >
+                  刪除
+                </Button>
+              </span>
+            </Tooltip>
+          ) : (
+            <Button
+              size="small"
+              variant="outlined"
+              className="fn-custom-table-action-btn-error"
+              onClick={() => handleDeleteClick(row)}
+            >
+              刪除
+            </Button>
+          )}
         </Box>
       ),
     },
@@ -161,12 +156,12 @@ export default function FnToolList() {
 
   return (
     <Box>
-      <Box className="fn-tool-filter-bar">
-        <Box className="fn-tool-filter-group">
-          <Typography className="fn-tool-filter-label">關鍵字:</Typography>
+      <Box className="fn-custom-table-filter-bar">
+        <Box className="fn-custom-table-filter-group">
+          <Typography className="fn-custom-table-filter-label">關鍵字:</Typography>
           <TextField
             size="small"
-            placeholder="搜尋工具名稱..."
+            placeholder="搜尋表格名稱..."
             value={filterKeyword}
             onChange={(e) => setFilterKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleApply()}
@@ -177,14 +172,19 @@ export default function FnToolList() {
             }}
           />
         </Box>
-        <Button variant="outlined" size="small" onClick={handleApply} className="fn-tool-apply-btn">
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleApply}
+          className="fn-custom-table-apply-btn"
+        >
           套用
         </Button>
         <Button
           variant="outlined"
           size="small"
           onClick={handleAddClick}
-          className="fn-tool-add-btn"
+          className="fn-custom-table-add-btn"
         >
           新增
         </Button>
@@ -193,14 +193,14 @@ export default function FnToolList() {
       {error ? (
         <Alert severity="error">載入失敗：{(error as Error).message}</Alert>
       ) : (
-        <Box className="fn-tool-grid-wrap">
+        <Box className="fn-custom-table-grid-wrap">
           {isLoading ? (
-            <Box className="fn-tool-loading">
+            <Box className="fn-custom-table-loading">
               <CircularProgress />
             </Box>
           ) : (
             <DataGrid
-              rows={tools}
+              rows={tables}
               columns={columns}
               getRowId={(row) => row.id}
               pageSizeOptions={[10, 25]}
@@ -220,7 +220,7 @@ export default function FnToolList() {
         </Box>
       )}
 
-      <FnToolForm
+      <FnCustomTableForm
         key={formKey}
         open={isFormOpen}
         row={editingRow}
@@ -234,7 +234,7 @@ export default function FnToolList() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle className="fn-tool-dialog-title">確認刪除工具</DialogTitle>
+        <DialogTitle className="fn-custom-table-dialog-title">確認刪除資料表</DialogTitle>
         <DialogContent>
           {deleteError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -248,13 +248,21 @@ export default function FnToolList() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setIsDeleteDialogOpen(false)}
-            className="fn-tool-cancel-btn"
-            disabled={deleteTool.isPending}
+            className="fn-custom-table-cancel-btn"
+            disabled={deleteCustomTable.isPending}
           >
             取消
           </Button>
-          <Button onClick={handleDeleteConfirm} variant="contained" disabled={deleteTool.isPending}>
-            {deleteTool.isPending ? <CircularProgress size={18} color="inherit" /> : '確認刪除'}
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="contained"
+            disabled={deleteCustomTable.isPending}
+          >
+            {deleteCustomTable.isPending ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              '確認刪除'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

@@ -17,7 +17,22 @@ export interface WebScraperConfig {
   max_chars: number
 }
 
-export type ToolType = 'external_api' | 'image_extract' | 'web_scraper'
+export type ToolType =
+  | 'external_api'
+  | 'image_extract'
+  | 'web_scraper'
+  | 'write_custom_table'
+  | 'read_custom_table'
+
+export interface WriteCustomTableConfig {
+  target_table_id: number
+}
+
+export interface ReadCustomTableConfig {
+  target_table_id: number
+  limit: number
+  scope: 'self' | 'all'
+}
 
 export interface ToolRow {
   id: number
@@ -30,16 +45,27 @@ export interface ToolRow {
   auth_header_name: string | null
   has_credential: boolean
   body_params?: BodyParam[]
-  image_extract_fields?: {
+  image_fields?: {
     field_name: string
     field_type: 'string' | 'number'
     description: string
   }[]
   web_scraper_config?: WebScraperConfig | null
+  write_custom_table_config?: WriteCustomTableConfig | null
+  read_custom_table_config?: ReadCustomTableConfig | null
 }
 
 export interface ToolQueryParams {
   keyword?: string
+}
+
+export interface CustomTableOption {
+  id: number
+  name: string
+  fields: {
+    field_name: string
+    field_type: string
+  }[]
 }
 
 export interface CreateToolPayload {
@@ -52,12 +78,15 @@ export interface CreateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  image_extract_fields?: {
+  image_fields?: {
     field_name: string
     field_type: 'string' | 'number'
     description: string
   }[]
   web_scraper_config?: WebScraperConfig
+  target_table_id?: number
+  limit?: number
+  scope?: 'self' | 'all'
 }
 
 export interface UpdateToolPayload {
@@ -70,12 +99,15 @@ export interface UpdateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  image_extract_fields?: {
+  image_fields?: {
     field_name: string
     field_type: 'string' | 'number'
     description: string
   }[]
   web_scraper_config?: WebScraperConfig
+  target_table_id?: number
+  limit?: number
+  scope?: 'self' | 'all'
 }
 
 export interface TestToolPayload {
@@ -199,6 +231,21 @@ export function useTestTool() {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.detail ?? err.message ?? '測試失敗')
       }
+      const json = await res.json()
+      return json.data ?? json
+    },
+  })
+}
+
+export function useCustomTableOptionsQuery() {
+  return useQuery<CustomTableOption[]>({
+    queryKey: ['custom_table_options'],
+    queryFn: async () => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/options`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('查詢資料表清單失敗')
       const json = await res.json()
       return json.data ?? json
     },

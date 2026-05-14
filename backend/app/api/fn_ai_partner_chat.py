@@ -39,7 +39,9 @@ from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
     ToolImageField,
+    ToolReadCustomTableConfig,
     ToolWebScraperConfig,
+    ToolWriteCustomTableConfig,
 )
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
@@ -130,7 +132,7 @@ def _build_system_prompt(partner: AiPartnerConfig) -> str:
 
 
 def _build_tool_definitions(
-    partner_id: int, db: Session
+    partner_id: int, db: Session, user_id: int | None = None
 ) -> tuple[list[dict], list[dict]]:
     """從 tb_ai_partner_tools JOIN tb_tools + 各子表 組裝 tool 定義與設定清單。
 
@@ -188,6 +190,63 @@ def _build_tool_definitions(
                     if scraper_config
                     else "",
                     "max_chars": scraper_config.max_chars if scraper_config else 4000,
+                }
+            )
+
+        elif tool_type == "write_custom_table":
+            write_config = (
+                db.query(ToolWriteCustomTableConfig)
+                .filter(ToolWriteCustomTableConfig.tool_id == tool.id)
+                .first()
+            )
+            # write_custom_table：LLM 填入欄位值（依 tb_custom_table_fields 組裝 properties）
+            if write_config:
+                from app.db.models.fn_custom_table import CustomTableField
+
+                fields = (
+                    db.query(CustomTableField)
+                    .filter(CustomTableField.table_id == write_config.target_table_id)
+                    .order_by(CustomTableField.sort_order.asc())
+                    .all()
+                )
+                for f in fields:
+                    properties[f.field_name] = {
+                        "type": f.field_type
+                        if f.field_type in ("string", "number")
+                        else "string",
+                        "description": f.description or f.field_name,
+                    }
+                    required_params.append(f.field_name)
+                tool_configs.append(
+                    {
+                        "name": safe_name,
+                        "tool_type": tool_type,
+                        "target_table_id": write_config.target_table_id,
+                        "user_id": user_id,
+                    }
+                )
+            else:
+                tool_configs.append(
+                    {"name": safe_name, "tool_type": tool_type, "user_id": user_id}
+                )
+
+        elif tool_type == "read_custom_table":
+            read_config = (
+                db.query(ToolReadCustomTableConfig)
+                .filter(ToolReadCustomTableConfig.tool_id == tool.id)
+                .first()
+            )
+            # read_custom_table：無 tool input 參數，LLM 直接呼叫工具
+            tool_configs.append(
+                {
+                    "name": safe_name,
+                    "tool_type": tool_type,
+                    "target_table_id": read_config.target_table_id
+                    if read_config
+                    else None,
+                    "limit": read_config.limit if read_config else 20,
+                    "scope": read_config.scope if read_config else "self",
+                    "user_id": user_id,
                 }
             )
 
@@ -633,8 +692,10 @@ def send_message(
     else:
         history_msgs.append({"role": "user", "content": user_content})
 
-    # 組裝工具定義
-    tool_defs, tool_configs = _build_tool_definitions(partner_id, db)
+    # 組裝工具定義（含 user_id 供 write/read_custom_table 使用）
+    tool_defs, tool_configs = _build_tool_definitions(
+        partner_id, db, user_id=auth.user_id
+    )
     model = settings.anthropic_model
 
     try:
@@ -644,6 +705,7 @@ def send_message(
             messages=history_msgs,
             tools=tool_defs or None,
             tool_configs=tool_configs or None,
+            db=db,
         )
     except (AgentMaxIterationError, LLMClientError) as exc:  # fmt: skip
         raise HTTPException(
@@ -728,7 +790,9 @@ def new_conversation(
         .first()
     )
     system_prompt = _build_system_prompt(partner)
-    tool_defs_for_greeting, _ = _build_tool_definitions(payload.partner_id, db)
+    tool_defs_for_greeting, _ = _build_tool_definitions(
+        payload.partner_id, db, user_id=auth.user_id
+    )
 
     # 問候專用 LLM 呼叫（不含建議問題，速度更快）
     greeting_tool = {

@@ -1,0 +1,72 @@
+.fn-records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f1f5f9;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+}
+
+.fn-records-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fn-records-back-btn {
+  font-size: 12px !important;
+  border-radius: 3px;
+  color: #64748b !important;
+}
+
+.fn-records-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+}
+
+.fn-records-delete-all-btn {
+  height: 24px;
+  font-size: 12px !important;
+  border-radius: 3px;
+  color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.fn-records-grid-wrap {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.fn-records-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.fn-records-empty {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.fn-records-empty-text {
+  font-size: 13px !important;
+  color: #94a3b8 !important;
+}
+
+.fn-records-action-btn-error {
+  font-size: 12px !important;
+  border-radius: 3px;
+  color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.fn-records-dialog-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.fn-records-cancel-btn {
+  font-size: 13px !important;
+}

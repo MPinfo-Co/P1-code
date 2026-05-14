@@ -11,18 +11,23 @@ from sqlalchemy.orm import Session
 from app.api.schema.fn_ai_partner_tool import (
     ToolCreate,
     ToolItem,
+    ToolReadCustomTableConfigItem,
     ToolTestRequest,
     ToolTestResult,
     ToolUpdate,
     ToolWebScraperConfigItem,
+    ToolWriteCustomTableConfigItem,
 )
 from app.config.settings import settings
 from app.db.connector import get_db
+from app.db.models.fn_custom_table import CustomTable
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
     ToolImageField,
+    ToolReadCustomTableConfig,
     ToolWebScraperConfig,
+    ToolWriteCustomTableConfig,
 )
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
@@ -36,7 +41,14 @@ FN_TOOL_NAME = "fn_ai_partner_tool"
 
 VALID_AUTH_TYPES = {"none", "api_key", "bearer"}
 VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
-VALID_TOOL_TYPES = {"external_api", "image_extract", "web_scraper"}
+VALID_TOOL_TYPES = {
+    "external_api",
+    "image_extract",
+    "web_scraper",
+    "write_custom_table",
+    "read_custom_table",
+}
+VALID_SCOPES = {"self", "all"}
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +194,34 @@ def list_tools(
     for c in all_scraper_configs:
         scraper_config_by_tool[c.tool_id] = c
 
+    # Load write_custom_table configs
+    all_write_configs = (
+        (
+            db.query(ToolWriteCustomTableConfig)
+            .filter(ToolWriteCustomTableConfig.tool_id.in_(tool_ids))
+            .all()
+        )
+        if tool_ids
+        else []
+    )
+    write_config_by_tool: dict[int, ToolWriteCustomTableConfig] = {}
+    for c in all_write_configs:
+        write_config_by_tool[c.tool_id] = c
+
+    # Load read_custom_table configs
+    all_read_configs = (
+        (
+            db.query(ToolReadCustomTableConfig)
+            .filter(ToolReadCustomTableConfig.tool_id.in_(tool_ids))
+            .all()
+        )
+        if tool_ids
+        else []
+    )
+    read_config_by_tool: dict[int, ToolReadCustomTableConfig] = {}
+    for c in all_read_configs:
+        read_config_by_tool[c.tool_id] = c
+
     items = []
     for t in tools:
         tool_type = t.tool_type or "api_call"
@@ -194,6 +234,24 @@ def list_tools(
                 target_url=sc.target_url,
                 extract_description=sc.extract_description,
                 max_chars=sc.max_chars,
+            )
+
+        # Build write_custom_table_config if applicable
+        write_custom_table_config = None
+        if tool_type == "write_custom_table" and t.id in write_config_by_tool:
+            wc = write_config_by_tool[t.id]
+            write_custom_table_config = ToolWriteCustomTableConfigItem(
+                target_table_id=wc.target_table_id,
+            )
+
+        # Build read_custom_table_config if applicable
+        read_custom_table_config = None
+        if tool_type == "read_custom_table" and t.id in read_config_by_tool:
+            rc = read_config_by_tool[t.id]
+            read_custom_table_config = ToolReadCustomTableConfigItem(
+                target_table_id=rc.target_table_id,
+                limit=rc.limit,
+                scope=rc.scope,
             )
 
         item = ToolItem(
@@ -209,6 +267,8 @@ def list_tools(
             body_params=params_by_tool.get(t.id, []),
             image_fields=image_fields_by_tool.get(t.id, []),
             web_scraper_config=web_scraper_config,
+            write_custom_table_config=write_custom_table_config,
+            read_custom_table_config=read_custom_table_config,
         )
         items.append(item)
 
@@ -289,13 +349,13 @@ def add_tool(
         if not payload.image_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
+                detail="圖片擷取工具至少須定義一個欄位",
             )
         for field in payload.image_fields:
             if not field.field_name or not field.field_name.strip():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
+                    detail="欄位名稱不可為空",
                 )
 
     elif tool_type == "web_scraper":
@@ -307,6 +367,43 @@ def add_tool(
         if not payload.extract_description or not payload.extract_description.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="擷取描述為必填"
+            )
+
+    elif tool_type == "write_custom_table":
+        # Validate write_custom_table fields
+        if payload.target_table_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
+            )
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
+            )
+
+    elif tool_type == "read_custom_table":
+        # Validate read_custom_table fields
+        if payload.target_table_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
+            )
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
+            )
+        scope = payload.scope or "self"
+        if scope not in VALID_SCOPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="資料範圍值不合法"
             )
 
     # Create tool
@@ -323,18 +420,8 @@ def add_tool(
             auth_header_name=payload.auth_header_name,
             credential_enc=credential_enc,
         )
-    elif tool_type == "image_extract":
-        tool = Tool(
-            name=payload.name,
-            description=payload.description,
-            tool_type=tool_type,
-            endpoint_url=None,
-            http_method=None,
-            auth_type="none",
-            auth_header_name=None,
-            credential_enc=None,
-        )
-    else:  # web_scraper
+    else:
+        # image_extract / web_scraper / write_custom_table / read_custom_table
         tool = Tool(
             name=payload.name,
             description=payload.description,
@@ -379,6 +466,22 @@ def add_tool(
                 target_url=payload.target_url,
                 extract_description=payload.extract_description,
                 max_chars=payload.max_chars if payload.max_chars is not None else 4000,
+            )
+        )
+    elif tool_type == "write_custom_table":
+        db.add(
+            ToolWriteCustomTableConfig(
+                tool_id=tool.id,
+                target_table_id=payload.target_table_id,
+            )
+        )
+    elif tool_type == "read_custom_table":
+        db.add(
+            ToolReadCustomTableConfig(
+                tool_id=tool.id,
+                target_table_id=payload.target_table_id,
+                limit=payload.limit if payload.limit is not None else 20,
+                scope=payload.scope if payload.scope is not None else "self",
             )
         )
 
@@ -458,13 +561,13 @@ def update_tool(
         if not payload.image_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="圖片擷取工具至少需設定一個擷取欄位",
+                detail="圖片擷取工具至少須定義一個欄位",
             )
         for field in payload.image_fields:
             if not field.field_name or not field.field_name.strip():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="擷取欄位名稱不可為空",
+                    detail="欄位名稱不可為空",
                 )
 
     elif tool_type == "web_scraper":
@@ -475,6 +578,41 @@ def update_tool(
         if not payload.extract_description or not payload.extract_description.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="擷取描述為必填"
+            )
+
+    elif tool_type == "write_custom_table":
+        if payload.target_table_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
+            )
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
+            )
+
+    elif tool_type == "read_custom_table":
+        if payload.target_table_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表為必填"
+            )
+        if (
+            db.query(CustomTable)
+            .filter(CustomTable.id == payload.target_table_id)
+            .first()
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="目標資料表不存在"
+            )
+        scope = payload.scope or "self"
+        if scope not in VALID_SCOPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="資料範圍值不合法"
             )
 
     # Update common fields
@@ -533,6 +671,32 @@ def update_tool(
             )
         )
 
+    elif tool_type == "write_custom_table":
+        # Replace write_custom_table config
+        db.query(ToolWriteCustomTableConfig).filter(
+            ToolWriteCustomTableConfig.tool_id == tool_id
+        ).delete()
+        db.add(
+            ToolWriteCustomTableConfig(
+                tool_id=tool.id,
+                target_table_id=payload.target_table_id,
+            )
+        )
+
+    elif tool_type == "read_custom_table":
+        # Replace read_custom_table config
+        db.query(ToolReadCustomTableConfig).filter(
+            ToolReadCustomTableConfig.tool_id == tool_id
+        ).delete()
+        db.add(
+            ToolReadCustomTableConfig(
+                tool_id=tool.id,
+                target_table_id=payload.target_table_id,
+                limit=payload.limit if payload.limit is not None else 20,
+                scope=payload.scope if payload.scope is not None else "self",
+            )
+        )
+
     db.commit()
     system_logger.info(f"User {auth.user_id} updated tool {tool.id} ({tool.name})")
     return {"message": "更新成功"}
@@ -564,6 +728,12 @@ def delete_tool(
     db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).delete()
     db.query(ToolWebScraperConfig).filter(
         ToolWebScraperConfig.tool_id == tool_id
+    ).delete()
+    db.query(ToolWriteCustomTableConfig).filter(
+        ToolWriteCustomTableConfig.tool_id == tool_id
+    ).delete()
+    db.query(ToolReadCustomTableConfig).filter(
+        ToolReadCustomTableConfig.tool_id == tool_id
     ).delete()
     db.delete(tool)
     db.commit()

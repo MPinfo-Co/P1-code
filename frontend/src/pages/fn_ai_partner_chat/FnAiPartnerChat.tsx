@@ -95,6 +95,13 @@ function renderMarkdown(text: string): string {
   let codeLines: string[] = []
   let inUl = false
   let inOl = false
+  let paraLines: string[] = []
+
+  function flushPara() {
+    if (paraLines.length === 0) return
+    html += `<p style="margin:0 0 6px;">${paraLines.join('<br>')}</p>`
+    paraLines = []
+  }
 
   function closeList() {
     if (inUl) {
@@ -111,6 +118,7 @@ function renderMarkdown(text: string): string {
     // 程式碼區塊
     if (line.trim().startsWith('```')) {
       if (!inCodeBlock) {
+        flushPara()
         closeList()
         inCodeBlock = true
         codeLines = []
@@ -130,6 +138,7 @@ function renderMarkdown(text: string): string {
     const isTableRow = /^\|.+\|$/.test(line.trim())
     const isSeparator = /^\|[\s\-|:]+\|$/.test(line.trim())
     if (isTableRow && !isSeparator) {
+      flushPara()
       closeList()
       if (!inTable) {
         inTable = true
@@ -179,6 +188,7 @@ function renderMarkdown(text: string): string {
     // 無序清單
     const ulMatch = line.match(/^(\s*)[*-]\s+(.+)$/)
     if (ulMatch) {
+      flushPara()
       if (inOl) {
         html += '</ol>'
         inOl = false
@@ -193,6 +203,7 @@ function renderMarkdown(text: string): string {
     // 有序清單
     const olMatch = line.match(/^(\s*)\d+\.\s+(.+)$/)
     if (olMatch) {
+      flushPara()
       if (inUl) {
         html += '</ul>'
         inUl = false
@@ -205,8 +216,13 @@ function renderMarkdown(text: string): string {
       continue
     }
     closeList()
-    html += line === '' ? '<br>' : applyInline(line) + '<br>'
+    if (line === '') {
+      flushPara()
+    } else {
+      paraLines.push(applyInline(line))
+    }
   }
+  flushPara()
   closeList()
   if (inCodeBlock)
     html += `<pre style="background:#1e293b;color:#e2e8f0;border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;margin:6px 0;white-space:pre-wrap;">${escHtml(codeLines.join('\n'))}</pre>`
@@ -403,6 +419,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const [isConfirmNewOpen, setIsConfirmNewOpen] = useState(false)
   const [isShowSuggestions, setIsShowSuggestions] = useState(false)
   const [helpAnchor, setHelpAnchor] = useState<HTMLButtonElement | null>(null)
+  const helpButtonRef = useRef<HTMLButtonElement>(null)
   // 記錄是否已有首次 AI 回覆（用於建議 Chip 自動展開）
   const [isFirstAiReplyDone, setIsFirstAiReplyDone] = useState(false)
   // 記錄最後一則使用者訊息（用於 503 重試）
@@ -423,6 +440,13 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   const sendMessage = useSendAiPartnerMessage()
 
   const isLoading = isHistoryLoading || newChat.isPending
+
+  // 進入對話畫面時自動顯示操作技巧 Popover
+  useEffect(() => {
+    if (helpButtonRef.current) {
+      setHelpAnchor(helpButtonRef.current)
+    }
+  }, [])
 
   // 將輸入框 focus 的工具函式
   const focusInput = useCallback(() => {
@@ -577,14 +601,8 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           setSuggestions(data.suggestions)
           setIsSending(false)
 
-          // 5. AI 首次回覆後自動展開建議 Chip；後續維持收合
           if (!isFirstAiReplyDone) {
             setIsFirstAiReplyDone(true)
-            if (data.suggestions.length > 0) {
-              setIsShowSuggestions(true)
-            }
-          } else {
-            setIsShowSuggestions(false)
           }
 
           // 2. AI 回覆完成後 focus 輸入框
@@ -866,6 +884,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           onChange={handleImageSelect}
         />
         <IconButton
+          ref={helpButtonRef}
           size="small"
           onClick={(e) => setHelpAnchor(e.currentTarget)}
           sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}

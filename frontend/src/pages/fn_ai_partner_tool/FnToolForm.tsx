@@ -18,7 +18,12 @@ import MenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
-import { useCreateTool, useUpdateTool, useTestTool } from '@/queries/useToolsQuery'
+import {
+  useCreateTool,
+  useUpdateTool,
+  useTestTool,
+  useCustomTableOptionsQuery,
+} from '@/queries/useToolsQuery'
 import type { ToolRow, BodyParam, TestToolResult, ToolType } from '@/queries/useToolsQuery'
 import './FnToolForm.css'
 
@@ -44,6 +49,8 @@ const TOOL_TYPE_LABEL: Record<ToolType, string> = {
   external_api: 'API 呼叫',
   image_extract: '圖片擷取',
   web_scraper: '網頁擷取',
+  write_custom_table: '寫入資料',
+  read_custom_table: '讀取資料',
 }
 
 export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
@@ -62,9 +69,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const [bodyParams, setBodyParams] = useState<BodyParam[]>(() => row?.body_params ?? [])
 
   // image_extract fields
-  const [extractFields, setExtractFields] = useState<ExtractField[]>(
-    () => row?.image_extract_fields ?? []
-  )
+  const [extractFields, setExtractFields] = useState<ExtractField[]>(() => row?.image_fields ?? [])
 
   // web_scraper fields
   const [targetUrl, setTargetUrl] = useState(() => row?.web_scraper_config?.target_url ?? '')
@@ -72,6 +77,24 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     () => row?.web_scraper_config?.extract_description ?? ''
   )
   const [maxChars, setMaxChars] = useState<number>(() => row?.web_scraper_config?.max_chars ?? 4000)
+
+  // write_custom_table fields
+  const [writeTargetTableId, setWriteTargetTableId] = useState<number | ''>(
+    () => row?.write_custom_table_config?.target_table_id ?? ''
+  )
+
+  // read_custom_table fields
+  const [readTargetTableId, setReadTargetTableId] = useState<number | ''>(
+    () => row?.read_custom_table_config?.target_table_id ?? ''
+  )
+  const [readLimit, setReadLimit] = useState<number>(
+    () => row?.read_custom_table_config?.limit ?? 20
+  )
+  const [readScope, setReadScope] = useState<'self' | 'all'>(
+    () => row?.read_custom_table_config?.scope ?? 'self'
+  )
+
+  const { data: customTableOptions = [] } = useCustomTableOptionsQuery()
 
   const [formError, setFormError] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<TestToolResult | null>(null)
@@ -95,6 +118,8 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const showConnectionSection = toolType === 'external_api'
   const showImageExtractSection = toolType === 'image_extract'
   const showWebScraperSection = toolType === 'web_scraper'
+  const showWriteCustomTableSection = toolType === 'write_custom_table'
+  const showReadCustomTableSection = toolType === 'read_custom_table'
   const showTestSection = toolType === 'external_api'
 
   // ── body params ──
@@ -184,6 +209,20 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
         setFormError('擷取描述為必填')
         return
       }
+    } else if (toolType === 'write_custom_table') {
+      if (writeTargetTableId === '') {
+        setFormError('請選擇目標資料表')
+        return
+      }
+    } else if (toolType === 'read_custom_table') {
+      if (readTargetTableId === '') {
+        setFormError('請選擇目標資料表')
+        return
+      }
+      if (!readLimit || readLimit < 1) {
+        setFormError('筆數上限須為正整數')
+        return
+      }
     }
 
     try {
@@ -209,7 +248,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
           name: name.trim(),
           description: description.trim(),
           tool_type: toolType,
-          image_extract_fields: extractFields.filter((f) => f.field_name.trim()),
+          image_fields: extractFields.filter((f) => f.field_name.trim()),
         }
         if (isEdit && row) {
           await updateTool.mutateAsync({ id: row.id, payload })
@@ -224,6 +263,32 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
           target_url: targetUrl.trim(),
           extract_description: extractDescription.trim(),
           max_chars: maxChars > 0 ? maxChars : 4000,
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'write_custom_table') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          target_table_id: writeTargetTableId as number,
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'read_custom_table') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          target_table_id: readTargetTableId as number,
+          limit: readLimit > 0 ? readLimit : 20,
+          scope: readScope,
         }
         if (isEdit && row) {
           await updateTool.mutateAsync({ id: row.id, payload })
@@ -308,6 +373,16 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   value="web_scraper"
                   control={<Radio size="small" />}
                   label="網頁擷取"
+                />
+                <FormControlLabel
+                  value="write_custom_table"
+                  control={<Radio size="small" />}
+                  label="寫入資料"
+                />
+                <FormControlLabel
+                  value="read_custom_table"
+                  control={<Radio size="small" />}
+                  label="讀取資料"
                 />
               </RadioGroup>
             )}
@@ -598,6 +673,168 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
                   inputProps={{ min: 1 }}
                   sx={{ width: 160, '& .MuiInputBase-input': { fontSize: 14 } }}
                 />
+              </Box>
+            </>
+          )}
+
+          {/* 寫入資料設定（工具類型為寫入資料時顯示） */}
+          {showWriteCustomTableSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">寫入資料設定</Typography>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  目標資料表 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <Select
+                  fullWidth
+                  size="small"
+                  displayEmpty
+                  value={writeTargetTableId}
+                  onChange={(e) => setWriteTargetTableId(e.target.value as number | '')}
+                  sx={{ fontSize: 14 }}
+                >
+                  <MenuItem value="" disabled sx={{ fontSize: 14 }}>
+                    請選擇
+                  </MenuItem>
+                  {customTableOptions.map((opt) => (
+                    <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: 14 }}>
+                      {opt.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+
+              {writeTargetTableId !== '' && (
+                <Box>
+                  <Typography className="fn-tool-form-label">欄位預覽</Typography>
+                  <Box
+                    sx={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 1,
+                      bgcolor: '#f8fafc',
+                      p: 1,
+                    }}
+                  >
+                    {(customTableOptions.find((o) => o.id === writeTargetTableId)?.fields ?? [])
+                      .length === 0 ? (
+                      <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無欄位資訊</Typography>
+                    ) : (
+                      customTableOptions
+                        .find((o) => o.id === writeTargetTableId)
+                        ?.fields.map((f, i) => (
+                          <Box
+                            key={i}
+                            sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.25 }}
+                          >
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, minWidth: 120 }}>
+                              {f.field_name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: '#64748b' }}>
+                              {f.field_type}
+                            </Typography>
+                          </Box>
+                        ))
+                    )}
+                  </Box>
+                </Box>
+              )}
+            </>
+          )}
+
+          {/* 讀取資料設定（工具類型為讀取資料時顯示） */}
+          {showReadCustomTableSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">讀取資料設定</Typography>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  目標資料表 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <Select
+                  fullWidth
+                  size="small"
+                  displayEmpty
+                  value={readTargetTableId}
+                  onChange={(e) => setReadTargetTableId(e.target.value as number | '')}
+                  sx={{ fontSize: 14 }}
+                >
+                  <MenuItem value="" disabled sx={{ fontSize: 14 }}>
+                    請選擇
+                  </MenuItem>
+                  {customTableOptions.map((opt) => (
+                    <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: 14 }}>
+                      {opt.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+
+              {readTargetTableId !== '' && (
+                <Box>
+                  <Typography className="fn-tool-form-label">欄位預覽</Typography>
+                  <Box
+                    sx={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 1,
+                      bgcolor: '#f8fafc',
+                      p: 1,
+                    }}
+                  >
+                    {(customTableOptions.find((o) => o.id === readTargetTableId)?.fields ?? [])
+                      .length === 0 ? (
+                      <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無欄位資訊</Typography>
+                    ) : (
+                      customTableOptions
+                        .find((o) => o.id === readTargetTableId)
+                        ?.fields.map((f, i) => (
+                          <Box
+                            key={i}
+                            sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.25 }}
+                          >
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, minWidth: 120 }}>
+                              {f.field_name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: '#64748b' }}>
+                              {f.field_type}
+                            </Typography>
+                          </Box>
+                        ))
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  筆數上限 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={readLimit}
+                  onChange={(e) => setReadLimit(Number(e.target.value))}
+                  inputProps={{ min: 1 }}
+                  sx={{ width: 160, '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">資料範圍</Typography>
+                <RadioGroup
+                  row
+                  value={readScope}
+                  onChange={(e) => setReadScope(e.target.value as 'self' | 'all')}
+                >
+                  <FormControlLabel
+                    value="self"
+                    control={<Radio size="small" />}
+                    label="自己的資料"
+                  />
+                  <FormControlLabel value="all" control={<Radio size="small" />} label="全部資料" />
+                </RadioGroup>
               </Box>
             </>
           )}
