@@ -100,6 +100,13 @@ def toggle_favorite(
     auth: AuthContext = Depends(authenticate),
 ) -> FavoriteToggleOut:
     """切換單一夥伴的最愛狀態。"""
+    # 必填欄位檢核
+    if payload.partner_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少必要參數 partner_id",
+        )
+
     # 驗證夥伴可用性
     available_ids = _get_available_partner_ids(auth.user_id, db)
     if payload.partner_id not in available_ids:

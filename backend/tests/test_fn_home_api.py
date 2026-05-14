@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.models.fn_ai_partner_chat import RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig
 from app.db.models.fn_home import UserFavoritePartner
-from app.db.models.function_access import FunctionFolder, FunctionItems, RoleFunction
+from app.db.models.function_access import FunctionFolder
 from app.db.models.user_role import Role, User, UserRole
 from app.utils.util_store import create_access_token, hash_password
 
@@ -229,15 +229,16 @@ def test_toggle_favorite_unavailable_partner_returns_403(client, engine):
     assert resp.json()["detail"] == "您沒有執行此操作的權限"
 
 
-def test_toggle_favorite_missing_partner_id_returns_422(client, engine):
-    """對應 T7：partner_id 未填 → 422（Pydantic validation error）"""
+def test_toggle_favorite_missing_partner_id_returns_400(client, engine):
+    """對應 T7：partner_id 未填 → 400 缺少必要參數 partner_id"""
     user_id, _ = _setup_user_with_role(engine, "t7@test.com")
     resp = client.post(
         "/home/favorite/toggle",
         json={},
         headers=_auth(user_id),
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "缺少必要參數 partner_id"
 
 
 def test_toggle_favorite_unauthenticated_returns_401(client, engine):

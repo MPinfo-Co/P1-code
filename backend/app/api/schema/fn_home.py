@@ -1,5 +1,9 @@
 """Pydantic schemas for /api/home endpoints."""
 
+from __future__ import annotations
+
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -30,7 +34,7 @@ class HomePartnersOut(BaseModel):
 class FavoriteToggleRequest(BaseModel):
     """Body for POST /api/home/favorite/toggle。"""
 
-    partner_id: int
+    partner_id: Optional[int] = None
 
 
 class FavoriteToggleData(BaseModel):
