@@ -80,12 +80,6 @@ def run_haiku_task(
     """
     rt = scheduler.get_runtime()
 
-    # Manual trigger mode: always run regardless of is_enabled
-    manual_mode = time_from is not None and time_to is not None
-    if not manual_mode and not rt.is_enabled:
-        logger.info("haiku_task: skipped (is_enabled=False)")
-        return
-
     # TC-04: SSB connection info missing — record failure and exit early
     if (
         not rt.ssb_host

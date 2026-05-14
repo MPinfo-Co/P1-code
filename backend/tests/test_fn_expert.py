@@ -751,6 +751,37 @@ def test_classify_error_fallback_returns_retry_message():
     assert pro_classify(exc) == "分析失敗，請稍後重試"
 
 
+def test_haiku_task_runs_regardless_of_is_enabled(db_session):
+    """haiku_task 不再讀 is_enabled —— 排程開關由 scheduler 層控制。"""
+    from datetime import datetime, timezone
+    from app.tasks.haiku_task import run_haiku_task
+
+    with patch("app.tasks.haiku_task.scheduler") as mock_sched:
+        rt = MagicMock()
+        rt.is_enabled = False
+        rt.ssb_host = "https://x"
+        rt.ssb_port = 443
+        rt.ssb_logspace = "c"
+        rt.ssb_username = "u"
+        rt.ssb_password = "p"
+        mock_sched.get_runtime.return_value = rt
+
+        mock_ssb = MagicMock()
+        mock_ssb.fetch_logs.return_value = []
+
+        with patch("app.tasks.haiku_task.log_preaggregator") as mock_preagg:
+            mock_preagg.preaggregate.return_value = ([], [])
+            run_haiku_task(
+                ssb_client_factory=lambda **kw: mock_ssb,
+                anthropic_client_factory=lambda **kw: MagicMock(),
+                db_factory=lambda: db_session,
+                time_from=datetime(2026, 5, 14, 0, 0, tzinfo=timezone.utc),
+                time_to=datetime(2026, 5, 14, 1, 0, tzinfo=timezone.utc),
+            )
+
+    mock_ssb.fetch_logs.assert_called_once()
+
+
 def test_run_pro_task_filters_chunks_by_time_range(db_session):
     """run_pro_task 應只彙整 LogBatch.time_to 落在 time_from~time_to 區間的 chunks。"""
     from datetime import datetime, timezone
