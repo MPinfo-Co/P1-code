@@ -190,7 +190,9 @@ def _resolve_haiku_status(db: Session) -> dict:
     if running:
         return {"status": "running", "records_fetched": None, "error_message": None}
 
-    latest = db.query(LogBatch).order_by(LogBatch.time_to.desc()).first()
+    # 用 id.desc()：使用者可能挑歷史時段手動抓取（time_to 是過去某時點），
+    # id 是 auto-increment，保證取到「最後 trigger 的那筆」。
+    latest = db.query(LogBatch).order_by(LogBatch.id.desc()).first()
     if latest is None:
         return {"status": "idle", "records_fetched": None, "error_message": None}
 
