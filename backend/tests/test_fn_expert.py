@@ -793,3 +793,66 @@ def test_log_trigger_401_not_logged_in(client):
     body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
     resp = client.post("/expert/log/trigger", json=body)
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Task 9 — dispatch helper 拆 sonnet/haiku
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_sonnet_passes_time_range_to_pro_task(client, engine):
+    """_dispatch_sonnet_job 該把 time_from/time_to forward 給 run_pro_task。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+    with patch("app.tasks.pro_task.run_pro_task") as mock_pro:
+        from app import scheduler as sched_mod
+
+        sched_mod._scheduler = None  # 強制走 fallback thread
+
+        resp = client.post(
+            "/expert/analysis/trigger", json=body, headers=_auth_headers(user_id)
+        )
+        import time
+
+        for _ in range(50):
+            if mock_pro.called:
+                break
+            time.sleep(0.02)
+
+    assert resp.status_code == 202
+    assert mock_pro.called
+    pro_kwargs = mock_pro.call_args.kwargs
+    assert pro_kwargs.get("manual_mode") is True
+    assert pro_kwargs.get("time_from") is not None
+    assert pro_kwargs.get("time_to") is not None
+
+
+def test_dispatch_haiku_does_not_chain_sonnet_anymore(client, engine):
+    """_dispatch_haiku_job 不再串接 sonnet（解耦後是兩件事）。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+
+    body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
+    with (
+        patch("app.tasks.haiku_task.run_haiku_task") as mock_haiku,
+        patch("app.tasks.pro_task.run_pro_task") as mock_pro,
+    ):
+        from app import scheduler as sched_mod
+
+        sched_mod._scheduler = None
+
+        client.post("/expert/log/trigger", json=body, headers=_auth_headers(user_id))
+        import time
+
+        for _ in range(50):
+            if mock_haiku.called:
+                break
+            time.sleep(0.02)
+
+    assert mock_haiku.called
+    import time
+
+    time.sleep(0.1)
+    assert not mock_pro.called, "Haiku 不該再串接 Sonnet"

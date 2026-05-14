@@ -244,11 +244,11 @@ def get_analysis_status(
 # ---------------------------------------------------------------------------
 
 
-def _run_sonnet_manual() -> None:
-    """直接執行 Sonnet 任務（manual_mode=True，繞過 is_enabled 守門）。
+def _run_sonnet_manual(time_from: datetime, time_to: datetime) -> None:
+    """直接執行 Sonnet 任務（manual_mode=True，繞過 sonnet_enabled 守門）。
 
     手動觸發 pipeline 必須走這個入口，不可走 scheduler._sonnet_job —— 後者
-    沒有 manual_mode 通道，會在 is_enabled=False 時早退讓 Sonnet 整段被跳過。
+    沒有 manual_mode 通道，會在 sonnet_enabled=False 時早退讓 Sonnet 整段被跳過。
     包 try/except 防單次失敗炸掉背景 thread。
     """
     from anthropic import Anthropic
@@ -264,22 +264,24 @@ def _run_sonnet_manual() -> None:
             ),
             db_factory=SessionLocal,
             manual_mode=True,
+            time_from=time_from,
+            time_to=time_to,
         )
     except Exception:
         logger.exception("manual sonnet run failed")
 
 
 def _dispatch_sonnet_job(time_from: datetime, time_to: datetime) -> None:
-    """投遞一次性 Sonnet 任務。
-
-    接受 time_from/time_to 但暫時不 forward 給 _run_sonnet_manual（P4-T9 補上）。
-    """
+    """投遞一次性 Sonnet 任務（is_enabled=True 路徑）。"""
     from app import scheduler as _scheduler_mod
+
+    def _run() -> None:
+        _run_sonnet_manual(time_from=time_from, time_to=time_to)
 
     sched = _scheduler_mod._scheduler
     if sched is not None and sched.running:
         sched.add_job(
-            _run_sonnet_manual,
+            _run,
             trigger=DateTrigger(run_date=datetime.now(timezone.utc)),
             id=f"manual_sonnet_{datetime.now(timezone.utc).timestamp()}",
             replace_existing=False,
@@ -288,8 +290,7 @@ def _dispatch_sonnet_job(time_from: datetime, time_to: datetime) -> None:
     else:
         import threading
 
-        t = threading.Thread(target=_run_sonnet_manual, daemon=True)
-        t.start()
+        threading.Thread(target=_run, daemon=True).start()
 
 
 def _dispatch_haiku_job(
@@ -297,34 +298,36 @@ def _dispatch_haiku_job(
     time_to: datetime,
     batch_id: int,
 ) -> None:
-    """投遞一次性 Haiku 任務，完成後串接 Sonnet（is_enabled=False 路徑）。
+    """投遞一次性 Haiku 任務（解耦：不再串接 Sonnet）。
 
     pipeline 由 haiku_task 使用傳入的 time_from/time_to，
     batch row 已在 trigger API 中同步建立。
     """
     from app import scheduler as _scheduler_mod
 
-    def _haiku_then_sonnet() -> None:
+    def _haiku() -> None:
         from anthropic import Anthropic
 
         from app.db.connector import SessionLocal
         from app.tasks.haiku_task import run_haiku_task
         from app.tasks.ssb_client import SSBClient
 
-        run_haiku_task(
-            ssb_client_factory=lambda **kw: SSBClient(**kw),
-            anthropic_client_factory=lambda **kw: Anthropic(**kw),
-            db_factory=SessionLocal,
-            time_from=time_from,
-            time_to=time_to,
-            batch_id=batch_id,
-        )
-        _run_sonnet_manual()
+        try:
+            run_haiku_task(
+                ssb_client_factory=lambda **kw: SSBClient(**kw),
+                anthropic_client_factory=lambda **kw: Anthropic(**kw),
+                db_factory=SessionLocal,
+                time_from=time_from,
+                time_to=time_to,
+                batch_id=batch_id,
+            )
+        except Exception:
+            logger.exception("manual haiku run failed")
 
     sched = _scheduler_mod._scheduler
     if sched is not None and sched.running:
         sched.add_job(
-            _haiku_then_sonnet,
+            _haiku,
             trigger=DateTrigger(run_date=datetime.now(timezone.utc)),
             id=f"manual_haiku_{datetime.now(timezone.utc).timestamp()}",
             replace_existing=False,
@@ -333,5 +336,4 @@ def _dispatch_haiku_job(
     else:
         import threading
 
-        t = threading.Thread(target=_haiku_then_sonnet, daemon=True)
-        t.start()
+        threading.Thread(target=_haiku, daemon=True).start()
