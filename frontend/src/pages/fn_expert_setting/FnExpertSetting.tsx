@@ -324,9 +324,9 @@ export default function FnExpertSetting() {
 
           <Divider sx={{ mb: 1.5 }} />
 
-          {/* 手動觸發 */}
+          {/* 手動抓取 log 資料 */}
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#475569', mb: 1.5 }}>
-            手動觸發
+            手動抓取 log 資料
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
@@ -363,7 +363,7 @@ export default function FnExpertSetting() {
               haikuStatus === 'running' ? <CircularProgress size={14} color="inherit" /> : undefined
             }
           >
-            {haikuStatus === 'running' ? '抓取中…' : '立即抓 log'}
+            {haikuStatus === 'running' ? '抓取中…' : '立即抓取'}
           </Button>
 
           {haikuConflict && (
