@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
+import AdbIcon from '@mui/icons-material/Adb'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -29,23 +30,28 @@ function PartnerCard({ partner, onFavoriteToggle, isToggling }: PartnerCardProps
   }
 
   return (
-    <div className="partner-card" onClick={handleCardClick}>
-      <button
-        className="partner-card-favorite-btn"
-        onClick={handleFavoriteClick}
-        aria-label={partner.is_favorite ? '取消最愛' : '加入最愛'}
-        type="button"
-      >
-        {partner.is_favorite ? (
-          <FavoriteIcon sx={{ fontSize: 20, color: '#2e3f6e' }} />
-        ) : (
-          <FavoriteBorderIcon sx={{ fontSize: 20, color: '#94a3b8' }} />
+    <div className="partner-card-wrapper" onClick={handleCardClick}>
+      <div className={`partner-card${partner.is_favorite ? ' favorite' : ''}`}>
+        <button
+          className={`partner-card-favorite-btn${partner.is_favorite ? ' active' : ''}`}
+          onClick={handleFavoriteClick}
+          aria-label={partner.is_favorite ? '取消最愛' : '加入最愛'}
+          type="button"
+        >
+          {partner.is_favorite ? (
+            <FavoriteIcon sx={{ fontSize: 14 }} />
+          ) : (
+            <FavoriteBorderIcon sx={{ fontSize: 14 }} />
+          )}
+        </button>
+        <div className="partner-card-icon">
+          <AdbIcon sx={{ fontSize: 48 }} />
+        </div>
+        {partner.description && (
+          <div className="partner-card-desc--hover">{partner.description}</div>
         )}
-      </button>
+      </div>
       <div className="partner-card-name">{partner.name}</div>
-      {partner.description && (
-        <div className="partner-card-desc partner-card-desc--hover">{partner.description}</div>
-      )}
     </div>
   )
 }

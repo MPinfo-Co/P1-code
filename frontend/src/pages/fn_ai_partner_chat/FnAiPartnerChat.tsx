@@ -441,13 +441,6 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
 
   const isLoading = isHistoryLoading || newChat.isPending
 
-  // 進入對話畫面時自動顯示操作技巧 Popover
-  useEffect(() => {
-    if (helpButtonRef.current) {
-      setHelpAnchor(helpButtonRef.current)
-    }
-  }, [])
-
   // 將輸入框 focus 的工具函式
   const focusInput = useCallback(() => {
     // 短暫延遲確保 DOM 更新後 focus
@@ -483,6 +476,9 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             setSuggestions(data.suggestions)
             setIsInitialized(true)
           })
+          setTimeout(() => {
+            if (helpButtonRef.current) setHelpAnchor(helpButtonRef.current)
+          }, 100)
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['aiPartnerHistory', partner.id] })
           }, 4000)
@@ -656,6 +652,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         setInputText('')
         setIsShowSuggestions(false)
         handleRemoveImage()
+        if (helpButtonRef.current) setHelpAnchor(helpButtonRef.current)
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ['aiPartnerHistory', partner.id] })
         }, 4000)
