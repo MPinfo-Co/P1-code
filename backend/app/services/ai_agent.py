@@ -144,6 +144,7 @@ def run(
     messages: list[dict],
     tools: list[dict] | None = None,
     tool_configs: list[dict] | None = None,
+    tool_choice: dict | None = None,
 ) -> dict:
     """執行完整 agentic loop，回傳最終 AI 回覆與 tool_use 結果。
 
@@ -180,13 +181,18 @@ def run(
         normalized_tools = tools
         name_mapping: dict[str, str] = {}
 
+    # tool_choice 僅用於第一次迭代；之後清除，讓 LLM 自行決定
+    current_tool_choice = tool_choice
+
     while True:
         result = chat(
             model=model,
             system=system,
             messages=current_messages,
             tools=normalized_tools,
+            tool_choice=current_tool_choice,
         )
+        current_tool_choice = None
 
         tool_calls = result.get("tool_calls", [])
 
@@ -208,6 +214,11 @@ def run(
             original_name = name_mapping.get(normalized_name, normalized_name)
             restored_tc = dict(tc)
             restored_tc["name"] = original_name
+            key_map = prop_key_mapping.get(normalized_name, {})
+            if key_map:
+                restored_tc["input"] = {
+                    key_map.get(k, k): v for k, v in tc.get("input", {}).items()
+                }
             restored_tool_calls.append(restored_tc)
 
         all_tool_calls.extend(restored_tool_calls)

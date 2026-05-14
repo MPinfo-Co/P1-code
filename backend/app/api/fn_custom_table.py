@@ -14,7 +14,6 @@ from app.api.schema.fn_custom_table import (
     CustomTableUpdate,
 )
 from app.db.connector import get_db
-from app.db.models.fn_ai_partner_tool import Tool
 from app.db.models.fn_custom_table import (
     CustomTable,
     CustomTableField,
@@ -355,14 +354,6 @@ def delete_custom_table(
             status_code=status.HTTP_404_NOT_FOUND, detail="資料表不存在"
         )
 
-    # Check if any tool is bound to this table
-    bound_tool = db.query(Tool).filter(Tool.custom_table_id == table_id).first()
-    if bound_tool:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="此資料表已被工具綁定，無法刪除",
-        )
-
     # Delete records, fields, then table
     db.query(CustomTableRecord).filter(CustomTableRecord.table_id == table_id).delete()
     db.query(CustomTableField).filter(CustomTableField.table_id == table_id).delete()
@@ -401,7 +392,7 @@ def list_records(
     records = (
         db.query(CustomTableRecord)
         .filter(CustomTableRecord.table_id == table_id)
-        .order_by(CustomTableRecord.created_at.desc())
+        .order_by(CustomTableRecord.updated_at.desc())
         .all()
     )
     return CustomTableRecordsOut(

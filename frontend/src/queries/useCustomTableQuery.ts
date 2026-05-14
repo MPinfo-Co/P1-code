@@ -23,7 +23,8 @@ export interface CustomTableFieldDef {
 export interface CustomTableRecord {
   id: number
   data: Record<string, unknown>
-  created_at: string
+  updated_by: number | null
+  updated_at: string
 }
 
 export interface CustomTableRecordsData {

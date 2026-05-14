@@ -685,37 +685,29 @@ def _make_tool_with_name(db: Session, name: str) -> int:
 
 
 def _make_image_extract_tool_in_db(db: Session, name: str, image_fields: list) -> int:
-    """建立一個 image_extract 類型的工具，含自訂資料表欄位定義，回傳 tool id。"""
-    from app.db.models.fn_ai_partner_tool import Tool
-    from app.db.models.fn_custom_table import CustomTable, CustomTableField
+    """建立一個 image_extract 類型的工具，含欄位定義，回傳 tool id。"""
+    from app.db.models.fn_ai_partner_tool import Tool, ToolImageField
 
-    # 建立自訂資料表
-    custom_table = CustomTable(name=f"ct_{name}", description=f"自訂表格: {name}")
-    db.add(custom_table)
+    tool = Tool(
+        name=name,
+        description=f"圖片擷取工具: {name}",
+        tool_type="image_extract",
+        endpoint_url=None,
+        http_method=None,
+        auth_type="none",
+    )
+    db.add(tool)
     db.flush()
-
     for idx, field in enumerate(image_fields):
         db.add(
-            CustomTableField(
-                table_id=custom_table.id,
+            ToolImageField(
+                tool_id=tool.id,
                 field_name=field["field_name"],
                 field_type=field.get("field_type", "string"),
                 description=field.get("description"),
                 sort_order=idx,
             )
         )
-    db.flush()
-
-    tool = Tool(
-        name=name,
-        description=f"圖片擷取工具: {name}",
-        tool_type="image_extract",
-        custom_table_id=custom_table.id,
-        endpoint_url=None,
-        http_method=None,
-        auth_type="none",
-    )
-    db.add(tool)
     db.flush()
     return tool.id
 

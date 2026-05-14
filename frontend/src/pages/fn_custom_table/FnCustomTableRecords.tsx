@@ -32,7 +32,7 @@ export default function FnCustomTableRecords() {
   const rows = records.map((r) => ({
     id: r.id,
     ...r.data,
-    created_at: new Date(r.created_at).toLocaleString('zh-TW'),
+    updated_at: new Date(r.updated_at).toLocaleString('zh-TW'),
   }))
 
   const dynamicColumns: GridColDef[] = fields.map((f) => ({
@@ -49,8 +49,8 @@ export default function FnCustomTableRecords() {
   const columns: GridColDef[] = [
     ...dynamicColumns,
     {
-      field: 'created_at',
-      headerName: '建立時間',
+      field: 'updated_at',
+      headerName: '寫入時間',
       width: 180,
       renderCell: (params) => (
         <Typography sx={{ fontSize: 13, color: '#475569' }}>{params.value}</Typography>

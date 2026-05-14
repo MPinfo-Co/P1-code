@@ -79,7 +79,8 @@ class CustomTableRecordItem(BaseModel):
 
     id: int
     data: dict
-    created_at: datetime
+    updated_by: int | None
+    updated_at: datetime
 
 
 class CustomTableRecordsOut(BaseModel):

@@ -577,15 +577,10 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           setSuggestions(data.suggestions)
           setIsSending(false)
 
-          // 5. AI 首次回覆後自動展開建議 Chip；後續維持收合
           if (!isFirstAiReplyDone) {
             setIsFirstAiReplyDone(true)
-            if (data.suggestions.length > 0) {
-              setIsShowSuggestions(true)
-            }
-          } else {
-            setIsShowSuggestions(false)
           }
+          setIsShowSuggestions(false)
 
           // 2. AI 回覆完成後 focus 輸入框
           focusInput()

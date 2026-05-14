@@ -20,8 +20,6 @@ import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
 import { useCreateTool, useUpdateTool, useTestTool } from '@/queries/useToolsQuery'
 import type { ToolRow, BodyParam, TestToolResult, ToolType } from '@/queries/useToolsQuery'
-import { useCustomTableOptionsQuery } from '@/queries/useCustomTableQuery'
-import type { CustomTableOption } from '@/queries/useCustomTableQuery'
 import './FnToolForm.css'
 
 interface Props {
@@ -34,6 +32,13 @@ interface Props {
 type AuthType = 'none' | 'api_key' | 'bearer'
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 type ParamType = 'string' | 'number' | 'boolean' | 'object'
+type ExtractFieldType = 'string' | 'number'
+
+interface ExtractField {
+  field_name: string
+  field_type: ExtractFieldType
+  description: string
+}
 
 const TOOL_TYPE_LABEL: Record<ToolType, string> = {
   external_api: 'API 呼叫',
@@ -56,9 +61,9 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const [httpMethod, setHttpMethod] = useState<HttpMethod>(() => row?.http_method ?? 'GET')
   const [bodyParams, setBodyParams] = useState<BodyParam[]>(() => row?.body_params ?? [])
 
-  // image_extract fields → custom_table_id
-  const [customTableId, setCustomTableId] = useState<number | null>(
-    () => row?.custom_table_id ?? null
+  // image_extract fields
+  const [extractFields, setExtractFields] = useState<ExtractField[]>(
+    () => row?.image_fields ?? []
   )
 
   // web_scraper fields
@@ -80,7 +85,6 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const createTool = useCreateTool()
   const updateTool = useUpdateTool()
   const testTool = useTestTool()
-  const { data: customTableOptions = [] } = useCustomTableOptionsQuery()
 
   const isPending = createTool.isPending || updateTool.isPending
   const showBodyParams = httpMethod === 'POST' || httpMethod === 'PUT'
@@ -109,10 +113,18 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     setBodyParams((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)))
   }
 
-  // ── selected custom table ──
-  const selectedCustomTable: CustomTableOption | undefined = customTableOptions.find(
-    (t) => t.id === customTableId
-  )
+  // ── extract fields ──
+  function handleAddExtractField() {
+    setExtractFields((prev) => [...prev, { field_name: '', field_type: 'string', description: '' }])
+  }
+
+  function handleRemoveExtractField(index: number) {
+    setExtractFields((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function handleExtractFieldChange(index: number, field: keyof ExtractField, value: unknown) {
+    setExtractFields((prev) => prev.map((f, i) => (i === index ? { ...f, [field]: value } : f)))
+  }
 
   // ── test ──
   async function handleTest() {
@@ -158,8 +170,9 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
         return
       }
     } else if (toolType === 'image_extract') {
-      if (!customTableId) {
-        setFormError('圖片擷取工具必須綁定自訂表格')
+      const validFields = extractFields.filter((f) => f.field_name.trim())
+      if (validFields.length === 0) {
+        setFormError('至少需設定一個擷取欄位')
         return
       }
     } else if (toolType === 'web_scraper') {
@@ -196,7 +209,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
           name: name.trim(),
           description: description.trim(),
           tool_type: toolType,
-          custom_table_id: customTableId,
+          image_fields: extractFields.filter((f) => f.field_name.trim()),
         }
         if (isEdit && row) {
           await updateTool.mutateAsync({ id: row.id, payload })
@@ -471,54 +484,65 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
             </>
           )}
 
-          {/* 綁定自訂表格（工具類型為圖片擷取時顯示） */}
+          {/* 擷取欄位定義（工具類型為圖片擷取時顯示） */}
           {showImageExtractSection && (
             <>
               <Divider />
-              <Typography className="fn-tool-form-section-title">綁定自訂表格</Typography>
-
-              <Box>
-                <Typography className="fn-tool-form-label">
-                  綁定自訂表格 <span style={{ color: '#ef4444' }}>*</span>
-                </Typography>
-                {customTableOptions.length === 0 ? (
-                  <Typography sx={{ fontSize: 13, color: '#f59e0b', py: 0.5 }}>
-                    請先至自訂資料表管理新增表格
-                  </Typography>
-                ) : (
+              <Typography className="fn-tool-form-section-title">擷取欄位定義</Typography>
+              <Typography sx={{ fontSize: 12, color: '#64748b', mt: -1 }}>
+                至少需設定一個欄位才可儲存
+              </Typography>
+              {extractFields.map((field, index) => (
+                <Box key={index} className="fn-tool-param-row">
+                  <TextField
+                    size="small"
+                    placeholder="欄位名稱"
+                    value={field.field_name}
+                    onChange={(e) => handleExtractFieldChange(index, 'field_name', e.target.value)}
+                    sx={{ flex: 1, minWidth: 100, '& .MuiInputBase-input': { fontSize: 13 } }}
+                  />
                   <Select
                     size="small"
-                    displayEmpty
-                    value={customTableId ?? ''}
+                    value={field.field_type}
                     onChange={(e) =>
-                      setCustomTableId(e.target.value ? Number(e.target.value) : null)
+                      handleExtractFieldChange(
+                        index,
+                        'field_type',
+                        e.target.value as ExtractFieldType
+                      )
                     }
-                    sx={{ minWidth: 240, fontSize: 13 }}
+                    sx={{ minWidth: 100, fontSize: 13 }}
                   >
-                    <MenuItem value="" sx={{ fontSize: 13, color: '#94a3b8' }}>
-                      請選擇自訂資料表
-                    </MenuItem>
-                    {customTableOptions.map((t) => (
-                      <MenuItem key={t.id} value={t.id} sx={{ fontSize: 13 }}>
-                        {t.table_name}
+                    {(['string', 'number'] as ExtractFieldType[]).map((t) => (
+                      <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
+                        {t}
                       </MenuItem>
                     ))}
                   </Select>
-                )}
-              </Box>
-
-              {selectedCustomTable && selectedCustomTable.fields.length > 0 && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography sx={{ fontSize: 12, color: '#64748b', mb: 0.5 }}>
-                    欄位預覽（唯讀）
-                  </Typography>
-                  <Typography sx={{ fontSize: 13, color: '#334155' }}>
-                    {selectedCustomTable.fields
-                      .map((f) => `${f.field_name} ${f.field_type}`)
-                      .join('、')}
-                  </Typography>
+                  <TextField
+                    size="small"
+                    placeholder="說明"
+                    value={field.description}
+                    onChange={(e) => handleExtractFieldChange(index, 'description', e.target.value)}
+                    sx={{ flex: 2, '& .MuiInputBase-input': { fontSize: 13 } }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemoveExtractField(index)}
+                    aria-label="刪除欄位"
+                  >
+                    ×
+                  </IconButton>
                 </Box>
-              )}
+              ))}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleAddExtractField}
+                sx={{ mt: 1, fontSize: 12 }}
+              >
+                ＋ 新增欄位
+              </Button>
             </>
           )}
 
@@ -679,7 +703,7 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={isPending || (toolType === 'image_extract' && customTableOptions.length === 0)}
+          disabled={isPending}
           className="fn-tool-form-save-btn"
         >
           {isPending ? <CircularProgress size={18} color="inherit" /> : '儲存'}

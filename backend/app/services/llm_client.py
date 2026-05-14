@@ -30,6 +30,7 @@ def chat(
     tools: list[dict] | None = None,
     max_tokens: int = 4096,
     temperature: float = 0.7,
+    tool_choice: dict | None = None,
 ) -> dict:
     """執行單次 Anthropic LLM 呼叫，含 retry 邏輯。
 
@@ -61,6 +62,8 @@ def chat(
     }
     if tools:
         kwargs["tools"] = tools
+    if tools and tool_choice:
+        kwargs["tool_choice"] = tool_choice
 
     max_retries = 3
     delay = 1.0

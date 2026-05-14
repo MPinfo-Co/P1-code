@@ -38,9 +38,9 @@ from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
+    ToolImageField,
     ToolWebScraperConfig,
 )
-from app.db.models.fn_custom_table import CustomTableField, CustomTableRecord
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -156,16 +156,13 @@ def _build_tool_definitions(
         required_params: list[str] = []
 
         if tool_type == "image_extract":
-            # image_extract 欄位定義改由 tb_custom_table_fields 管理
-            ct_fields = (
-                db.query(CustomTableField)
-                .filter(CustomTableField.table_id == tool.custom_table_id)
-                .order_by(CustomTableField.sort_order.asc())
+            image_fields = (
+                db.query(ToolImageField)
+                .filter(ToolImageField.tool_id == tool.id)
+                .order_by(ToolImageField.sort_order.asc())
                 .all()
-                if tool.custom_table_id is not None
-                else []
             )
-            for f in ct_fields:
+            for f in image_fields:
                 properties[f.field_name] = {
                     "type": f.field_type
                     if f.field_type in ("string", "number")
@@ -173,11 +170,7 @@ def _build_tool_definitions(
                     "description": f.description or f.field_name,
                 }
                 required_params.append(f.field_name)
-            tool_configs.append({
-                "name": safe_name,
-                "tool_type": tool_type,
-                "custom_table_id": tool.custom_table_id,
-            })
+            tool_configs.append({"name": safe_name, "tool_type": tool_type})
 
         elif tool_type == "web_scraper":
             scraper_config = (
@@ -644,6 +637,15 @@ def send_message(
     tool_defs, tool_configs = _build_tool_definitions(partner_id, db)
     model = settings.anthropic_model
 
+    # 上傳圖片時，若有 image_extract 工具，強制第一輪使用該工具進行欄位擷取
+    image_tool_choice: dict | None = None
+    if has_image and tool_configs:
+        image_tool_config = next(
+            (c for c in tool_configs if c.get("tool_type") == "image_extract"), None
+        )
+        if image_tool_config:
+            image_tool_choice = {"type": "tool", "name": image_tool_config["name"]}
+
     try:
         result = ai_agent.run(
             model=model,
@@ -651,6 +653,7 @@ def send_message(
             messages=history_msgs,
             tools=tool_defs or None,
             tool_configs=tool_configs or None,
+            tool_choice=image_tool_choice,
         )
     except (AgentMaxIterationError, LLMClientError) as exc:  # fmt: skip
         raise HTTPException(
@@ -664,21 +667,6 @@ def send_message(
         )
 
     ai_content = result.get("content", "")
-
-    # 寫入 image_extract 擷取結果至 tb_custom_table_records
-    for tc in result.get("all_tool_calls", []):
-        cfg = next(
-            (c for c in (tool_configs or []) if c.get("name") == tc["name"] and c.get("tool_type") == "image_extract"),
-            None,
-        )
-        if cfg and cfg.get("custom_table_id"):
-            db.add(
-                CustomTableRecord(
-                    table_id=cfg["custom_table_id"],
-                    data=tc.get("input", {}),
-                    source_message_id=user_msg.id,
-                )
-            )
 
     # 寫入 AI 回覆
     ai_msg = Message(

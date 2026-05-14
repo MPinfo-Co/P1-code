@@ -19,9 +19,10 @@ export interface WebScraperConfig {
 
 export type ToolType = 'external_api' | 'image_extract' | 'web_scraper'
 
-export interface CustomTableFieldPreview {
+export interface ImageField {
   field_name: string
   field_type: 'string' | 'number'
+  description?: string
 }
 
 export interface ToolRow {
@@ -35,9 +36,7 @@ export interface ToolRow {
   auth_header_name: string | null
   has_credential: boolean
   body_params?: BodyParam[]
-  custom_table_id?: number | null
-  custom_table_name?: string | null
-  custom_table_fields?: CustomTableFieldPreview[]
+  image_fields?: ImageField[]
   web_scraper_config?: WebScraperConfig | null
 }
 
@@ -55,7 +54,7 @@ export interface CreateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  custom_table_id?: number | null
+  image_fields?: ImageField[]
   web_scraper_config?: WebScraperConfig
 }
 
@@ -69,7 +68,7 @@ export interface UpdateToolPayload {
   credential?: string
   http_method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body_params?: BodyParam[]
-  custom_table_id?: number | null
+  image_fields?: ImageField[]
   web_scraper_config?: WebScraperConfig
 }
 

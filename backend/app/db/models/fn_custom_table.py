@@ -56,6 +56,9 @@ class CustomTableRecord(Base):
     source_message_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("tb_messages.id"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(
+    updated_by: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("tb_users.id"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, nullable=False, server_default=func.now()
     )

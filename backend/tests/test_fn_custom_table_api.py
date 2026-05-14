@@ -9,7 +9,6 @@ Tests for fn_custom_table APIs:
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models.fn_ai_partner_tool import Tool
 from app.db.models.fn_custom_table import (
     CustomTable,
     CustomTableField,
@@ -419,28 +418,24 @@ def test_delete_custom_table_returns_200(client, engine):
     db.close()
 
 
-def test_delete_custom_table_bound_to_tool_returns_400(client, engine):
-    """對應 T14"""
+def test_delete_custom_table_with_records_returns_200(client, engine):
+    """對應 T14：刪除含 records 的資料表，records 一併刪除"""
     admin_id, _, _ = _setup_admin_with_fn_custom_table(engine)
-    table_id = _insert_custom_table(engine, "被綁定表格")
+    table_id = _insert_custom_table(engine, "含記錄表格")
 
-    # Bind a tool to this table
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    db.add(
-        Tool(
-            name="綁定工具T14",
-            tool_type="image_extract",
-            custom_table_id=table_id,
-            auth_type="none",
-        )
-    )
+    db.add(CustomTableRecord(table_id=table_id, data={"key": "value"}, updated_by=admin_id))
     db.commit()
     db.close()
 
     resp = client.delete(f"/custom_table/{table_id}", headers=_auth_headers(admin_id))
-    assert resp.status_code == 400
-    assert resp.json()["detail"] == "此資料表已被工具綁定，無法刪除"
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "刪除成功"
+
+    db2 = Session_()
+    assert db2.query(CustomTableRecord).filter(CustomTableRecord.table_id == table_id).count() == 0
+    db2.close()
 
 
 def test_delete_custom_table_not_found_returns_404(client, engine):
@@ -528,7 +523,7 @@ def test_list_records_returns_200_with_fields_and_records(client, engine):
     for r in body["records"]:
         assert "id" in r
         assert "data" in r
-        assert "created_at" in r
+        assert "updated_at" in r
 
 
 def test_list_records_table_not_found_returns_404(client, engine):

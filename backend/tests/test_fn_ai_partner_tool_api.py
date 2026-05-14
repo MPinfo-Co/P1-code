@@ -16,7 +16,6 @@ import httpx
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam, ToolWebScraperConfig
-from app.db.models.fn_custom_table import CustomTable, CustomTableField
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -128,27 +127,6 @@ def _add_tool(
     db.add(tool)
     db.commit()
     tid = tool.id
-    db.close()
-    return tid
-
-
-def _add_custom_table(engine, name: str = "合約資料表") -> int:
-    """Insert a custom table with one field. Return table id."""
-    Session_ = sessionmaker(bind=engine)
-    db = Session_()
-    table = CustomTable(name=name, description="測試表格")
-    db.add(table)
-    db.flush()
-    db.add(
-        CustomTableField(
-            table_id=table.id,
-            field_name="合約編號",
-            field_type="string",
-            sort_order=0,
-        )
-    )
-    db.commit()
-    tid = table.id
     db.close()
     return tid
 
@@ -643,117 +621,101 @@ def test_tool_test_no_permission_returns_403(client, engine):
 
 
 # ---------------------------------------------------------------------------
-# image_extract 類型工具（重構後：使用 custom_table_id）— T20, T21, T22, T23, T24, T25
+# image_extract 類型工具 — T20, T21, T22, T23, T26, T27
 # ---------------------------------------------------------------------------
 
 
 def test_add_image_extract_tool_returns_201(client, engine):
     """對應 T20"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    ct_id = _add_custom_table(engine, "發票資料表")
 
     payload = {
         "name": "圖片擷取工具",
         "tool_type": "image_extract",
-        "custom_table_id": ct_id,
+        "image_fields": [
+            {
+                "field_name": "invoice_date",
+                "field_type": "string",
+                "description": "日期",
+            },
+            {
+                "field_name": "invoice_amount",
+                "field_type": "number",
+                "description": "金額",
+            },
+        ],
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 201
     assert resp.json()["message"] == "新增成功"
 
-    # Verify DB: custom_table_id stored, no tool_body_params
-    Session_ = sessionmaker(bind=engine)
-    db = Session_()
-    tool = db.query(Tool).filter(Tool.name == "圖片擷取工具").first()
-    assert tool is not None
-    assert tool.tool_type == "image_extract"
-    assert tool.custom_table_id == ct_id
-    params = db.query(ToolBodyParam).filter(ToolBodyParam.tool_id == tool.id).all()
-    assert len(params) == 0
-    db.close()
 
-
-def test_add_image_extract_no_custom_table_returns_400(client, engine):
+def test_add_image_extract_empty_fields_returns_400(client, engine):
     """對應 T21"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "No Custom Table Tool",
+        "name": "Empty Fields Tool",
         "tool_type": "image_extract",
-        "custom_table_id": None,
+        "image_fields": [],
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "圖片擷取工具必須綁定自訂表格"
+    assert resp.json()["detail"] == "圖片擷取工具至少需設定一個擷取欄位"
 
 
-def test_add_image_extract_nonexistent_custom_table_returns_400(client, engine):
+def test_add_image_extract_empty_field_name_returns_400(client, engine):
     """對應 T22"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
 
     payload = {
-        "name": "Bad Custom Table Tool",
+        "name": "Bad Field Name Tool",
         "tool_type": "image_extract",
-        "custom_table_id": 99999,
+        "image_fields": [
+            {"field_name": "", "field_type": "string", "description": "test"},
+        ],
     }
     resp = client.post("/tool", json=payload, headers=_auth_headers(admin_id))
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "指定的自訂資料表不存在"
+    assert resp.json()["detail"] == "擷取欄位名稱不可為空"
 
 
-def test_list_tools_contains_custom_table_info(client, engine):
+def test_list_tools_contains_image_fields(client, engine):
     """對應 T23"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    ct_id = _add_custom_table(engine, "查詢表格T23")
 
     # Add image_extract tool
     payload = {
         "name": "ImageTool",
         "tool_type": "image_extract",
-        "custom_table_id": ct_id,
+        "image_fields": [
+            {"field_name": "date", "field_type": "string", "description": "日期"},
+            {"field_name": "amount", "field_type": "number", "description": "金額"},
+        ],
     }
     client.post("/tool", json=payload, headers=_auth_headers(admin_id))
-
-    # Add external_api tool for comparison
-    ext_payload = {
-        "name": "ExternalTool",
-        "tool_type": "external_api",
-        "endpoint_url": "https://api.example.com",
-        "http_method": "GET",
-        "auth_type": "none",
-    }
-    client.post("/tool", json=ext_payload, headers=_auth_headers(admin_id))
 
     resp = client.get("/tool", headers=_auth_headers(admin_id))
     assert resp.status_code == 200
     data = resp.json()["data"]
-
     image_tool = next((t for t in data if t["name"] == "ImageTool"), None)
-    ext_tool = next((t for t in data if t["name"] == "ExternalTool"), None)
-
     assert image_tool is not None
     assert image_tool["tool_type"] == "image_extract"
-    assert image_tool["custom_table"] is not None
-    assert image_tool["custom_table"]["custom_table_id"] == ct_id
-    assert "fields" in image_tool["custom_table"]
-    assert len(image_tool["custom_table"]["fields"]) > 0
+    assert len(image_tool["image_fields"]) == 2
     assert image_tool["web_scraper_config"] is None
-
-    assert ext_tool is not None
-    assert ext_tool["custom_table"] is None
 
 
 def test_update_image_extract_tool_returns_200(client, engine):
-    """對應 T24"""
+    """對應 T26"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    ct_id_1 = _add_custom_table(engine, "表格一")
-    ct_id_2 = _add_custom_table(engine, "表格二")
 
-    # Create image_extract tool bound to ct_id_1
+    # Create image_extract tool
     post_payload = {
         "name": "Update Image Tool",
         "tool_type": "image_extract",
-        "custom_table_id": ct_id_1,
+        "image_fields": [
+            {"field_name": "old_field", "field_type": "string"},
+        ],
     }
     client.post("/tool", json=post_payload, headers=_auth_headers(admin_id))
 
@@ -763,11 +725,15 @@ def test_update_image_extract_tool_returns_200(client, engine):
     tool_id = tool.id
     db.close()
 
-    # Update to bind ct_id_2, pass tool_type (should be ignored)
+    # Update with new fields and even pass tool_type (should be ignored)
     patch_payload = {
         "name": "Update Image Tool",
         "tool_type": "external_api",  # should be ignored
-        "custom_table_id": ct_id_2,
+        "image_fields": [
+            {"field_name": "f1", "field_type": "string"},
+            {"field_name": "f2", "field_type": "number"},
+            {"field_name": "f3", "field_type": "boolean"},
+        ],
     }
     resp = client.patch(
         f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
@@ -775,41 +741,43 @@ def test_update_image_extract_tool_returns_200(client, engine):
     assert resp.status_code == 200
     assert resp.json()["message"] == "更新成功"
 
-    # Verify tool_type unchanged and custom_table_id updated
+    # Verify tool_type unchanged and image_fields updated
     db = Session_()
     tool = db.query(Tool).filter(Tool.id == tool_id).first()
     assert tool.tool_type == "image_extract"
-    assert tool.custom_table_id == ct_id_2
+    from app.db.models.fn_ai_partner_tool import ToolImageField
+
+    fields = db.query(ToolImageField).filter(ToolImageField.tool_id == tool_id).all()
+    assert len(fields) == 3
     db.close()
 
 
-def test_update_image_extract_null_custom_table_returns_400(client, engine):
-    """對應 T25"""
+def test_update_image_extract_empty_fields_returns_400(client, engine):
+    """對應 T27"""
     admin_id, _, _ = _setup_admin_with_fn_tool(engine)
-    ct_id = _add_custom_table(engine, "表格T25")
 
     post_payload = {
-        "name": "Image Tool T25",
+        "name": "Image Tool T27",
         "tool_type": "image_extract",
-        "custom_table_id": ct_id,
+        "image_fields": [{"field_name": "f1", "field_type": "string"}],
     }
     client.post("/tool", json=post_payload, headers=_auth_headers(admin_id))
 
     Session_ = sessionmaker(bind=engine)
     db = Session_()
-    tool = db.query(Tool).filter(Tool.name == "Image Tool T25").first()
+    tool = db.query(Tool).filter(Tool.name == "Image Tool T27").first()
     tool_id = tool.id
     db.close()
 
     patch_payload = {
-        "name": "Image Tool T25",
-        "custom_table_id": None,
+        "name": "Image Tool T27",
+        "image_fields": [],
     }
     resp = client.patch(
         f"/tool/{tool_id}", json=patch_payload, headers=_auth_headers(admin_id)
     )
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "圖片擷取工具必須綁定自訂表格"
+    assert resp.json()["detail"] == "圖片擷取工具至少需設定一個擷取欄位"
 
 
 # ---------------------------------------------------------------------------

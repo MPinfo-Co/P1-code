@@ -18,6 +18,7 @@ from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
 from app.db.models.fn_ai_partner_tool import (
     Tool,
     ToolBodyParam,
+    ToolImageField,
     ToolWebScraperConfig,
 )
 from app.db.models.fn_custom_table import (
@@ -71,6 +72,7 @@ _SEED_TABLES = [
     CustomTableRecord.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
+    ToolImageField.__table__,
     ToolWebScraperConfig.__table__,
     AiPartnerConfig.__table__,
     AiPartnerTool.__table__,
