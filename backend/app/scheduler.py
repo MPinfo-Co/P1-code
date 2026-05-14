@@ -20,7 +20,9 @@ logger = get_system_logger()
 
 @dataclass
 class RuntimeSettings:
-    is_enabled: bool = False
+    haiku_enabled: bool = False
+    haiku_interval_minutes: int = 30
+    sonnet_enabled: bool = False
     schedule_time: str | None = None
     ssb_host: str | None = None
     ssb_port: int = 443
@@ -53,50 +55,68 @@ def _sync_settings() -> None:
             logger.info("tb_expert_settings has no id=1 row; scheduler stays disabled")
             return
         logger.info(
-            f"Schedule settings: enable: {row.is_enabled}, schedule_time: {row.schedule_time}, ssb_host: {row.ssb_host}, ssb_port: {row.ssb_port}, ssb_logspace: {row.ssb_logspace}"
+            f"Schedule settings: haiku={row.haiku_enabled}/{row.haiku_interval_minutes}min, "
+            f"sonnet={row.sonnet_enabled}@{row.schedule_time}, "
+            f"ssb_host={row.ssb_host}"
         )
         new_rt = RuntimeSettings(
-            is_enabled=bool(row.is_enabled),
+            haiku_enabled=bool(row.haiku_enabled),
+            haiku_interval_minutes=row.haiku_interval_minutes,
+            sonnet_enabled=bool(row.sonnet_enabled),
             schedule_time=row.schedule_time,
             ssb_host=row.ssb_host,
             ssb_port=row.ssb_port or 443,
             ssb_logspace=row.ssb_logspace,
             ssb_username=row.ssb_username,
-            ssb_password=decrypt(row.ssb_password_enc),
+            ssb_password=decrypt(row.ssb_password_enc)
+            if row.ssb_password_enc
+            else None,
             last_loaded_at=datetime.utcnow(),
         )
     finally:
         session.close()
 
-    prev_time = _runtime.schedule_time
+    prev_haiku_interval = _runtime.haiku_interval_minutes
+    prev_sonnet_time = _runtime.schedule_time
     _runtime = new_rt
 
-    if (
-        _scheduler is not None
-        and new_rt.schedule_time
-        and new_rt.schedule_time != prev_time
-    ):
-        try:
-            hh, mm = new_rt.schedule_time.split(":")
-            _scheduler.reschedule_job(
-                "sonnet_job",
-                trigger=CronTrigger(hour=int(hh), minute=int(mm)),
-            )
-            logger.info(f"rescheduled sonnet_job to {new_rt.schedule_time} UTC daily")
-        except (ValueError, KeyError) as exc:
-            logger.error(f"failed to reschedule sonnet_job: {exc}")
+    if _scheduler is not None:
+        if new_rt.haiku_interval_minutes != prev_haiku_interval:
+            try:
+                _scheduler.reschedule_job(
+                    "haiku_job",
+                    trigger=IntervalTrigger(minutes=new_rt.haiku_interval_minutes),
+                )
+                logger.info(
+                    f"rescheduled haiku_job to every {new_rt.haiku_interval_minutes} min"
+                )
+            except Exception as exc:
+                logger.error(f"failed to reschedule haiku_job: {exc}")
+
+        if new_rt.schedule_time and new_rt.schedule_time != prev_sonnet_time:
+            try:
+                hh, mm = new_rt.schedule_time.split(":")
+                _scheduler.reschedule_job(
+                    "sonnet_job",
+                    trigger=CronTrigger(hour=int(hh), minute=int(mm)),
+                )
+                logger.info(
+                    f"rescheduled sonnet_job to {new_rt.schedule_time} UTC daily"
+                )
+            except (ValueError, KeyError) as exc:
+                logger.error(f"failed to reschedule sonnet_job: {exc}")
 
 
 def _haiku_job() -> None:
-    """APScheduler entry point for the Haiku interval job.
-
-    Wires the production factories into ``run_haiku_task``. Wrapped in a
-    broad except so a single failed run never tears down the scheduler.
-    """
+    """APScheduler entry point for the Haiku interval job."""
     from anthropic import Anthropic
-
     from app.tasks.haiku_task import run_haiku_task
     from app.tasks.ssb_client import SSBClient
+
+    rt = _runtime
+    if not rt.haiku_enabled:
+        logger.info("haiku_job: skipped (haiku_enabled=False)")
+        return
 
     try:
         run_haiku_task(
@@ -109,14 +129,14 @@ def _haiku_job() -> None:
 
 
 def _sonnet_job() -> None:
-    """APScheduler entry point for the Sonnet daily aggregation job.
-
-    Wires the production factories into ``run_pro_task``. Wrapped in a
-    broad except so a single failed run never tears down the scheduler.
-    """
+    """APScheduler entry point for the Sonnet daily aggregation job."""
     from anthropic import Anthropic
-
     from app.tasks.pro_task import run_pro_task
+
+    rt = _runtime
+    if not rt.sonnet_enabled:
+        logger.info("sonnet_job: skipped (sonnet_enabled=False)")
+        return
 
     try:
         run_pro_task(
@@ -144,7 +164,9 @@ def start_scheduler() -> None:
     )
     sched.add_job(
         _haiku_job,
-        IntervalTrigger(minutes=settings.haiku_interval_minutes),
+        IntervalTrigger(
+            minutes=30
+        ),  # 初始值，_sync_settings 會 reschedule 為實際 haiku_interval_minutes
         id="haiku_job",
     )
     # Sonnet is added with a placeholder cron; rescheduled by _sync_settings once DB is read
