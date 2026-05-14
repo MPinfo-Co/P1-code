@@ -276,20 +276,20 @@ export default function FnExpertSetting() {
           bgcolor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: 1,
-          p: 3,
+          p: 2,
           mb: 2,
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: 3,
+          gap: 2,
         }}
       >
-        {/* 左欄：自動抓 log */}
+        {/* 左欄：定時抓取 log 資料 */}
         <Box>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 2, color: '#1e293b' }}>
-            自動抓 log
+          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
+            定時抓取 log 資料
           </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
             <Switch
               checked={currentForm.haikuEnabled}
               onChange={(e) => updateForm({ haikuEnabled: e.target.checked })}
@@ -300,30 +300,29 @@ export default function FnExpertSetting() {
             >
               {currentForm.haikuEnabled ? '已開啟' : '啟用'}
             </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1 }}>
+              <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                每
+              </Typography>
+              <TextField
+                type="number"
+                value={currentForm.haikuIntervalMinutes}
+                onChange={(e) =>
+                  updateForm({
+                    haikuIntervalMinutes: Math.max(5, Math.min(1440, Number(e.target.value))),
+                  })
+                }
+                inputProps={{ min: 5, max: 1440 }}
+                size="small"
+                sx={{ width: 80 }}
+              />
+              <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                分鐘
+              </Typography>
+            </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
-              每
-            </Typography>
-            <TextField
-              type="number"
-              value={currentForm.haikuIntervalMinutes}
-              onChange={(e) =>
-                updateForm({
-                  haikuIntervalMinutes: Math.max(5, Math.min(1440, Number(e.target.value))),
-                })
-              }
-              inputProps={{ min: 5, max: 1440 }}
-              size="small"
-              sx={{ width: 80 }}
-            />
-            <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
-              分鐘抓一次
-            </Typography>
-          </Box>
-
-          <Divider sx={{ mb: 2 }} />
+          <Divider sx={{ mb: 1.5 }} />
 
           {/* 手動觸發 */}
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#475569', mb: 1.5 }}>
@@ -382,13 +381,13 @@ export default function FnExpertSetting() {
           )}
         </Box>
 
-        {/* 右欄：自動彙整 */}
+        {/* 右欄：彙整並更新安全事件 */}
         <Box>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 2, color: '#1e293b' }}>
-            自動彙整
+          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
+            彙整並更新安全事件
           </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <Switch
               checked={currentForm.sonnetEnabled}
               onChange={(e) => updateForm({ sonnetEnabled: e.target.checked })}
@@ -399,31 +398,29 @@ export default function FnExpertSetting() {
             >
               {currentForm.sonnetEnabled ? '已開啟' : '啟用'}
             </Typography>
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
-              每日
-            </Typography>
-            <TextField
-              type="time"
-              value={currentForm.scheduleTime}
-              onChange={(e) => updateForm({ scheduleTime: e.target.value })}
-              size="small"
-              inputProps={{ step: 60 }}
-              sx={{ width: 120 }}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1 }}>
+              <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                每日
+              </Typography>
+              <TextField
+                type="time"
+                value={currentForm.scheduleTime}
+                onChange={(e) => updateForm({ scheduleTime: e.target.value })}
+                size="small"
+                sx={{ width: 150 }}
+              />
+            </Box>
           </Box>
         </Box>
       </Box>
 
-      {/* ── SSB 連線設定區塊（原樣保留）── */}
+      {/* ── SSB 連線設定區塊 ── */}
       <Box
         sx={{
           bgcolor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: 1,
-          p: 3,
+          p: 2,
           mb: 2,
         }}
       >
