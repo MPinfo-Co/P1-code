@@ -1,18 +1,18 @@
 // src/pages/fn_expert_setting/FnExpertSetting.tsx
-import { useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Switch from '@mui/material/Switch'
-import FormControlLabel from '@mui/material/FormControlLabel'
-import RadioGroup from '@mui/material/RadioGroup'
-import Radio from '@mui/material/Radio'
-import FormControl from '@mui/material/FormControl'
 import TextField from '@mui/material/TextField'
-import Select from '@mui/material/Select'
-import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
+import Divider from '@mui/material/Divider'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogActions from '@mui/material/DialogActions'
 import InputAdornment from '@mui/material/InputAdornment'
 import IconButton from '@mui/material/IconButton'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -22,12 +22,37 @@ import {
   useSaveExpertSetting,
   useSsbTest,
 } from '@/queries/useExpertSettingQuery'
+import {
+  useAnalysisStatusQuery,
+  useTriggerLogFetch,
+  type AnalysisStatusResponse,
+  type OverlappingBatch,
+} from '@/queries/useExpertAnalysisQuery'
+import useAuthStore from '@/stores/authStore'
+
+const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+
+// ── Datetime helpers ─────────────────────────────────────────────────────────
+
+function todayStart(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`
+}
+
+function nowLocal(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// ── Form state ────────────────────────────────────────────────────────────────
 
 interface FormState {
-  isEnabled: boolean
-  frequency: 'daily' | 'weekly' | 'manual'
+  haikuEnabled: boolean
+  haikuIntervalMinutes: number
+  sonnetEnabled: boolean
   scheduleTime: string
-  weekday: number
   ssbHost: string
   ssbPort: number
   ssbLogspace: string
@@ -36,10 +61,10 @@ interface FormState {
 }
 
 function buildInitialForm(data: {
-  is_enabled: boolean
-  frequency: 'daily' | 'weekly' | 'manual'
+  haiku_enabled: boolean
+  haiku_interval_minutes: number
+  sonnet_enabled: boolean
   schedule_time: string | null
-  weekday: number | null
   ssb_host: string | null
   ssb_port: number | null
   ssb_logspace: string | null
@@ -47,10 +72,10 @@ function buildInitialForm(data: {
   ssb_password: string | null
 }): FormState {
   return {
-    isEnabled: data.is_enabled,
-    frequency: data.frequency ?? 'daily',
+    haikuEnabled: data.haiku_enabled,
+    haikuIntervalMinutes: data.haiku_interval_minutes ?? 30,
+    sonnetEnabled: data.sonnet_enabled,
     scheduleTime: data.schedule_time ?? '02:00',
-    weekday: data.weekday ?? 1,
     ssbHost: data.ssb_host ?? '',
     ssbPort: data.ssb_port ?? 443,
     ssbLogspace: data.ssb_logspace ?? '',
@@ -60,16 +85,18 @@ function buildInitialForm(data: {
 }
 
 const DEFAULT_FORM: FormState = {
-  isEnabled: false,
-  frequency: 'daily',
+  haikuEnabled: false,
+  haikuIntervalMinutes: 30,
+  sonnetEnabled: false,
   scheduleTime: '02:00',
-  weekday: 1,
   ssbHost: '',
   ssbPort: 443,
   ssbLogspace: '',
   ssbUsername: '',
   ssbPassword: '',
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function FnExpertSetting() {
   const { data, isLoading, error } = useExpertSettingQuery()
@@ -91,6 +118,112 @@ export default function FnExpertSetting() {
   function updateForm(patch: Partial<FormState>) {
     setForm((prev) => ({ ...(prev ?? currentForm), ...patch }))
   }
+
+  // ── Log fetch (haiku) state & polling ──────────────────────────────────────
+
+  const [logFetchFrom, setLogFetchFrom] = useState(todayStart())
+  const [logFetchTo, setLogFetchTo] = useState(nowLocal())
+  const [haikuStatus, setHaikuStatus] = useState<'idle' | 'running' | 'success' | 'failed'>('idle')
+  const [recordsFetched, setRecordsFetched] = useState<number | null>(null)
+  const [haikuError, setHaikuError] = useState<string | null>(null)
+  const [haikuConflict, setHaikuConflict] = useState<string | null>(null)
+  const [partialOverlapBatches, setPartialOverlapBatches] = useState<OverlappingBatch[] | null>(
+    null
+  )
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isPollingRef = useRef(false)
+
+  const { data: initialStatus } = useAnalysisStatusQuery()
+  const triggerLogFetch = useTriggerLogFetch()
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    isPollingRef.current = false
+  }, [])
+
+  async function fetchStatus(): Promise<AnalysisStatusResponse | null> {
+    try {
+      const token = useAuthStore.getState().token
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(`${BASE_URL}/expert/analysis/status`, { headers })
+      if (!res.ok) return null
+      const json = await res.json()
+      return (json.data ?? json) as AnalysisStatusResponse
+    } catch {
+      return null
+    }
+  }
+
+  const pollHaiku = useCallback(() => {
+    if (isPollingRef.current) return
+    isPollingRef.current = true
+    pollingRef.current = setInterval(async () => {
+      const statusData = await fetchStatus()
+      if (!statusData) return
+      const s = statusData.haiku.status
+      if (s === 'success' || s === 'failed') {
+        stopPolling()
+        setHaikuStatus(s)
+        if (s === 'success') {
+          setRecordsFetched(statusData.haiku.records_fetched ?? 0)
+        } else {
+          setHaikuError(statusData.haiku.error_message ?? '抓 log 失敗，請稍後重試')
+        }
+      } else {
+        setHaikuStatus(s)
+      }
+    }, 3000)
+  }, [stopPolling])
+
+  useEffect(() => {
+    if (!initialStatus) return
+    const s = initialStatus.haiku.status
+    setHaikuStatus(s)
+    if (s === 'success') {
+      setRecordsFetched(initialStatus.haiku.records_fetched ?? 0)
+    } else if (s === 'failed') {
+      setHaikuError(initialStatus.haiku.error_message ?? '抓 log 失敗，請稍後重試')
+    } else if (s === 'running') {
+      pollHaiku()
+    }
+  }, [initialStatus, pollHaiku])
+
+  useEffect(() => {
+    return () => stopPolling()
+  }, [stopPolling])
+
+  async function handleTriggerLogFetch(force = false) {
+    setHaikuConflict(null)
+    setPartialOverlapBatches(null)
+    try {
+      const fromISO = new Date(logFetchFrom).toISOString()
+      const toISO = new Date(logFetchTo).toISOString()
+      await triggerLogFetch.mutateAsync({ time_from: fromISO, time_to: toISO, force })
+      setHaikuStatus('running')
+      setRecordsFetched(null)
+      setHaikuError(null)
+      pollHaiku()
+    } catch (err) {
+      const e = err as Error & {
+        status?: number
+        overlap_type?: 'running' | 'partial'
+        overlapping_batches?: OverlappingBatch[]
+      }
+      if (e.status === 409 && e.overlap_type === 'partial' && e.overlapping_batches) {
+        // 部分重疊 → 開 Dialog 讓使用者確認，確認後帶 force=true 重送
+        setPartialOverlapBatches(e.overlapping_batches)
+      } else if (e.status === 409) {
+        setHaikuConflict(e.message || '抓 log 進行中，請稍後再試')
+      } else {
+        setHaikuConflict(e.message || '抓取失敗')
+      }
+    }
+  }
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   function handleTogglePasswordVisibility() {
     setIsPasswordVisible((prev) => !prev)
@@ -118,10 +251,10 @@ export default function FnExpertSetting() {
     setSaveError(null)
     try {
       await saveExpertSetting.mutateAsync({
-        is_enabled: currentForm.isEnabled,
-        frequency: currentForm.frequency,
-        schedule_time: currentForm.frequency !== 'manual' ? currentForm.scheduleTime : null,
-        weekday: currentForm.frequency === 'weekly' ? currentForm.weekday : null,
+        haiku_enabled: currentForm.haikuEnabled,
+        haiku_interval_minutes: currentForm.haikuIntervalMinutes,
+        sonnet_enabled: currentForm.sonnetEnabled,
+        schedule_time: currentForm.sonnetEnabled ? currentForm.scheduleTime : null,
         ssb_host: currentForm.ssbHost,
         ssb_port: currentForm.ssbPort,
         ssb_logspace: currentForm.ssbLogspace,
@@ -133,6 +266,8 @@ export default function FnExpertSetting() {
       setSaveError(err instanceof Error ? err.message : '儲存失敗')
     }
   }
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -150,120 +285,186 @@ export default function FnExpertSetting() {
     )
   }
 
-  const scheduleDisabled = !currentForm.isEnabled
-
   return (
     <Box>
-      {/* 分析排程區塊 */}
+      {/* ── 兩欄排程區塊 ── */}
       <Box
         sx={{
           bgcolor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: 1,
-          p: 3,
+          p: 2,
           mb: 2,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 2,
         }}
       >
-        <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 2, color: '#1e293b' }}>
-          分析排程
-        </Typography>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <Typography sx={{ fontSize: 14, color: '#1e293b' }}>啟用排程</Typography>
-          <Switch
-            id="isEnabled"
-            checked={currentForm.isEnabled}
-            onChange={(e) => updateForm({ isEnabled: e.target.checked })}
-            color="success"
-          />
-          <Typography
-            sx={{
-              fontSize: 13,
-              color: currentForm.isEnabled ? '#16a34a' : '#64748b',
-            }}
-          >
-            {currentForm.isEnabled ? '已開啟' : '已關閉'}
+        {/* 左欄：定時抓取 log 資料 */}
+        <Box>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
+            定時抓取 log 資料
           </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
+            <Switch
+              checked={currentForm.haikuEnabled}
+              onChange={(e) => updateForm({ haikuEnabled: e.target.checked })}
+              color="success"
+            />
+            <Typography
+              sx={{ fontSize: 13, color: currentForm.haikuEnabled ? '#16a34a' : '#64748b' }}
+            >
+              {currentForm.haikuEnabled ? '已開啟' : '啟用'}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1 }}>
+              <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                每
+              </Typography>
+              <TextField
+                type="number"
+                value={currentForm.haikuIntervalMinutes}
+                onChange={(e) =>
+                  updateForm({
+                    haikuIntervalMinutes: Math.max(5, Math.min(1440, Number(e.target.value))),
+                  })
+                }
+                inputProps={{ min: 5, max: 1440 }}
+                size="small"
+                sx={{ width: 80 }}
+              />
+              <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                分鐘
+              </Typography>
+            </Box>
+          </Box>
+
+          <Divider sx={{ mb: 1.5 }} />
+
+          {/* 手動抓取 log 資料 */}
+          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
+            手動抓取 log 資料
+          </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: 13, color: '#64748b' }}>開始</Typography>
+            <TextField
+              type="datetime-local"
+              value={logFetchFrom}
+              onChange={(e) => setLogFetchFrom(e.target.value)}
+              size="small"
+              inputProps={{ step: 60 }}
+            />
+            <Typography sx={{ fontSize: 13, color: '#64748b' }}>結束</Typography>
+            <TextField
+              type="datetime-local"
+              value={logFetchTo}
+              onChange={(e) => setLogFetchTo(e.target.value)}
+              size="small"
+              inputProps={{ step: 60 }}
+            />
+          </Box>
+
+          <Button
+            variant="contained"
+            size="small"
+            disabled={haikuStatus === 'running'}
+            onClick={() => handleTriggerLogFetch()}
+            startIcon={
+              haikuStatus === 'running' ? <CircularProgress size={14} color="inherit" /> : undefined
+            }
+          >
+            {haikuStatus === 'running' ? '抓取中…' : '立即抓取'}
+          </Button>
+
+          <Dialog
+            open={partialOverlapBatches !== null}
+            onClose={() => setPartialOverlapBatches(null)}
+          >
+            <DialogTitle>確認刪除舊抓取紀錄</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                此時段與下列既有抓取紀錄部分重疊，繼續會刪除舊紀錄並重新抓取（舊抓的 chunks
+                會一併刪除）：
+              </DialogContentText>
+              <Box sx={{ mt: 1, fontSize: 13, color: '#475569' }}>
+                {partialOverlapBatches?.map((b) => (
+                  <Box key={b.id}>
+                    • batch #{b.id}：{b.time_from} ~ {b.time_to}
+                  </Box>
+                ))}
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setPartialOverlapBatches(null)}>取消</Button>
+              <Button
+                variant="contained"
+                color="warning"
+                onClick={() => {
+                  setPartialOverlapBatches(null)
+                  handleTriggerLogFetch(true)
+                }}
+              >
+                確認刪除並重新抓取
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {haikuConflict && (
+            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>
+              {haikuConflict}
+            </Typography>
+          )}
+          {haikuStatus === 'success' && recordsFetched !== null && (
+            <Typography sx={{ fontSize: 12, color: '#10b981', mt: 0.5 }}>
+              抓取完成（{recordsFetched} 筆）
+            </Typography>
+          )}
+          {haikuStatus === 'failed' && haikuError && (
+            <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>{haikuError}</Typography>
+          )}
         </Box>
 
-        <Box
-          sx={{
-            opacity: scheduleDisabled ? 0.4 : 1,
-            pointerEvents: scheduleDisabled ? 'none' : 'auto',
-          }}
-        >
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', mb: 0.5 }}>
-                觸發時間
+        {/* 右欄：彙整並更新安全事件 */}
+        <Box>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 1.5, color: '#1e293b' }}>
+            彙整並更新安全事件
+          </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <Switch
+              checked={currentForm.sonnetEnabled}
+              onChange={(e) => updateForm({ sonnetEnabled: e.target.checked })}
+              color="success"
+            />
+            <Typography
+              sx={{ fontSize: 13, color: currentForm.sonnetEnabled ? '#16a34a' : '#64748b' }}
+            >
+              {currentForm.sonnetEnabled ? '已開啟' : '啟用'}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1 }}>
+              <Typography sx={{ fontSize: 13, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                每日
               </Typography>
               <TextField
                 type="time"
                 value={currentForm.scheduleTime}
                 onChange={(e) => updateForm({ scheduleTime: e.target.value })}
-                disabled={currentForm.frequency === 'manual'}
                 size="small"
-                inputProps={{ step: 60 }}
-                sx={{ width: '100%' }}
+                sx={{ width: 150 }}
               />
             </Box>
-            <Box>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', mb: 0.5 }}>
-                觸發頻率
-              </Typography>
-              <FormControl component="fieldset">
-                <RadioGroup
-                  row
-                  value={currentForm.frequency}
-                  onChange={(e) =>
-                    updateForm({ frequency: e.target.value as 'daily' | 'weekly' | 'manual' })
-                  }
-                >
-                  <FormControlLabel value="daily" control={<Radio size="small" />} label="每日" />
-                  <FormControlLabel value="weekly" control={<Radio size="small" />} label="每週" />
-                  <FormControlLabel value="manual" control={<Radio size="small" />} label="手動" />
-                </RadioGroup>
-              </FormControl>
-            </Box>
           </Box>
-
-          {currentForm.frequency === 'weekly' && (
-            <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b', mb: 0.5 }}>
-                星期幾
-              </Typography>
-              <Select
-                value={currentForm.weekday}
-                onChange={(e) => updateForm({ weekday: Number(e.target.value) })}
-                size="small"
-                sx={{ minWidth: 160 }}
-              >
-                <MenuItem value={1}>週一</MenuItem>
-                <MenuItem value={2}>週二</MenuItem>
-                <MenuItem value={3}>週三</MenuItem>
-                <MenuItem value={4}>週四</MenuItem>
-                <MenuItem value={5}>週五</MenuItem>
-                <MenuItem value={6}>週六</MenuItem>
-                <MenuItem value={0}>週日</MenuItem>
-              </Select>
-            </Box>
-          )}
-
-          {currentForm.frequency === 'manual' && (
-            <Typography sx={{ fontSize: 13, color: '#64748b', mt: 1 }}>
-              手動模式不會自動執行；請至「資安專家」頁手動觸發分析。
-            </Typography>
-          )}
         </Box>
       </Box>
 
-      {/* 資料來源區塊 */}
+      {/* ── SSB 連線設定區塊 ── */}
       <Box
         sx={{
           bgcolor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: 1,
-          p: 3,
+          p: 2,
           mb: 2,
         }}
       >
@@ -375,6 +576,7 @@ export default function FnExpertSetting() {
         </Box>
       </Box>
 
+      {/* ── 儲存按鈕 ── */}
       {saveMessage && (
         <Alert severity="success" sx={{ mb: 2 }}>
           {saveMessage}
@@ -393,7 +595,11 @@ export default function FnExpertSetting() {
           onClick={handleSave}
           disabled={saveExpertSetting.isPending}
         >
-          {saveExpertSetting.isPending ? <CircularProgress size={18} color="inherit" /> : '儲存'}
+          {saveExpertSetting.isPending ? (
+            <CircularProgress size={18} color="inherit" />
+          ) : (
+            '儲存設定'
+          )}
         </Button>
       </Box>
     </Box>

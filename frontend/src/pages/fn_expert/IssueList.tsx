@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -19,7 +19,13 @@ import Alert from '@mui/material/Alert'
 import Pagination from '@/components/ui/Pagination'
 import { useEventsQuery } from '@/queries/useEventsQuery'
 import type { EventRow } from '@/queries/useEventsQuery'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAnalysisStatusQuery, useTriggerAnalysis } from '@/queries/useExpertAnalysisQuery'
+import type { AnalysisStatus, AnalysisStatusResponse } from '@/queries/useExpertAnalysisQuery'
+import useAuthStore from '@/stores/authStore'
 import './IssueList.css'
+
+const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 const STAR_COLOR: Record<number, string> = {
   5: '#b91c1c',
@@ -111,8 +117,33 @@ function formatDesc(text: string | null) {
   })
 }
 
+function todayStart(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`
+}
+function nowLocal(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function fetchAnalysisStatus(): Promise<AnalysisStatusResponse | null> {
+  try {
+    const token = useAuthStore.getState().token
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(`${BASE_URL}/expert/analysis/status`, { headers })
+    if (!res.ok) return null
+    const json = await res.json()
+    return (json.data ?? json) as AnalysisStatusResponse
+  } catch {
+    return null
+  }
+}
+
 export default function IssueList() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterKeyword, setFilterKeyword] = useState('')
@@ -129,6 +160,88 @@ export default function IssueList() {
 
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null)
   const [popoverContent, setPopoverContent] = useState('')
+
+  // Analysis button state
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>('idle')
+  const [eventsCreated, setEventsCreated] = useState<number | null>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [conflictMsg, setConflictMsg] = useState<string | null>(null)
+  const [analysisFrom, setAnalysisFrom] = useState(todayStart())
+  const [analysisTo, setAnalysisTo] = useState(nowLocal())
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isPollingRef = useRef(false)
+
+  const { data: initialStatus } = useAnalysisStatusQuery()
+  const triggerMutation = useTriggerAnalysis()
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    isPollingRef.current = false
+  }, [])
+
+  const pollStatus = useCallback(() => {
+    if (isPollingRef.current) return
+    isPollingRef.current = true
+    pollingRef.current = setInterval(async () => {
+      const data = await fetchAnalysisStatus()
+      if (!data) return
+      const s = data.sonnet.status
+      if (s === 'success' || s === 'failed') {
+        stopPolling()
+        setAnalysisStatus(s)
+        if (s === 'success') {
+          setEventsCreated(data.sonnet.events_created ?? 0)
+          queryClient.invalidateQueries({ queryKey: ['events'] })
+        } else {
+          setAnalysisError(data.sonnet.error_message ?? '彙整失敗，請稍後重試')
+        }
+      } else {
+        setAnalysisStatus(s)
+      }
+    }, 3000)
+  }, [stopPolling, queryClient])
+
+  // On page enter: restore UI state from status API
+  useEffect(() => {
+    if (!initialStatus) return
+    const s = initialStatus.sonnet.status
+    setAnalysisStatus(s)
+    if (s === 'success') {
+      setEventsCreated(initialStatus.sonnet.events_created ?? 0)
+    } else if (s === 'failed') {
+      setAnalysisError(initialStatus.sonnet.error_message ?? '彙整失敗，請稍後重試')
+    } else if (s === 'running') {
+      pollStatus()
+    }
+  }, [initialStatus, pollStatus])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling()
+    }
+  }, [stopPolling])
+
+  async function handleTriggerAnalysis() {
+    setConflictMsg(null)
+    try {
+      const fromISO = new Date(analysisFrom).toISOString()
+      const toISO = new Date(analysisTo).toISOString()
+      await triggerMutation.mutateAsync({ time_from: fromISO, time_to: toISO })
+      setAnalysisStatus('running')
+      setEventsCreated(null)
+      setAnalysisError(null)
+      pollStatus()
+    } catch (err) {
+      const e = err as Error & { status?: number }
+      if (e.status === 409) {
+        setConflictMsg(e.message || '彙整進行中，請稍後再試')
+      }
+    }
+  }
 
   const eventsStatus =
     applied.status === '_default'
@@ -248,8 +361,63 @@ export default function IssueList() {
         <Button variant="text" size="small" onClick={resetFilters} className="issue-list-reset-btn">
           重設
         </Button>
+
+        {/* One-click analysis: 維持 toolbar 單行高度，訊息列改放在 toolbar 下方 */}
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: 11, color: '#64748b' }}>分析時段</Typography>
+          <TextField
+            size="small"
+            type="datetime-local"
+            value={analysisFrom}
+            onChange={(e) => setAnalysisFrom(e.target.value)}
+            sx={{
+              '& .MuiInputBase-root': { height: 28 },
+              '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
+            }}
+          />
+          <Typography sx={{ fontSize: 11 }}>~</Typography>
+          <TextField
+            size="small"
+            type="datetime-local"
+            value={analysisTo}
+            onChange={(e) => setAnalysisTo(e.target.value)}
+            sx={{
+              '& .MuiInputBase-root': { height: 28 },
+              '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
+            }}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            disabled={analysisStatus === 'running'}
+            onClick={handleTriggerAnalysis}
+            className="issue-list-analysis-btn"
+            startIcon={
+              analysisStatus === 'running' ? (
+                <CircularProgress size={14} color="inherit" />
+              ) : undefined
+            }
+          >
+            {analysisStatus === 'running' ? '分析中…' : '一鍵分析'}
+          </Button>
+        </Box>
       </Box>
 
+      {conflictMsg && (
+        <Alert severity="warning" className="issue-list-error">
+          {conflictMsg}
+        </Alert>
+      )}
+      {analysisStatus === 'success' && eventsCreated !== null && (
+        <Alert severity="success" className="issue-list-error">
+          {eventsCreated > 0 ? `新增 ${eventsCreated} 筆事件` : '本次無新增事件'}
+        </Alert>
+      )}
+      {analysisStatus === 'failed' && analysisError && (
+        <Alert severity="error" className="issue-list-error">
+          {analysisError}
+        </Alert>
+      )}
       {error && (
         <Alert severity="error" className="issue-list-error">
           載入失敗：{(error as Error).message}

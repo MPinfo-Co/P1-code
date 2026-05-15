@@ -4,29 +4,31 @@ The Entry site of MP-Box
 @author: Yinchen
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from app.logger_utils import get_system_logger
-from app.scheduler import start_scheduler, stop_scheduler
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.auth import router as auth_router
-from app.api.fn_ai_partner_chat import router as fn_ai_partner_chat_router
-from app.api.fn_home import router as fn_home_router
 from app.api.company_data import router as company_data_router
 from app.api.events import router as events_router
+from app.api.fn_ai_partner_chat import router as fn_ai_partner_chat_router
 from app.api.fn_ai_partner_config import router as fn_ai_partner_config_router
-from app.api.fn_expert_setting import router as fn_expert_setting_router
 from app.api.fn_ai_partner_tool import router as fn_ai_partner_tool_router
 from app.api.fn_custom_table import router as fn_custom_table_router
+from app.api.fn_expert import router as fn_expert_router
+from app.api.fn_expert_setting import router as fn_expert_setting_router
 from app.api.fn_feedback import router as fn_feedback_router
+from app.api.fn_home import router as fn_home_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.navigation import router as navigation_router
 from app.api.roles import router as roles_router
 from app.api.user import router as user_router
+from app.logger_utils import get_system_logger
 from app.middlewares.request_response_handler import RequestResponseHandlerMiddleware
+from app.scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
@@ -83,6 +85,7 @@ def create_app():
     server.include_router(company_data_router)
     server.include_router(events_router)
     server.include_router(fn_ai_partner_config_router)
+    server.include_router(fn_expert_router)
     server.include_router(fn_expert_setting_router)
     server.include_router(fn_ai_partner_tool_router)
     server.include_router(fn_custom_table_router)

@@ -8,10 +8,10 @@ from pydantic import BaseModel
 class ExpertSettingOut(BaseModel):
     """Response schema for GET /api/expert/settings."""
 
-    is_enabled: bool
-    frequency: str
+    haiku_enabled: bool
+    haiku_interval_minutes: int
+    sonnet_enabled: bool
     schedule_time: str | None
-    weekday: int | None
     ssb_host: str | None
     ssb_port: int
     ssb_logspace: str | None
@@ -24,10 +24,10 @@ class ExpertSettingOut(BaseModel):
 class ExpertSettingSaveRequest(BaseModel):
     """Request body for PUT /api/expert/settings."""
 
-    is_enabled: bool
-    frequency: str
+    haiku_enabled: bool
+    haiku_interval_minutes: int
+    sonnet_enabled: bool
     schedule_time: str | None = None
-    weekday: int | None = None
     ssb_host: str
     ssb_port: int
     ssb_logspace: str

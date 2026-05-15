@@ -39,7 +39,7 @@ def expert_row(db_session):
     """Ensure id=1 row exists in tb_expert_settings; yield the ORM instance."""
     row = db_session.get(ExpertSetting, 1)
     if row is None:
-        row = ExpertSetting(id=1, is_enabled=False, frequency="daily")
+        row = ExpertSetting(id=1, haiku_enabled=False, sonnet_enabled=False)
         db_session.add(row)
         db_session.commit()
     yield row
@@ -49,7 +49,8 @@ def test_sync_loads_is_enabled_and_decrypts_password(
     db_session, expert_row, reset_runtime, monkeypatch
 ):
     """_sync_settings must populate RuntimeSettings from the DB row and decrypt the password."""
-    expert_row.is_enabled = True
+    expert_row.haiku_enabled = True
+    expert_row.sonnet_enabled = True
     expert_row.schedule_time = "02:30"
     expert_row.ssb_host = "https://192.168.10.48"
     expert_row.ssb_port = 443
@@ -62,7 +63,8 @@ def test_sync_loads_is_enabled_and_decrypts_password(
     scheduler._sync_settings()
 
     rt = scheduler.get_runtime()
-    assert rt.is_enabled is True
+    assert rt.haiku_enabled is True
+    assert rt.sonnet_enabled is True
     assert rt.schedule_time == "02:30"
     assert rt.ssb_host == "https://192.168.10.48"
     assert rt.ssb_username == "svc"
@@ -77,7 +79,7 @@ def test_sync_reschedules_sonnet_when_schedule_time_changes(
     monkeypatch.setattr(scheduler, "SessionLocal", lambda: _NoCloseSession(db_session))
     scheduler.start_scheduler()
     try:
-        expert_row.is_enabled = True
+        expert_row.sonnet_enabled = True
         expert_row.schedule_time = "03:15"
         db_session.commit()
 
@@ -97,7 +99,8 @@ def test_sync_missing_row_does_not_crash(db_session, reset_runtime, monkeypatch)
     scheduler._sync_settings()
 
     rt = scheduler.get_runtime()
-    assert rt.is_enabled is False
+    assert rt.haiku_enabled is False
+    assert rt.sonnet_enabled is False
     assert rt.last_loaded_at is None
 
 
@@ -108,7 +111,7 @@ def test_sync_none_schedule_time_does_not_reschedule(
     monkeypatch.setattr(scheduler, "SessionLocal", lambda: _NoCloseSession(db_session))
     scheduler.start_scheduler()
     try:
-        expert_row.is_enabled = True
+        expert_row.sonnet_enabled = True
         expert_row.schedule_time = None
         db_session.commit()
 
@@ -122,3 +125,40 @@ def test_sync_none_schedule_time_does_not_reschedule(
         assert str(job_after.trigger) == trigger_before
     finally:
         scheduler.stop_scheduler()
+
+
+def test_sync_loads_haiku_and_sonnet_enabled_independently(
+    db_session, reset_runtime, monkeypatch
+):
+    """_sync_settings 應 reload 兩個 enabled flags。"""
+    row = db_session.get(ExpertSetting, 1)
+    if row is None:
+        row = ExpertSetting(
+            id=1,
+            haiku_enabled=True,
+            haiku_interval_minutes=15,
+            sonnet_enabled=False,
+            schedule_time="03:30",
+            ssb_host="https://1.1.1.1",
+            ssb_port=443,
+            ssb_logspace="ls",
+            ssb_username="u",
+            ssb_password_enc=encrypt("p"),
+        )
+        db_session.add(row)
+    else:
+        row.haiku_enabled = True
+        row.haiku_interval_minutes = 15
+        row.sonnet_enabled = False
+        row.schedule_time = "03:30"
+        row.ssb_host = "https://1.1.1.1"
+    db_session.commit()
+
+    monkeypatch.setattr(scheduler, "SessionLocal", lambda: _NoCloseSession(db_session))
+    scheduler._sync_settings()
+    rt = scheduler.get_runtime()
+
+    assert rt.haiku_enabled is True
+    assert rt.haiku_interval_minutes == 15
+    assert rt.sonnet_enabled is False
+    assert rt.schedule_time == "03:30"

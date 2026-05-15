@@ -29,7 +29,6 @@ system_logger = get_system_logger()
 FN_EXPERT_SETTING_NAME = "fn_expert_setting"
 SETTING_ID = 1  # singleton row id
 
-VALID_FREQUENCIES = {"daily", "weekly", "manual"}
 _SCHEDULE_TIME_RE = re.compile(r"^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
 
 # ---------------------------------------------------------------------------
@@ -97,10 +96,10 @@ def get_expert_settings(
         ssb_password = "********"
 
     data = ExpertSettingOut(
-        is_enabled=setting.is_enabled,
-        frequency=setting.frequency,
+        haiku_enabled=setting.haiku_enabled,
+        haiku_interval_minutes=setting.haiku_interval_minutes,
+        sonnet_enabled=setting.sonnet_enabled,
         schedule_time=setting.schedule_time,
-        weekday=setting.weekday,
         ssb_host=setting.ssb_host,
         ssb_port=setting.ssb_port,
         ssb_logspace=setting.ssb_logspace,
@@ -129,34 +128,11 @@ def save_expert_settings(
         )
 
     # --- Validation ---
-    if payload.frequency not in VALID_FREQUENCIES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="觸發頻率值不合法",
-        )
-
-    if payload.frequency != "manual":
-        if not payload.schedule_time or not payload.schedule_time.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="觸發時間為必填",
-            )
+    if payload.sonnet_enabled and payload.schedule_time:
         if not _SCHEDULE_TIME_RE.match(payload.schedule_time):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="觸發時間格式錯誤",
-            )
-
-    if payload.frequency == "weekly":
-        if payload.weekday is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="每週頻率需指定星期幾",
-            )
-        if payload.weekday < 0 or payload.weekday > 6:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="星期幾值不合法",
             )
 
     if not payload.ssb_host or not payload.ssb_host.strip():
@@ -195,10 +171,10 @@ def save_expert_settings(
             detail="首次儲存需提供 SSB 密碼",
         )
 
-    record.is_enabled = payload.is_enabled
-    record.frequency = payload.frequency
+    record.haiku_enabled = payload.haiku_enabled
+    record.haiku_interval_minutes = payload.haiku_interval_minutes
+    record.sonnet_enabled = payload.sonnet_enabled
     record.schedule_time = payload.schedule_time
-    record.weekday = payload.weekday
     record.ssb_host = payload.ssb_host
     record.ssb_port = payload.ssb_port
     record.ssb_logspace = payload.ssb_logspace
@@ -209,6 +185,16 @@ def save_expert_settings(
 
     db.commit()
     system_logger.info(f"User {auth.user_id} saved expert settings")
+
+    # 儲存後立即 reload runtime cache，讓兩個排程開關 / interval / 時間
+    # 變動馬上生效（不必等下一輪 _sync_settings interval 才 reload）。
+    try:
+        from app import scheduler as _scheduler_mod
+
+        _scheduler_mod._sync_settings()
+    except Exception:
+        system_logger.exception("post-save _sync_settings failed")
+
     return {"message": "設定已儲存"}
 
 

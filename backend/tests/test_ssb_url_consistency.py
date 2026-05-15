@@ -39,7 +39,7 @@ def test_ssb_client_base_url_matches_test_api_rule(db_session):
         return fake
 
     scheduler._runtime = scheduler.RuntimeSettings(
-        is_enabled=True,
+        haiku_enabled=True,
         ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="center",
@@ -74,7 +74,7 @@ def test_ssb_client_base_url_with_non_standard_port(db_session):
         return fake
 
     scheduler._runtime = scheduler.RuntimeSettings(
-        is_enabled=True,
+        haiku_enabled=True,
         ssb_host="https://10.0.0.5",
         ssb_port=8443,
         ssb_logspace="ALL",
@@ -115,7 +115,7 @@ def test_haiku_task_marks_failed_when_ssb_host_is_none(db_session):
         return MagicMock()
 
     scheduler._runtime = scheduler.RuntimeSettings(
-        is_enabled=True,
+        haiku_enabled=True,
         ssb_host=None,  # 尚未設定
         ssb_logspace="ALL",
         ssb_username="u",
@@ -151,7 +151,7 @@ def test_haiku_task_marks_failed_when_ssb_password_is_none(db_session):
         return MagicMock()
 
     scheduler._runtime = scheduler.RuntimeSettings(
-        is_enabled=True,
+        haiku_enabled=True,
         ssb_host="https://192.168.10.48",
         ssb_port=443,
         ssb_logspace="ALL",
@@ -212,8 +212,7 @@ def test_settings_sync_updates_ssb_host_in_runtime(
     # 初始設定
     row = ExpertSetting(
         id=1,
-        is_enabled=True,
-        frequency="daily",
+        haiku_enabled=True,
         schedule_time="02:00",
         ssb_host="https://192.168.10.48",
         ssb_port=443,

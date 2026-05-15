@@ -5,10 +5,10 @@ import useAuthStore from '@/stores/authStore'
 const BASE_URL = import.meta.env.VITE_API_URL
 
 export interface ExpertSetting {
-  is_enabled: boolean
-  frequency: 'daily' | 'weekly' | 'manual'
+  haiku_enabled: boolean
+  haiku_interval_minutes: number
+  sonnet_enabled: boolean
   schedule_time: string | null
-  weekday: number | null
   ssb_host: string | null
   ssb_port: number | null
   ssb_logspace: string | null
@@ -17,10 +17,10 @@ export interface ExpertSetting {
 }
 
 export interface SaveExpertSettingPayload {
-  is_enabled: boolean
-  frequency: string
+  haiku_enabled: boolean
+  haiku_interval_minutes: number
+  sonnet_enabled: boolean
   schedule_time: string | null
-  weekday: number | null
   ssb_host: string
   ssb_port: number
   ssb_logspace: string

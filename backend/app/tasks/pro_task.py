@@ -14,7 +14,9 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Callable
 
-from sqlalchemy import func
+import anthropic
+import httpx
+import sqlalchemy.exc
 from sqlalchemy.orm import Session
 
 from app import scheduler
@@ -25,15 +27,46 @@ from app.tasks import claude_pro
 
 logger = get_system_logger()
 
+_ERR_ADMIN = "系統錯誤，請聯絡管理員"
+_ERR_RETRY = "分析失敗，請稍後重試"
+_ERROR_MSG_MAX_LEN = 200
 
-def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
-    """Group today's done ChunkResult events by ``match_key``.
+
+def _classify_error(exc: BaseException) -> str:
+    """Classify an exception into one of the 4 error buckets.
+
+    Returns the user-facing error message (<= 200 chars).
+    """
+    if isinstance(
+        exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)
+    ):
+        return _ERR_ADMIN
+    if isinstance(exc, sqlalchemy.exc.SQLAlchemyError):
+        return _ERR_ADMIN
+    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException)):
+        return _ERR_RETRY
+    if isinstance(exc, anthropic.RateLimitError):
+        return _ERR_RETRY
+    if isinstance(exc, anthropic.APIStatusError):
+        return _ERR_RETRY
+    if isinstance(exc, (ValueError, KeyError)):
+        return _ERR_RETRY
+    return _ERR_RETRY
+
+
+def _collect_events_in_range(
+    db: Session,
+    time_from: datetime,
+    time_to: datetime,
+) -> dict[str, list[dict]]:
+    """Group done ChunkResult events by match_key within a time range.
+
+    Filter on LogBatch.time_to falling in [time_from, time_to].
 
     Args:
         db: Active SQLAlchemy session.
-        today: Date used to filter ``LogBatch.time_to`` (batch 結束時間落在 today
-            才收進；以結束時間歸屬可避免跨日 batch（如 23:55–00:05 開始於昨天）
-            被永遠漏掉）。
+        time_from: Start of the time range (inclusive).
+        time_to: End of the time range (inclusive).
 
     Returns:
         Mapping from ``match_key`` to the list of raw events sharing it.
@@ -43,7 +76,8 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
         db.query(ChunkResult)
         .join(LogBatch, ChunkResult.batch_id == LogBatch.id)
         .filter(
-            func.date(LogBatch.time_to) == today,
+            LogBatch.time_to >= time_from,
+            LogBatch.time_to <= time_to,
             ChunkResult.status == "done",
         )
         .all()
@@ -59,16 +93,11 @@ def _collect_today_events(db: Session, today: date) -> dict[str, list[dict]]:
 
 def _recent_open_events_for_continuity(db: Session, today: date) -> list[dict]:
     """Return a digest of all still-open SecurityEvents before today, for
-    Sonnet continuity detection (continued_from_match_key判斷).
+    Sonnet continuity detection (continued_from_match_key check).
 
-    範圍：`event_date < today` AND `current_status` 為 `pending` 或
-    `investigating`。撈整段歷史 open 事件（不只昨天），讓 Sonnet 有足夠
-    context 判斷今天的事件是不是既有 open 事件的延續。實務上 open 事件
-    數量通常不大、prompt 不會爆。
-
-    註：SD spec `fn_expert_03_backend.md` 中描述「昨天的已確認事件」
-    為過時用語，實際 continuity 設計是看「所有 open 歷史事件」；待
-    SD spec 修正時同步更新（見 PG #206 audit 議題 #14）。
+    Range: ``event_date < today`` AND ``current_status`` is ``pending`` or
+    ``investigating``. Retrieves all historical open events (not just yesterday)
+    to give Sonnet enough context to detect continuations.
 
     Args:
         db: Active SQLAlchemy session.
@@ -123,8 +152,6 @@ def _upsert_event(db: Session, today: date, ev: dict) -> tuple[bool, bool]:
         existing.detection_count = (existing.detection_count or 0) + ev.get(
             "detection_count", 1
         )
-        # Refresh Sonnet-produced fields so 新【分析依據】、新 suggests、重新分析的標題/風險評估
-        # 都會反映到既有 row（current_status 與 created_at 保留 DB metadata）
         existing.star_rank = ev["star_rank"]
         existing.title = ev["title"]
         existing.description = ev.get("description")
@@ -160,15 +187,17 @@ def run_pro_task(
     today: date | None = None,
     anthropic_client_factory: Callable,
     db_factory: Callable[[], Session],
+    manual_mode: bool = False,
+    time_from: datetime | None = None,
+    time_to: datetime | None = None,
 ) -> None:
     """Execute one Sonnet daily aggregation cycle.
 
     Reads ``scheduler.get_runtime()`` to decide whether the cycle should run.
-    When ``is_enabled`` is False the function returns immediately without any
-    Anthropic or DB I/O. Otherwise it collects today's done ChunkResult rows,
-    groups events by ``match_key``, asks Claude Sonnet to merge them against
-    yesterday's still-open SecurityEvents, then upserts the merged results
-    into ``tb_security_events`` and records one ``tb_daily_analysis`` row.
+    When ``sonnet_enabled`` is False AND ``manual_mode`` is False the function
+    returns immediately without any Anthropic or DB I/O — schedule-driven
+    runs are gated by the schedule switch. Manual triggers (one-click
+    analysis) pass ``manual_mode=True`` to bypass that gate.
 
     Args:
         today: Override the analysis date (defaults to UTC today). Useful for
@@ -177,18 +206,35 @@ def run_pro_task(
         db_factory: Callable returning a SQLAlchemy ``Session``. The session
             is committed but not closed; lifecycle is the caller's
             responsibility.
+        manual_mode: When True, bypass the ``sonnet_enabled`` schedule gate.
+            Used by one-click analysis trigger so Sonnet runs even without
+            a configured schedule.
+        time_from: Start of the chunk collection range (inclusive). Defaults
+            to today 00:00:00 UTC when not provided (preserves old behaviour).
+        time_to: End of the chunk collection range (inclusive). Defaults to
+            today 23:59:59 UTC when not provided (preserves old behaviour).
 
     Returns:
         None. All output is written to ``tb_daily_analysis`` and
         ``tb_security_events`` via ``db_factory``.
     """
     rt = scheduler.get_runtime()
-    if not rt.is_enabled:
-        logger.info("pro_task: skipped (is_enabled=False)")
+    if not manual_mode and not rt.sonnet_enabled:
+        logger.info("pro_task: skipped (sonnet_enabled=False)")
         return
 
     today = today or datetime.now(timezone.utc).date()
     db = db_factory()
+
+    # 預設區間：當天 00:00 ~ 23:59:59（對齊舊行為）
+    if time_from is None:
+        time_from = datetime(
+            today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc
+        )
+    if time_to is None:
+        time_to = datetime(
+            today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc
+        )
 
     da = DailyAnalysis(
         analysis_date=today,
@@ -204,7 +250,7 @@ def run_pro_task(
         da = db.query(DailyAnalysis).filter_by(analysis_date=today).one()
 
     try:
-        grouped = _collect_today_events(db, today)
+        grouped = _collect_events_in_range(db, time_from, time_to)
         da.chunk_results_count = sum(len(v) for v in grouped.values())
         if not grouped:
             da.status = "done"
@@ -236,11 +282,59 @@ def run_pro_task(
         da.status = "done"
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
-        logger.info("pro_task: date=%s created=%d updated=%d", today, created, updated)
-    except Exception as exc:
+        logger.info(f"pro_task: date={today} created={created} updated={updated}")
+    except anthropic.AuthenticationError as exc:
         db.rollback()
+        logger.exception(f"pro_task: Anthropic auth error — {exc}")
         da.status = "failed"
-        da.error_message = str(exc)
+        da.error_message = _ERR_ADMIN
         da.completed_at = datetime.now(timezone.utc)
         db.commit()
-        logger.exception("pro_task: failed — %s", exc)
+    except anthropic.PermissionDeniedError as exc:
+        db.rollback()
+        logger.exception(f"pro_task: Anthropic permission error — {exc}")
+        da.status = "failed"
+        da.error_message = _ERR_ADMIN
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except sqlalchemy.exc.SQLAlchemyError as exc:
+        logger.exception(f"pro_task: DB error — {exc}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        da.status = "failed"
+        da.error_message = _ERR_ADMIN
+        da.completed_at = datetime.now(timezone.utc)
+        try:
+            db.commit()
+        except Exception:
+            pass
+    except anthropic.RateLimitError as exc:
+        db.rollback()
+        logger.exception(f"pro_task: rate limit — {exc}")
+        da.status = "failed"
+        da.error_message = _ERR_RETRY
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except anthropic.APIStatusError as exc:
+        db.rollback()
+        logger.exception(f"pro_task: API status error — {exc}")
+        da.status = "failed"
+        da.error_message = _ERR_RETRY
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except (httpx.ConnectError, httpx.TimeoutException) as exc:
+        db.rollback()
+        logger.exception(f"pro_task: connection error — {exc}")
+        da.status = "failed"
+        da.error_message = _ERR_RETRY
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.exception(f"pro_task: failed — {exc}")
+        da.status = "failed"
+        da.error_message = _classify_error(exc)
+        da.completed_at = datetime.now(timezone.utc)
+        db.commit()
