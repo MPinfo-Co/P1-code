@@ -423,7 +423,7 @@ def _build_filter_condition(
 
     try:
         return op_map[op]()
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -511,7 +511,9 @@ def _execute_read_custom_table(
         valid_funcs = {"count", "sum", "avg", "min", "max"}
         if func_name not in valid_funcs:
             return json.dumps(
-                {"error": f"aggregate func 不合法，支援：{', '.join(sorted(valid_funcs))}"},
+                {
+                    "error": f"aggregate func 不合法，支援：{', '.join(sorted(valid_funcs))}"
+                },
                 ensure_ascii=False,
             )
 
@@ -540,15 +542,8 @@ def _execute_read_custom_table(
 
         if group_by_field:
             group_col = CustomTableRecord.data[group_by_field].as_string()
-            rows = (
-                query.with_entities(group_col, agg_expr)
-                .group_by(group_col)
-                .all()
-            )
-            result = [
-                {group_by_field: row[0], func_name: row[1]}
-                for row in rows
-            ]
+            rows = query.with_entities(group_col, agg_expr).group_by(group_col).all()
+            result = [{group_by_field: row[0], func_name: row[1]} for row in rows]
             return json.dumps(result, ensure_ascii=False, default=str)
 
         else:
@@ -556,7 +551,7 @@ def _execute_read_custom_table(
             agg_value = row[0]
             try:
                 agg_value = float(agg_value) if agg_value is not None else None
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 pass
             if func_name == "count" and agg_value is not None:
                 agg_value = int(agg_value)
