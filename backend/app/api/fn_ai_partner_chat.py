@@ -236,7 +236,32 @@ def _build_tool_definitions(
                 .filter(ToolReadCustomTableConfig.tool_id == tool.id)
                 .first()
             )
-            # read_custom_table：無 tool input 參數，LLM 直接呼叫工具
+            # read_custom_table：支援結構化查詢參數（filters / sort / aggregate）
+            properties["filters"] = {
+                "type": "array",
+                "description": (
+                    "過濾條件陣列。支援簡單條件（{field, op, value}）"
+                    "或邏輯群組（{logic: AND|OR, conditions: [...]}）。"
+                    "op 可為：eq / neq / gt / gte / lt / lte / contains。"
+                    "未傳入時不套用過濾。"
+                ),
+                "items": {"type": "object"},
+            }
+            properties["sort"] = {
+                "type": "object",
+                "description": (
+                    "排序設定。{field: 欄位名稱, direction: asc|desc}。"
+                    "未傳入時預設 updated_at DESC。"
+                ),
+            }
+            properties["aggregate"] = {
+                "type": "object",
+                "description": (
+                    "聚合設定。{func: count|sum|avg|min|max, field: 欄位名稱（count 外必填）, "
+                    "group_by: 分組欄位（選填）}。"
+                    "傳入時回傳聚合結果，不回傳原始記錄陣列。"
+                ),
+            }
             tool_configs.append(
                 {
                     "name": safe_name,
