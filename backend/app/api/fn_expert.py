@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.connector import get_db
-from app.db.models.analysis import DailyAnalysis, LogBatch
+from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils.log_channels import get_system_logger
@@ -63,6 +63,12 @@ class TriggerRequest(BaseModel):
     time_to: datetime
 
 
+class LogTriggerRequest(BaseModel):
+    time_from: datetime
+    time_to: datetime
+    force: bool = False
+
+
 # ---------------------------------------------------------------------------
 # POST /expert/log/trigger
 # ---------------------------------------------------------------------------
@@ -70,23 +76,81 @@ class TriggerRequest(BaseModel):
 
 @router.post("/log/trigger", status_code=status.HTTP_202_ACCEPTED)
 def trigger_log_fetch(
-    body: TriggerRequest,
+    body: LogTriggerRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> dict:
-    """手動觸發 Haiku 拉 SSB log。"""
+    """手動觸發 Haiku 拉 SSB log。
+
+    重疊處理（A+D 策略）：
+      - 與 running batch 重疊 → 409 overlap_type=running，不可繞過
+      - 新範圍涵蓋舊範圍 → 自動刪舊建新（無資料遺失）
+      - 部分重疊（錯位 / 新範圍在舊範圍內 / 蓋舊一半）→ 409 overlap_type=partial，
+        附舊 batch 資訊；前端二次確認後帶 force=true 重送即可
+    """
     if not _has_fn_expert_permission(auth.user_id, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您沒有執行此操作的權限",
         )
 
-    running = db.query(LogBatch).filter(LogBatch.status == "running").first()
-    if running:
+    # DB 端 LogBatch.time_from / time_to 都是 TIMESTAMP WITHOUT TIME ZONE（naive），
+    # Pydantic 收到的 body 是 tz-aware；統一轉 naive UTC 才能與 DB 值直接比較。
+    def _strip_tz(dt: datetime) -> datetime:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None) if dt.tzinfo else dt
+
+    new_from = _strip_tz(body.time_from)
+    new_to = _strip_tz(body.time_to)
+
+    # 查所有時段重疊的 batch（PostgreSQL 標準區間重疊判定：
+    # 新區間與舊區間有交集 ⇔ 新 from < 舊 to AND 新 to > 舊 from）
+    overlapping = (
+        db.query(LogBatch)
+        .filter(
+            LogBatch.time_from < new_to,
+            LogBatch.time_to > new_from,
+        )
+        .all()
+    )
+
+    # 1) running 重疊 → 不可繞過
+    if any(b.status == "running" for b in overlapping):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="抓 log 進行中，請稍後再試",
+            detail={
+                "message": "抓 log 進行中，請稍後再試",
+                "overlap_type": "running",
+            },
         )
+
+    # 2) 找「新範圍未涵蓋」的舊 batch（partial overlap）
+    not_covered = [
+        b for b in overlapping if not (new_from <= b.time_from and new_to >= b.time_to)
+    ]
+    if not_covered and not body.force:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "此時段與既有抓取紀錄部分重疊，確認是否刪除舊紀錄重新抓取？",
+                "overlap_type": "partial",
+                "overlapping_batches": [
+                    {
+                        "id": b.id,
+                        "time_from": b.time_from.isoformat(),
+                        "time_to": b.time_to.isoformat(),
+                    }
+                    for b in not_covered
+                ],
+            },
+        )
+
+    # 3) 通過：刪所有重疊 batch（與其 chunks）；FK 無 CASCADE，手動先刪 chunks
+    deleted_ids = [b.id for b in overlapping]
+    for b in overlapping:
+        db.query(ChunkResult).filter(ChunkResult.batch_id == b.id).delete()
+        db.delete(b)
+    if overlapping:
+        db.commit()
 
     batch = LogBatch(
         time_from=body.time_from,
@@ -104,7 +168,10 @@ def trigger_log_fetch(
         time_from=body.time_from, time_to=body.time_to, batch_id=batch.id
     )
 
-    logger.info(f"trigger_log_fetch: user={auth.user_id} batch={batch.id}")
+    logger.info(
+        f"trigger_log_fetch: user={auth.user_id} batch={batch.id} "
+        f"deleted_overlapping={deleted_ids} force={body.force}"
+    )
     return {"message": "已啟動抓 log"}
 
 

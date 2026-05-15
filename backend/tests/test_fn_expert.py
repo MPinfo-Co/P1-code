@@ -17,7 +17,7 @@ import httpx
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.db.models.analysis import DailyAnalysis, LogBatch
+from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.function_access import (
     FunctionFolder,
@@ -32,6 +32,7 @@ os.environ.setdefault("AES_KEY", "test-aes-256-key-for-pytest-12345")
 _EXTRA_TABLES = [
     ExpertSetting.__table__,
     LogBatch.__table__,
+    ChunkResult.__table__,
     DailyAnalysis.__table__,
 ]
 
@@ -758,16 +759,190 @@ def test_log_trigger_returns_202_starts_haiku(client, engine):
     mock_haiku.assert_called_once()
 
 
-def test_log_trigger_409_when_already_running(client, engine):
+def test_log_trigger_409_when_running_overlap(client, engine):
+    """重疊到 running batch → 409 overlap_type=running，不可繞過。"""
     user_id, _ = _setup_expert_user(engine)
     _seed_setting(engine)
+    # _seed_log_batch 預設 time_from=2026-05-13、time_to=now，會與下方 body 重疊
     _seed_log_batch(engine, status="running")
 
     body = {"time_from": "2026-05-14T00:00:00Z", "time_to": "2026-05-14T10:00:00Z"}
     resp = client.post("/expert/log/trigger", json=body, headers=_auth_headers(user_id))
 
     assert resp.status_code == 409
-    assert resp.json()["detail"] == "抓 log 進行中，請稍後再試"
+    detail = resp.json()["detail"]
+    assert detail["message"] == "抓 log 進行中，請稍後再試"
+    assert detail["overlap_type"] == "running"
+
+
+def test_log_trigger_409_running_overlap_force_does_not_bypass(client, engine):
+    """running 重疊 + force=true 仍 409（不能蓋進行中的）。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    _seed_log_batch(engine, status="running")
+
+    body = {
+        "time_from": "2026-05-14T00:00:00Z",
+        "time_to": "2026-05-14T10:00:00Z",
+        "force": True,
+    }
+    resp = client.post("/expert/log/trigger", json=body, headers=_auth_headers(user_id))
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["overlap_type"] == "running"
+
+
+def _make_done_batch(engine, time_from_str: str, time_to_str: str) -> int:
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    # 用 naive UTC 寫入 DB，對齊 endpoint 內部 _strip_tz 後的比較格式（SQLite 用字串存 datetime，aware/naive 不能互比）
+    batch = LogBatch(
+        time_from=datetime.fromisoformat(time_from_str.replace("Z", "+00:00"))
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None),
+        time_to=datetime.fromisoformat(time_to_str.replace("Z", "+00:00"))
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None),
+        status="done",
+        records_fetched=0,
+        chunks_total=0,
+        chunks_done=0,
+    )
+    db.add(batch)
+    db.commit()
+    batch_id = batch.id
+    db.close()
+    return batch_id
+
+
+def _seed_chunk(engine, batch_id: int) -> int:
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    chunk = ChunkResult(
+        batch_id=batch_id,
+        chunk_index=0,
+        chunk_size=10,
+        events=[],
+        status="done",
+    )
+    db.add(chunk)
+    db.commit()
+    chunk_id = chunk.id
+    db.close()
+    return chunk_id
+
+
+def test_log_trigger_new_range_fully_covers_old_deletes_old(client, engine):
+    """新範圍涵蓋舊範圍 → 自動刪舊建新（A 路徑，不需要 force）。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    old_batch_id = _make_done_batch(
+        engine, "2026-05-13T08:00:00Z", "2026-05-13T09:00:00Z"
+    )
+    _seed_chunk(engine, old_batch_id)
+
+    body = {
+        "time_from": "2026-05-13T07:00:00Z",  # 涵蓋 08:00-09:00
+        "time_to": "2026-05-13T10:00:00Z",
+    }
+    with patch("app.api.fn_expert._dispatch_haiku_job"):
+        resp = client.post(
+            "/expert/log/trigger", json=body, headers=_auth_headers(user_id)
+        )
+
+    assert resp.status_code == 202
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    # SQLite auto-increment 會重用 id，不能直接查 old_batch_id；改用 time_from 確認剩下的是新 batch
+    batches = db.query(LogBatch).order_by(LogBatch.id.desc()).all()
+    assert len(batches) == 1
+    assert batches[0].time_from.replace(tzinfo=None) == datetime(2026, 5, 13, 7, 0, 0)
+    # 舊 batch 的 chunks 也應該被刪（用 time_from=08:00 區段的紀錄唯一識別舊狀態）
+    assert (
+        db.query(ChunkResult).filter(ChunkResult.batch_id == old_batch_id).count() == 0
+    )
+    db.close()
+
+
+def test_log_trigger_409_partial_overlap_without_force(client, engine):
+    """部分重疊 + force=false → 409 overlap_type=partial，附舊 batch 資訊。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    old_batch_id = _make_done_batch(
+        engine, "2026-05-13T08:00:00Z", "2026-05-13T09:00:00Z"
+    )
+
+    body = {
+        "time_from": "2026-05-13T08:30:00Z",  # 在舊範圍內 = partial
+        "time_to": "2026-05-13T09:30:00Z",
+    }
+    resp = client.post("/expert/log/trigger", json=body, headers=_auth_headers(user_id))
+
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["overlap_type"] == "partial"
+    assert len(detail["overlapping_batches"]) == 1
+    assert detail["overlapping_batches"][0]["id"] == old_batch_id
+
+
+def test_log_trigger_partial_overlap_with_force_deletes_and_creates(client, engine):
+    """部分重疊 + force=true → 刪舊建新（D 路徑）。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    old_batch_id = _make_done_batch(
+        engine, "2026-05-13T08:00:00Z", "2026-05-13T09:00:00Z"
+    )
+    _seed_chunk(engine, old_batch_id)
+
+    body = {
+        "time_from": "2026-05-13T08:30:00Z",
+        "time_to": "2026-05-13T09:30:00Z",
+        "force": True,
+    }
+    with patch("app.api.fn_expert._dispatch_haiku_job"):
+        resp = client.post(
+            "/expert/log/trigger", json=body, headers=_auth_headers(user_id)
+        )
+
+    assert resp.status_code == 202
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    # 同 covers 測試：SQLite id 會重用，改用 time_from 確認剩下的是新 batch
+    batches = db.query(LogBatch).all()
+    assert len(batches) == 1
+    assert batches[0].time_from.replace(tzinfo=None) == datetime(2026, 5, 13, 8, 30, 0)
+    assert (
+        db.query(ChunkResult).filter(ChunkResult.batch_id == old_batch_id).count() == 0
+    )
+    db.close()
+
+
+def test_log_trigger_no_overlap_creates_directly(client, engine):
+    """完全無重疊 → 202，舊 batch 保留不動。"""
+    user_id, _ = _setup_expert_user(engine)
+    _seed_setting(engine)
+    old_batch_id = _make_done_batch(
+        engine, "2026-05-13T08:00:00Z", "2026-05-13T09:00:00Z"
+    )
+
+    body = {
+        "time_from": "2026-05-13T10:00:00Z",  # 完全在舊範圍之後
+        "time_to": "2026-05-13T11:00:00Z",
+    }
+    with patch("app.api.fn_expert._dispatch_haiku_job"):
+        resp = client.post(
+            "/expert/log/trigger", json=body, headers=_auth_headers(user_id)
+        )
+
+    assert resp.status_code == 202
+
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    # 舊 batch 保留
+    assert db.query(LogBatch).filter(LogBatch.id == old_batch_id).first() is not None
+    db.close()
 
 
 def test_log_trigger_401_not_logged_in(client):
