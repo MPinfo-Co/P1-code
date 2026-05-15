@@ -7,6 +7,8 @@ import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined'
 import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined'
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined'
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 
 export const ICON_MAP = {
   // folders
@@ -14,6 +16,7 @@ export const ICON_MAP = {
   fn_partner: <SmartToyOutlinedIcon fontSize="small" />,
   fn_setting: <SettingsOutlinedIcon fontSize="small" />,
   // functions
+  fn_home: <HomeOutlinedIcon fontSize="small" />,
   fn_user: <PeopleAltOutlinedIcon fontSize="small" />,
   fn_role: <ManageAccountsIcon fontSize="small" />,
   fn_company_data: <LibraryBooksIcon fontSize="small" />,
@@ -23,4 +26,5 @@ export const ICON_MAP = {
   fn_ai_partner_config: <SmartToyOutlinedIcon fontSize="small" />,
   fn_ai_partner_chat: <ChatOutlinedIcon fontSize="small" />,
   fn_feedback: <FeedbackOutlinedIcon fontSize="small" />,
+  fn_custom_table: <TableChartOutlinedIcon fontSize="small" />,
 }

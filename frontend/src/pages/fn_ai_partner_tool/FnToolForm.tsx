@@ -18,8 +18,13 @@ import MenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
-import { useCreateTool, useUpdateTool, useTestTool } from '@/queries/useToolsQuery'
-import type { ToolRow, BodyParam, TestToolResult } from '@/queries/useToolsQuery'
+import {
+  useCreateTool,
+  useUpdateTool,
+  useTestTool,
+  useCustomTableOptionsQuery,
+} from '@/queries/useToolsQuery'
+import type { ToolRow, BodyParam, TestToolResult, ToolType } from '@/queries/useToolsQuery'
 import './FnToolForm.css'
 
 interface Props {
@@ -32,18 +37,65 @@ interface Props {
 type AuthType = 'none' | 'api_key' | 'bearer'
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 type ParamType = 'string' | 'number' | 'boolean' | 'object'
+type ExtractFieldType = 'string' | 'number'
+
+interface ExtractField {
+  field_name: string
+  field_type: ExtractFieldType
+  description: string
+}
+
+const TOOL_TYPE_LABEL: Record<ToolType, string> = {
+  external_api: 'API 呼叫',
+  image_extract: '圖片擷取',
+  web_scraper: '網頁擷取',
+  write_custom_table: '寫入資料',
+  read_custom_table: '讀取資料',
+}
 
 export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const isEdit = !!row
 
   const [name, setName] = useState(() => row?.name ?? '')
   const [description, setDescription] = useState(() => row?.description ?? '')
+  const [toolType, setToolType] = useState<ToolType>(() => row?.tool_type ?? 'external_api')
+
+  // external_api fields
   const [endpointUrl, setEndpointUrl] = useState(() => row?.endpoint_url ?? '')
   const [authType, setAuthType] = useState<AuthType>(() => row?.auth_type ?? 'none')
   const [authHeaderName, setAuthHeaderName] = useState(() => row?.auth_header_name ?? '')
   const [credential, setCredential] = useState('')
   const [httpMethod, setHttpMethod] = useState<HttpMethod>(() => row?.http_method ?? 'GET')
   const [bodyParams, setBodyParams] = useState<BodyParam[]>(() => row?.body_params ?? [])
+
+  // image_extract fields
+  const [extractFields, setExtractFields] = useState<ExtractField[]>(() => row?.image_fields ?? [])
+
+  // web_scraper fields
+  const [targetUrl, setTargetUrl] = useState(() => row?.web_scraper_config?.target_url ?? '')
+  const [extractDescription, setExtractDescription] = useState(
+    () => row?.web_scraper_config?.extract_description ?? ''
+  )
+  const [maxChars, setMaxChars] = useState<number>(() => row?.web_scraper_config?.max_chars ?? 4000)
+
+  // write_custom_table fields
+  const [writeTargetTableId, setWriteTargetTableId] = useState<number | ''>(
+    () => row?.write_custom_table_config?.target_table_id ?? ''
+  )
+
+  // read_custom_table fields
+  const [readTargetTableId, setReadTargetTableId] = useState<number | ''>(
+    () => row?.read_custom_table_config?.target_table_id ?? ''
+  )
+  const [readLimit, setReadLimit] = useState<number>(
+    () => row?.read_custom_table_config?.limit ?? 20
+  )
+  const [readScope, setReadScope] = useState<'self' | 'all'>(
+    () => row?.read_custom_table_config?.scope ?? 'self'
+  )
+
+  const { data: customTableOptions = [] } = useCustomTableOptionsQuery()
+
   const [formError, setFormError] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<TestToolResult | null>(null)
   const [testError, setTestError] = useState<string | null>(null)
@@ -62,6 +114,15 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
   const showHeaderName = authType === 'api_key'
   const showCredential = authType === 'api_key' || authType === 'bearer'
 
+  // Section visibility based on tool type
+  const showConnectionSection = toolType === 'external_api'
+  const showImageExtractSection = toolType === 'image_extract'
+  const showWebScraperSection = toolType === 'web_scraper'
+  const showWriteCustomTableSection = toolType === 'write_custom_table'
+  const showReadCustomTableSection = toolType === 'read_custom_table'
+  const showTestSection = toolType === 'external_api'
+
+  // ── body params ──
   function handleAddBodyParam() {
     setBodyParams((prev) => [
       ...prev,
@@ -77,6 +138,20 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     setBodyParams((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)))
   }
 
+  // ── extract fields ──
+  function handleAddExtractField() {
+    setExtractFields((prev) => [...prev, { field_name: '', field_type: 'string', description: '' }])
+  }
+
+  function handleRemoveExtractField(index: number) {
+    setExtractFields((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function handleExtractFieldChange(index: number, field: keyof ExtractField, value: unknown) {
+    setExtractFields((prev) => prev.map((f, i) => (i === index ? { ...f, [field]: value } : f)))
+  }
+
+  // ── test ──
   async function handleTest() {
     setTestResult(null)
     setTestError(null)
@@ -106,33 +181,120 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
     }
   }
 
+  // ── save ──
   async function handleSave() {
     setFormError(null)
     if (!name.trim()) {
       setFormError('請填寫工具名稱')
       return
     }
-    if (!endpointUrl.trim()) {
-      setFormError('請填寫 API Endpoint URL')
-      return
+
+    if (toolType === 'external_api') {
+      if (!endpointUrl.trim()) {
+        setFormError('請填寫 API Endpoint URL')
+        return
+      }
+    } else if (toolType === 'image_extract') {
+      const validFields = extractFields.filter((f) => f.field_name.trim())
+      if (validFields.length === 0) {
+        setFormError('至少需設定一個擷取欄位')
+        return
+      }
+    } else if (toolType === 'web_scraper') {
+      if (!targetUrl.trim()) {
+        setFormError('目標網址為必填')
+        return
+      }
+      if (!extractDescription.trim()) {
+        setFormError('擷取描述為必填')
+        return
+      }
+    } else if (toolType === 'write_custom_table') {
+      if (writeTargetTableId === '') {
+        setFormError('請選擇目標資料表')
+        return
+      }
+    } else if (toolType === 'read_custom_table') {
+      if (readTargetTableId === '') {
+        setFormError('請選擇目標資料表')
+        return
+      }
+      if (!readLimit || readLimit < 1) {
+        setFormError('筆數上限須為正整數')
+        return
+      }
     }
 
     try {
-      const payload = {
-        name: name.trim(),
-        description: description.trim(),
-        endpoint_url: endpointUrl.trim(),
-        auth_type: authType,
-        auth_header_name: authType === 'api_key' ? authHeaderName.trim() || null : null,
-        credential: credential.trim() || undefined,
-        http_method: httpMethod,
-        body_params: showBodyParams ? bodyParams.filter((p) => p.param_name.trim()) : [],
-      }
-
-      if (isEdit && row) {
-        await updateTool.mutateAsync({ id: row.id, payload })
-      } else {
-        await createTool.mutateAsync(payload)
+      if (toolType === 'external_api') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          endpoint_url: endpointUrl.trim(),
+          auth_type: authType,
+          auth_header_name: authType === 'api_key' ? authHeaderName.trim() || null : null,
+          credential: credential.trim() || undefined,
+          http_method: httpMethod,
+          body_params: showBodyParams ? bodyParams.filter((p) => p.param_name.trim()) : [],
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'image_extract') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          image_fields: extractFields.filter((f) => f.field_name.trim()),
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'web_scraper') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          target_url: targetUrl.trim(),
+          extract_description: extractDescription.trim(),
+          max_chars: maxChars > 0 ? maxChars : 4000,
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'write_custom_table') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          target_table_id: writeTargetTableId as number,
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
+      } else if (toolType === 'read_custom_table') {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          tool_type: toolType,
+          target_table_id: readTargetTableId as number,
+          limit: readLimit > 0 ? readLimit : 20,
+          scope: readScope,
+        }
+        if (isEdit && row) {
+          await updateTool.mutateAsync({ id: row.id, payload })
+        } else {
+          await createTool.mutateAsync(payload)
+        }
       }
       onSuccess()
     } catch (err) {
@@ -183,147 +345,266 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
             />
           </Box>
 
-          <Divider />
-
-          {/* 連線資訊 */}
-          <Typography className="fn-tool-form-section-title">連線資訊</Typography>
-
           <Box>
             <Typography className="fn-tool-form-label">
-              API Endpoint URL <span style={{ color: '#ef4444' }}>*</span>
+              工具類型 <span style={{ color: '#ef4444' }}>*</span>
             </Typography>
-            <TextField
-              fullWidth
-              size="small"
-              value={endpointUrl}
-              onChange={(e) => setEndpointUrl(e.target.value)}
-              placeholder="https://api.example.com/v1/action 或 /resource/{id}"
-              sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
-            />
-            <Typography sx={{ fontSize: 12, color: '#64748b', mt: 0.5 }}>
-              路徑與 query 中的 &#123;xxx&#125; 會在呼叫時由 AI 夥伴動態帶入
-            </Typography>
+            {isEdit ? (
+              <Typography sx={{ fontSize: 14, color: '#334155', py: 0.5 }}>
+                {TOOL_TYPE_LABEL[toolType] ?? toolType}
+              </Typography>
+            ) : (
+              <RadioGroup
+                row
+                value={toolType}
+                onChange={(e) => setToolType(e.target.value as ToolType)}
+              >
+                <FormControlLabel
+                  value="external_api"
+                  control={<Radio size="small" />}
+                  label="API 呼叫"
+                />
+                <FormControlLabel
+                  value="image_extract"
+                  control={<Radio size="small" />}
+                  label="圖片擷取"
+                />
+                <FormControlLabel
+                  value="web_scraper"
+                  control={<Radio size="small" />}
+                  label="網頁擷取"
+                />
+                <FormControlLabel
+                  value="write_custom_table"
+                  control={<Radio size="small" />}
+                  label="寫入資料"
+                />
+                <FormControlLabel
+                  value="read_custom_table"
+                  control={<Radio size="small" />}
+                  label="讀取資料"
+                />
+              </RadioGroup>
+            )}
           </Box>
 
-          <Box>
-            <Typography className="fn-tool-form-label">認證方式</Typography>
-            <RadioGroup
-              row
-              value={authType}
-              onChange={(e) => setAuthType(e.target.value as AuthType)}
-            >
-              <FormControlLabel value="none" control={<Radio size="small" />} label="無認證" />
-              <FormControlLabel value="api_key" control={<Radio size="small" />} label="API Key" />
-              <FormControlLabel
-                value="bearer"
-                control={<Radio size="small" />}
-                label="Bearer Token"
-              />
-            </RadioGroup>
-          </Box>
+          {/* 連線資訊（工具類型為外部 API 呼叫時顯示） */}
+          {showConnectionSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">連線資訊</Typography>
 
-          {showHeaderName && (
-            <Box>
-              <Typography className="fn-tool-form-label">
-                Header 名稱 <span style={{ color: '#ef4444' }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={authHeaderName}
-                onChange={(e) => setAuthHeaderName(e.target.value)}
-                placeholder="X-API-Key"
-                sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
-              />
-            </Box>
-          )}
-
-          {showCredential && (
-            <Box>
-              <Typography className="fn-tool-form-label">
-                {authType === 'api_key' ? 'API Key 憑證' : 'Bearer Token 憑證'}
-                {!isEdit && <span style={{ color: '#ef4444' }}> *</span>}
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                type="password"
-                value={credential}
-                onChange={(e) => setCredential(e.target.value)}
-                placeholder={isEdit ? '' : '請輸入憑證'}
-                sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
-              />
-              {isEdit && row?.has_credential && (
-                <Typography sx={{ fontSize: 12, color: '#64748b', mt: 0.5 }}>
-                  已設定，如需變更請重新輸入，保持空白即不變更
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  API Endpoint URL <span style={{ color: '#ef4444' }}>*</span>
                 </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={endpointUrl}
+                  onChange={(e) => setEndpointUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1/action 或 /resource/{id}"
+                  sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+                <Typography sx={{ fontSize: 12, color: '#64748b', mt: 0.5 }}>
+                  路徑與 query 中的 &#123;xxx&#125; 會在呼叫時由 AI 夥伴動態帶入
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">認證方式</Typography>
+                <RadioGroup
+                  row
+                  value={authType}
+                  onChange={(e) => setAuthType(e.target.value as AuthType)}
+                >
+                  <FormControlLabel value="none" control={<Radio size="small" />} label="無認證" />
+                  <FormControlLabel
+                    value="api_key"
+                    control={<Radio size="small" />}
+                    label="API Key"
+                  />
+                  <FormControlLabel
+                    value="bearer"
+                    control={<Radio size="small" />}
+                    label="Bearer Token"
+                  />
+                </RadioGroup>
+              </Box>
+
+              {showHeaderName && (
+                <Box>
+                  <Typography className="fn-tool-form-label">
+                    Header 名稱 <span style={{ color: '#ef4444' }}>*</span>
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={authHeaderName}
+                    onChange={(e) => setAuthHeaderName(e.target.value)}
+                    placeholder="X-API-Key"
+                    sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                  />
+                </Box>
               )}
-            </Box>
+
+              {showCredential && (
+                <Box>
+                  <Typography className="fn-tool-form-label">
+                    {authType === 'api_key' ? 'API Key 憑證' : 'Bearer Token 憑證'}
+                    {!isEdit && <span style={{ color: '#ef4444' }}> *</span>}
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="password"
+                    value={credential}
+                    onChange={(e) => setCredential(e.target.value)}
+                    placeholder={isEdit ? '' : '請輸入憑證'}
+                    sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                  />
+                  {isEdit && row?.has_credential && (
+                    <Typography sx={{ fontSize: 12, color: '#64748b', mt: 0.5 }}>
+                      已設定，如需變更請重新輸入，保持空白即不變更
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
+              <Box>
+                <Typography className="fn-tool-form-label">HTTP Method</Typography>
+                <RadioGroup
+                  row
+                  value={httpMethod}
+                  onChange={(e) => setHttpMethod(e.target.value as HttpMethod)}
+                >
+                  {(['GET', 'POST', 'PUT', 'DELETE'] as HttpMethod[]).map((m) => (
+                    <FormControlLabel
+                      key={m}
+                      value={m}
+                      control={<Radio size="small" />}
+                      label={m}
+                    />
+                  ))}
+                </RadioGroup>
+              </Box>
+
+              {/* Body 參數定義（僅 POST / PUT 時顯示） */}
+              {showBodyParams && (
+                <Box>
+                  <Typography className="fn-tool-form-section-title">Body 參數定義</Typography>
+                  {bodyParams.map((param, index) => (
+                    <Box key={index} className="fn-tool-param-row">
+                      <TextField
+                        size="small"
+                        placeholder="參數名稱"
+                        value={param.param_name}
+                        onChange={(e) => handleBodyParamChange(index, 'param_name', e.target.value)}
+                        sx={{ flex: 1, minWidth: 100, '& .MuiInputBase-input': { fontSize: 13 } }}
+                      />
+                      <Select
+                        size="small"
+                        value={param.param_type}
+                        onChange={(e) =>
+                          handleBodyParamChange(index, 'param_type', e.target.value as ParamType)
+                        }
+                        sx={{ minWidth: 100, fontSize: 13 }}
+                      >
+                        {(['string', 'number', 'boolean', 'object'] as ParamType[]).map((t) => (
+                          <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
+                            {t}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Checkbox
+                          size="small"
+                          checked={param.is_required}
+                          onChange={(e) =>
+                            handleBodyParamChange(index, 'is_required', e.target.checked)
+                          }
+                        />
+                        <Typography sx={{ fontSize: 13, color: '#475569', whiteSpace: 'nowrap' }}>
+                          必填
+                        </Typography>
+                      </Box>
+                      <TextField
+                        size="small"
+                        placeholder="說明此參數的用途與範例值"
+                        value={param.description}
+                        onChange={(e) =>
+                          handleBodyParamChange(index, 'description', e.target.value)
+                        }
+                        sx={{ flex: 2, '& .MuiInputBase-input': { fontSize: 13 } }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveBodyParam(index)}
+                        aria-label="刪除參數"
+                      >
+                        ×
+                      </IconButton>
+                    </Box>
+                  ))}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handleAddBodyParam}
+                    sx={{ mt: 1, fontSize: 12 }}
+                  >
+                    ＋ 新增參數
+                  </Button>
+                </Box>
+              )}
+            </>
           )}
 
-          <Box>
-            <Typography className="fn-tool-form-label">HTTP Method</Typography>
-            <RadioGroup
-              row
-              value={httpMethod}
-              onChange={(e) => setHttpMethod(e.target.value as HttpMethod)}
-            >
-              {(['GET', 'POST', 'PUT', 'DELETE'] as HttpMethod[]).map((m) => (
-                <FormControlLabel key={m} value={m} control={<Radio size="small" />} label={m} />
-              ))}
-            </RadioGroup>
-          </Box>
-
-          {/* Body 參數定義（僅 POST / PUT 時顯示） */}
-          {showBodyParams && (
-            <Box>
-              <Typography className="fn-tool-form-section-title">Body 參數定義</Typography>
-              {bodyParams.map((param, index) => (
+          {/* 擷取欄位定義（工具類型為圖片擷取時顯示） */}
+          {showImageExtractSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">擷取欄位定義</Typography>
+              <Typography sx={{ fontSize: 12, color: '#64748b', mt: -1 }}>
+                至少需設定一個欄位才可儲存
+              </Typography>
+              {extractFields.map((field, index) => (
                 <Box key={index} className="fn-tool-param-row">
                   <TextField
                     size="small"
-                    placeholder="參數名稱"
-                    value={param.param_name}
-                    onChange={(e) => handleBodyParamChange(index, 'param_name', e.target.value)}
+                    placeholder="欄位名稱"
+                    value={field.field_name}
+                    onChange={(e) => handleExtractFieldChange(index, 'field_name', e.target.value)}
                     sx={{ flex: 1, minWidth: 100, '& .MuiInputBase-input': { fontSize: 13 } }}
                   />
                   <Select
                     size="small"
-                    value={param.param_type}
+                    value={field.field_type}
                     onChange={(e) =>
-                      handleBodyParamChange(index, 'param_type', e.target.value as ParamType)
+                      handleExtractFieldChange(
+                        index,
+                        'field_type',
+                        e.target.value as ExtractFieldType
+                      )
                     }
                     sx={{ minWidth: 100, fontSize: 13 }}
                   >
-                    {(['string', 'number', 'boolean', 'object'] as ParamType[]).map((t) => (
+                    {(['string', 'number'] as ExtractFieldType[]).map((t) => (
                       <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
                         {t}
                       </MenuItem>
                     ))}
                   </Select>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Checkbox
-                      size="small"
-                      checked={param.is_required}
-                      onChange={(e) =>
-                        handleBodyParamChange(index, 'is_required', e.target.checked)
-                      }
-                    />
-                    <Typography sx={{ fontSize: 13, color: '#475569', whiteSpace: 'nowrap' }}>
-                      必填
-                    </Typography>
-                  </Box>
                   <TextField
                     size="small"
-                    placeholder="說明此參數的用途與範例值"
-                    value={param.description}
-                    onChange={(e) => handleBodyParamChange(index, 'description', e.target.value)}
+                    placeholder="說明"
+                    value={field.description}
+                    onChange={(e) => handleExtractFieldChange(index, 'description', e.target.value)}
                     sx={{ flex: 2, '& .MuiInputBase-input': { fontSize: 13 } }}
                   />
                   <IconButton
                     size="small"
-                    onClick={() => handleRemoveBodyParam(index)}
-                    aria-label="刪除參數"
+                    onClick={() => handleRemoveExtractField(index)}
+                    aria-label="刪除欄位"
                   >
                     ×
                   </IconButton>
@@ -332,102 +613,323 @@ export default function FnToolForm({ open, row, onClose, onSuccess }: Props) {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={handleAddBodyParam}
+                onClick={handleAddExtractField}
                 sx={{ mt: 1, fontSize: 12 }}
               >
-                ＋ 新增參數
+                ＋ 新增欄位
               </Button>
-            </Box>
+            </>
           )}
 
-          <Divider />
+          {/* 網頁擷取設定（工具類型為網頁擷取時顯示） */}
+          {showWebScraperSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">網頁擷取設定</Typography>
 
-          {/* 測試區塊 */}
-          <Typography className="fn-tool-form-section-title">測試</Typography>
-
-          {showBodyParams && bodyParams.filter((p) => p.param_name.trim()).length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography sx={{ fontSize: 13, color: '#475569' }}>測試參數值</Typography>
-              {bodyParams
-                .filter((p) => p.param_name.trim())
-                .map((param) => (
-                  <Box
-                    key={param.param_name}
-                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                  >
-                    <Typography sx={{ fontSize: 13, minWidth: 120, color: '#334155' }}>
-                      {param.param_name}
-                      {param.is_required && <span style={{ color: '#ef4444' }}> *</span>}
-                    </Typography>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      placeholder={`${param.param_type}${param.description ? `（${param.description}）` : ''}`}
-                      value={testParamValues[param.param_name] ?? ''}
-                      onChange={(e) =>
-                        setTestParamValues((prev) => ({
-                          ...prev,
-                          [param.param_name]: e.target.value,
-                        }))
-                      }
-                      sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
-                    />
-                  </Box>
-                ))}
-            </Box>
-          )}
-
-          <Box>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleTest}
-              disabled={testTool.isPending}
-              sx={{ fontSize: 13 }}
-            >
-              {testTool.isPending ? <CircularProgress size={16} /> : '測試'}
-            </Button>
-          </Box>
-
-          {testError && (
-            <Alert severity="error" onClose={() => setTestError(null)}>
-              {testError}
-            </Alert>
-          )}
-
-          {testResult && (
-            <Box
-              sx={{
-                background: testResult.http_status < 400 ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${testResult.http_status < 400 ? '#86efac' : '#fca5a5'}`,
-                color: testResult.http_status < 400 ? '#166534' : '#991b1b',
-                borderRadius: 1,
-                p: 1.5,
-                fontSize: 13,
-              }}
-            >
-              <Typography sx={{ fontWeight: 600, mb: 1, fontSize: 13 }}>
-                {testResult.http_status < 400
-                  ? `✓ 呼叫成功（${testResult.http_status} OK）`
-                  : `✗ 呼叫結果（${testResult.http_status}）`}
-              </Typography>
-              <Box
-                component="pre"
-                sx={{
-                  m: 0,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                  fontSize: 12,
-                  background: 'rgba(0,0,0,0.04)',
-                  p: 1,
-                  borderRadius: 0.5,
-                  maxHeight: 160,
-                  overflowY: 'auto',
-                }}
-              >
-                {JSON.stringify(testResult.response_body, null, 2)}
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  目標網址 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={targetUrl}
+                  onChange={(e) => {
+                    setTargetUrl(e.target.value)
+                    setFormError(null)
+                  }}
+                  placeholder="https://example.com/page"
+                  sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
               </Box>
-            </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  擷取描述 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
+                  rows={3}
+                  value={extractDescription}
+                  onChange={(e) => {
+                    setExtractDescription(e.target.value)
+                    setFormError(null)
+                  }}
+                  placeholder="描述要從頁面中擷取哪些資訊（供 AI 夥伴解讀用）"
+                  sx={{ '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">最大擷取字元數</Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={maxChars}
+                  onChange={(e) => setMaxChars(Number(e.target.value))}
+                  inputProps={{ min: 1 }}
+                  sx={{ width: 160, '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+            </>
+          )}
+
+          {/* 寫入資料設定（工具類型為寫入資料時顯示） */}
+          {showWriteCustomTableSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">寫入資料設定</Typography>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  目標資料表 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <Select
+                  fullWidth
+                  size="small"
+                  displayEmpty
+                  value={writeTargetTableId}
+                  onChange={(e) => setWriteTargetTableId(e.target.value as number | '')}
+                  sx={{ fontSize: 14 }}
+                >
+                  <MenuItem value="" disabled sx={{ fontSize: 14 }}>
+                    請選擇
+                  </MenuItem>
+                  {customTableOptions.map((opt) => (
+                    <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: 14 }}>
+                      {opt.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+
+              {writeTargetTableId !== '' && (
+                <Box>
+                  <Typography className="fn-tool-form-label">欄位預覽</Typography>
+                  <Box
+                    sx={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 1,
+                      bgcolor: '#f8fafc',
+                      p: 1,
+                    }}
+                  >
+                    {(customTableOptions.find((o) => o.id === writeTargetTableId)?.fields ?? [])
+                      .length === 0 ? (
+                      <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無欄位資訊</Typography>
+                    ) : (
+                      customTableOptions
+                        .find((o) => o.id === writeTargetTableId)
+                        ?.fields.map((f, i) => (
+                          <Box
+                            key={i}
+                            sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.25 }}
+                          >
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, minWidth: 120 }}>
+                              {f.field_name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: '#64748b' }}>
+                              {f.field_type}
+                            </Typography>
+                          </Box>
+                        ))
+                    )}
+                  </Box>
+                </Box>
+              )}
+            </>
+          )}
+
+          {/* 讀取資料設定（工具類型為讀取資料時顯示） */}
+          {showReadCustomTableSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">讀取資料設定</Typography>
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  目標資料表 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <Select
+                  fullWidth
+                  size="small"
+                  displayEmpty
+                  value={readTargetTableId}
+                  onChange={(e) => setReadTargetTableId(e.target.value as number | '')}
+                  sx={{ fontSize: 14 }}
+                >
+                  <MenuItem value="" disabled sx={{ fontSize: 14 }}>
+                    請選擇
+                  </MenuItem>
+                  {customTableOptions.map((opt) => (
+                    <MenuItem key={opt.id} value={opt.id} sx={{ fontSize: 14 }}>
+                      {opt.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+
+              {readTargetTableId !== '' && (
+                <Box>
+                  <Typography className="fn-tool-form-label">欄位預覽</Typography>
+                  <Box
+                    sx={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 1,
+                      bgcolor: '#f8fafc',
+                      p: 1,
+                    }}
+                  >
+                    {(customTableOptions.find((o) => o.id === readTargetTableId)?.fields ?? [])
+                      .length === 0 ? (
+                      <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>無欄位資訊</Typography>
+                    ) : (
+                      customTableOptions
+                        .find((o) => o.id === readTargetTableId)
+                        ?.fields.map((f, i) => (
+                          <Box
+                            key={i}
+                            sx={{ display: 'flex', gap: 1, alignItems: 'center', py: 0.25 }}
+                          >
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, minWidth: 120 }}>
+                              {f.field_name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: '#64748b' }}>
+                              {f.field_type}
+                            </Typography>
+                          </Box>
+                        ))
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              <Box>
+                <Typography className="fn-tool-form-label">
+                  筆數上限 <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={readLimit}
+                  onChange={(e) => setReadLimit(Number(e.target.value))}
+                  inputProps={{ min: 1 }}
+                  sx={{ width: 160, '& .MuiInputBase-input': { fontSize: 14 } }}
+                />
+              </Box>
+
+              <Box>
+                <Typography className="fn-tool-form-label">資料範圍</Typography>
+                <RadioGroup
+                  row
+                  value={readScope}
+                  onChange={(e) => setReadScope(e.target.value as 'self' | 'all')}
+                >
+                  <FormControlLabel
+                    value="self"
+                    control={<Radio size="small" />}
+                    label="自己的資料"
+                  />
+                  <FormControlLabel value="all" control={<Radio size="small" />} label="全部資料" />
+                </RadioGroup>
+              </Box>
+            </>
+          )}
+
+          {/* 測試區塊（工具類型為外部 API 呼叫時顯示） */}
+          {showTestSection && (
+            <>
+              <Divider />
+              <Typography className="fn-tool-form-section-title">測試</Typography>
+
+              {showBodyParams && bodyParams.filter((p) => p.param_name.trim()).length > 0 && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography sx={{ fontSize: 13, color: '#475569' }}>測試參數值</Typography>
+                  {bodyParams
+                    .filter((p) => p.param_name.trim())
+                    .map((param) => (
+                      <Box
+                        key={param.param_name}
+                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                      >
+                        <Typography sx={{ fontSize: 13, minWidth: 120, color: '#334155' }}>
+                          {param.param_name}
+                          {param.is_required && <span style={{ color: '#ef4444' }}> *</span>}
+                        </Typography>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          placeholder={`${param.param_type}${param.description ? `（${param.description}）` : ''}`}
+                          value={testParamValues[param.param_name] ?? ''}
+                          onChange={(e) =>
+                            setTestParamValues((prev) => ({
+                              ...prev,
+                              [param.param_name]: e.target.value,
+                            }))
+                          }
+                          sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+                        />
+                      </Box>
+                    ))}
+                </Box>
+              )}
+
+              <Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleTest}
+                  disabled={testTool.isPending}
+                  sx={{ fontSize: 13 }}
+                >
+                  {testTool.isPending ? <CircularProgress size={16} /> : '測試'}
+                </Button>
+              </Box>
+
+              {testError && (
+                <Alert severity="error" onClose={() => setTestError(null)}>
+                  {testError}
+                </Alert>
+              )}
+
+              {testResult && (
+                <Box
+                  sx={{
+                    background: testResult.http_status < 400 ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${testResult.http_status < 400 ? '#86efac' : '#fca5a5'}`,
+                    color: testResult.http_status < 400 ? '#166534' : '#991b1b',
+                    borderRadius: 1,
+                    p: 1.5,
+                    fontSize: 13,
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 600, mb: 1, fontSize: 13 }}>
+                    {testResult.http_status < 400
+                      ? `✓ 呼叫成功（${testResult.http_status} OK）`
+                      : `✗ 呼叫結果（${testResult.http_status}）`}
+                  </Typography>
+                  <Box
+                    component="pre"
+                    sx={{
+                      m: 0,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      fontSize: 12,
+                      background: 'rgba(0,0,0,0.04)',
+                      p: 1,
+                      borderRadius: 0.5,
+                      maxHeight: 160,
+                      overflowY: 'auto',
+                    }}
+                  >
+                    {JSON.stringify(testResult.response_body, null, 2)}
+                  </Box>
+                </Box>
+              )}
+            </>
           )}
         </Box>
       </DialogContent>

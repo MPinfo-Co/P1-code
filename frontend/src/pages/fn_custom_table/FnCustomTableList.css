@@ -1,0 +1,70 @@
+.fn-custom-table-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 3px 12px;
+  margin-bottom: 5px;
+}
+
+.fn-custom-table-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fn-custom-table-filter-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  white-space: nowrap;
+}
+
+.fn-custom-table-apply-btn {
+  height: 24px;
+  font-size: 12px !important;
+  border-radius: 3px;
+}
+
+.fn-custom-table-add-btn {
+  height: 24px;
+  font-size: 12px !important;
+  border-radius: 3px;
+  margin-left: auto !important;
+}
+
+.fn-custom-table-grid-wrap {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.fn-custom-table-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.fn-custom-table-actions-cell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fn-custom-table-action-btn {
+  font-size: 12px !important;
+  border-radius: 3px;
+}
+
+.fn-custom-table-action-btn-error {
+  font-size: 12px !important;
+  border-radius: 3px;
+}
+
+.fn-custom-table-dialog-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.fn-custom-table-cancel-btn {
+  font-size: 13px !important;
+}

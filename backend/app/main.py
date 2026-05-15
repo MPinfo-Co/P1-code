@@ -16,9 +16,11 @@ from app.api.events import router as events_router
 from app.api.fn_ai_partner_chat import router as fn_ai_partner_chat_router
 from app.api.fn_ai_partner_config import router as fn_ai_partner_config_router
 from app.api.fn_ai_partner_tool import router as fn_ai_partner_tool_router
+from app.api.fn_custom_table import router as fn_custom_table_router
 from app.api.fn_expert import router as fn_expert_router
 from app.api.fn_expert_setting import router as fn_expert_setting_router
 from app.api.fn_feedback import router as fn_feedback_router
+from app.api.fn_home import router as fn_home_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.navigation import router as navigation_router
@@ -78,6 +80,7 @@ def create_app():
     server.add_middleware(RequestResponseHandlerMiddleware)
 
     server.include_router(auth_router)
+    server.include_router(fn_home_router)
     server.include_router(fn_ai_partner_chat_router)
     server.include_router(company_data_router)
     server.include_router(events_router)
@@ -85,6 +88,7 @@ def create_app():
     server.include_router(fn_expert_router)
     server.include_router(fn_expert_setting_router)
     server.include_router(fn_ai_partner_tool_router)
+    server.include_router(fn_custom_table_router)
     server.include_router(fn_feedback_router)
     server.include_router(health_router)
     server.include_router(ingest_router)

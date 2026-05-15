@@ -15,10 +15,23 @@ from app.db.models.analysis import ChunkResult, DailyAnalysis, LogBatch
 from app.db.models.events import EventHistory, SecurityEvent
 from app.db.models.fn_ai_partner_chat import Conversation, Message, RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig, AiPartnerTool
-from app.db.models.fn_ai_partner_tool import Tool, ToolBodyParam
+from app.db.models.fn_ai_partner_tool import (
+    Tool,
+    ToolBodyParam,
+    ToolImageField,
+    ToolReadCustomTableConfig,
+    ToolWebScraperConfig,
+    ToolWriteCustomTableConfig,
+)
+from app.db.models.fn_custom_table import (
+    CustomTable,
+    CustomTableField,
+    CustomTableRecord,
+)
 from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_feedback import Feedback
+from app.db.models.fn_home import UserFavoritePartner
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -57,8 +70,15 @@ _SEED_TABLES = [
     FunctionFolder.__table__,
     Function.__table__,
     RoleFunction.__table__,
+    CustomTable.__table__,
+    CustomTableField.__table__,
+    CustomTableRecord.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,
+    ToolImageField.__table__,
+    ToolWebScraperConfig.__table__,
+    ToolWriteCustomTableConfig.__table__,
+    ToolReadCustomTableConfig.__table__,
     AiPartnerConfig.__table__,
     AiPartnerTool.__table__,
     Conversation.__table__,
@@ -68,6 +88,8 @@ _SEED_TABLES = [
     # PG #207 新增（main 上沒有、加進 seed 不算動 main 既有分組）
     EventHistory.__table__,
     CompanyData.__table__,
+    # PG #233 新增
+    UserFavoritePartner.__table__,
 ]
 
 _TASK_TABLES = [

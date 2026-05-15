@@ -123,8 +123,12 @@ export function useSendAiPartnerMessage() {
         body: formData,
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail ?? err.message ?? '訊息傳送失敗')
+        const body = await res.json().catch(() => ({}))
+        const err = new Error(body.detail ?? body.message ?? '訊息傳送失敗') as Error & {
+          status: number
+        }
+        err.status = res.status
+        throw err
       }
       const json = await res.json()
       return json.data ?? json

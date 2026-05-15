@@ -65,6 +65,12 @@ def upgrade() -> None:
     )
 
     # Seed fn_skill function item and grant to admin role
+    # 先 setval 把 sequence 推到 MAX(function_id)，避免與 466b985000fb 顯式種的
+    # function_id=1..6 撞 PK（main 早期遺漏，c1e3f5a7b9d2 才補救，但已太晚）
+    op.execute(
+        "SELECT setval('tb_function_items_function_id_seq', "
+        "COALESCE((SELECT MAX(function_id) FROM tb_function_items), 1))"
+    )
     op.execute(
         "INSERT INTO tb_function_items (function_code, function_label, folder_id, sort_order) "
         "VALUES ('fn_skill', '技能管理', 2, 4)"

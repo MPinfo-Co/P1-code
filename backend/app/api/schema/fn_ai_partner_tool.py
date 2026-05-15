@@ -12,20 +12,61 @@ class ToolBodyParamCreate(BaseModel):
     description: str | None = Field(None, description="參數說明與範例值")
 
 
+class ToolImageFieldCreate(BaseModel):
+    """單筆圖片擷取欄位輸入（image_extract 類型使用）。"""
+
+    field_name: str = Field(..., description="欄位名稱")
+    field_type: str = Field(..., description="欄位型別：string / number / boolean")
+    description: str | None = Field(None, description="欄位說明")
+
+
 class ToolCreate(BaseModel):
     """新增工具輸入。"""
 
     name: str = Field(..., description="工具名稱")
     description: str | None = Field(None, description="工具說明")
-    endpoint_url: str = Field(..., description="API Endpoint URL")
-    http_method: str = Field(..., description="HTTP Method")
-    auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
+    tool_type: str = Field(
+        default="external_api",
+        description="工具類型：external_api / image_extract / web_scraper / write_custom_table / read_custom_table",
+    )
+    endpoint_url: str | None = Field(
+        None, description="API Endpoint URL（external_api 類型）"
+    )
+    http_method: str | None = Field(
+        None, description="HTTP Method（external_api 類型）"
+    )
+    auth_type: str | None = Field(
+        None, description="認證方式：none / api_key / bearer（external_api 類型）"
+    )
     auth_header_name: str | None = Field(
         None, description="API Key 模式下的 Header 名稱"
     )
     credential: str | None = Field(None, description="憑證（明文，後端加密儲存）")
     body_params: list[ToolBodyParamCreate] = Field(
-        default_factory=list, description="Body 參數定義"
+        default_factory=list, description="Body 參數定義（external_api 類型）"
+    )
+    image_fields: list[ToolImageFieldCreate] = Field(
+        default_factory=list, description="圖片擷取欄位定義（image_extract 類型）"
+    )
+    target_url: str | None = Field(None, description="目標網址（web_scraper 類型）")
+    extract_description: str | None = Field(
+        None, description="擷取描述（web_scraper 類型）"
+    )
+    max_chars: int | None = Field(
+        None, description="最大擷取字元數（web_scraper 類型，預設 4000）"
+    )
+    target_table_id: int | None = Field(
+        None,
+        description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）",
+    )
+    write_description: str | None = Field(
+        None, description="工具說明（write_custom_table 類型）"
+    )
+    limit: int | None = Field(
+        None, description="最多回傳筆數（read_custom_table 類型，預設 20）"
+    )
+    scope: str | None = Field(
+        None, description="資料範圍（read_custom_table 類型：self / all，預設 self）"
     )
 
 
@@ -34,15 +75,47 @@ class ToolUpdate(BaseModel):
 
     name: str = Field(..., description="工具名稱")
     description: str | None = Field(None, description="工具說明")
-    endpoint_url: str = Field(..., description="API Endpoint URL")
-    http_method: str = Field(..., description="HTTP Method")
-    auth_type: str = Field(..., description="認證方式：none / api_key / bearer")
+    tool_type: str | None = Field(
+        None, description="工具類型（後端忽略，以 DB 現有值為準）"
+    )
+    endpoint_url: str | None = Field(
+        None, description="API Endpoint URL（external_api 類型）"
+    )
+    http_method: str | None = Field(
+        None, description="HTTP Method（external_api 類型）"
+    )
+    auth_type: str | None = Field(
+        None, description="認證方式：none / api_key / bearer（external_api 類型）"
+    )
     auth_header_name: str | None = Field(
         None, description="API Key 模式下的 Header 名稱"
     )
     credential: str | None = Field(None, description="憑證（空白表示不變更）")
     body_params: list[ToolBodyParamCreate] = Field(
-        default_factory=list, description="Body 參數定義"
+        default_factory=list, description="Body 參數定義（external_api 類型）"
+    )
+    image_fields: list[ToolImageFieldCreate] = Field(
+        default_factory=list, description="圖片擷取欄位定義（image_extract 類型）"
+    )
+    target_url: str | None = Field(None, description="目標網址（web_scraper 類型）")
+    extract_description: str | None = Field(
+        None, description="擷取描述（web_scraper 類型）"
+    )
+    max_chars: int | None = Field(
+        None, description="最大擷取字元數（web_scraper 類型）"
+    )
+    target_table_id: int | None = Field(
+        None,
+        description="目標自訂資料表 ID（write_custom_table / read_custom_table 類型）",
+    )
+    write_description: str | None = Field(
+        None, description="工具說明（write_custom_table 類型）"
+    )
+    limit: int | None = Field(
+        None, description="最多回傳筆數（read_custom_table 類型）"
+    )
+    scope: str | None = Field(
+        None, description="資料範圍（read_custom_table 類型：self / all）"
     )
 
 
@@ -59,6 +132,46 @@ class ToolBodyParamItem(BaseModel):
     sort_order: int
 
 
+class ToolImageFieldItem(BaseModel):
+    """單筆圖片擷取欄位輸出（image_extract 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    id: int
+    field_name: str
+    field_type: str
+    description: str | None
+    sort_order: int
+
+
+class ToolWebScraperConfigItem(BaseModel):
+    """網頁擷取設定輸出（web_scraper 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    target_url: str
+    extract_description: str
+    max_chars: int
+
+
+class ToolWriteCustomTableConfigItem(BaseModel):
+    """寫入自訂資料表設定輸出（write_custom_table 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    target_table_id: int
+
+
+class ToolReadCustomTableConfigItem(BaseModel):
+    """讀取自訂資料表設定輸出（read_custom_table 類型）。"""
+
+    model_config = {"from_attributes": True}
+
+    target_table_id: int
+    limit: int
+    scope: str
+
+
 class ToolItem(BaseModel):
     """工具清單單項輸出。"""
 
@@ -67,12 +180,17 @@ class ToolItem(BaseModel):
     id: int
     name: str
     description: str | None
-    endpoint_url: str
-    http_method: str
+    tool_type: str
+    endpoint_url: str | None
+    http_method: str | None
     auth_type: str
     auth_header_name: str | None
     has_credential: bool
     body_params: list[ToolBodyParamItem] = []
+    image_fields: list[ToolImageFieldItem] = []
+    web_scraper_config: ToolWebScraperConfigItem | None = None
+    write_custom_table_config: ToolWriteCustomTableConfigItem | None = None
+    read_custom_table_config: ToolReadCustomTableConfigItem | None = None
 
 
 class ToolTestRequest(BaseModel):
