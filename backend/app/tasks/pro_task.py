@@ -194,7 +194,7 @@ def run_pro_task(
     """Execute one Sonnet daily aggregation cycle.
 
     Reads ``scheduler.get_runtime()`` to decide whether the cycle should run.
-    When ``is_enabled`` is False AND ``manual_mode`` is False the function
+    When ``sonnet_enabled`` is False AND ``manual_mode`` is False the function
     returns immediately without any Anthropic or DB I/O — schedule-driven
     runs are gated by the schedule switch. Manual triggers (one-click
     analysis) pass ``manual_mode=True`` to bypass that gate.
@@ -206,7 +206,7 @@ def run_pro_task(
         db_factory: Callable returning a SQLAlchemy ``Session``. The session
             is committed but not closed; lifecycle is the caller's
             responsibility.
-        manual_mode: When True, bypass the ``is_enabled`` schedule gate.
+        manual_mode: When True, bypass the ``sonnet_enabled`` schedule gate.
             Used by one-click analysis trigger so Sonnet runs even without
             a configured schedule.
         time_from: Start of the chunk collection range (inclusive). Defaults
@@ -219,8 +219,8 @@ def run_pro_task(
         ``tb_security_events`` via ``db_factory``.
     """
     rt = scheduler.get_runtime()
-    if not manual_mode and not rt.is_enabled:
-        logger.info("pro_task: skipped (is_enabled=False)")
+    if not manual_mode and not rt.sonnet_enabled:
+        logger.info("pro_task: skipped (sonnet_enabled=False)")
         return
 
     today = today or datetime.now(timezone.utc).date()
