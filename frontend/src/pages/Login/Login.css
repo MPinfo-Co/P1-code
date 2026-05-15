@@ -19,3 +19,10 @@
   flex-direction: column;
   gap: 20px;
 }
+
+/* SD-357：手機模式（≤480px）登入框 padding 縮減 */
+@media (max-width: 480px) {
+  .login-paper {
+    padding: 24px;
+  }
+}

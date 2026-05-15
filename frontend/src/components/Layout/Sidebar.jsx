@@ -13,6 +13,7 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import useMediaQuery from '@mui/material/useMediaQuery'
 
 const DRAWER_WIDTH = 260
 
@@ -25,10 +26,19 @@ const activeSx = {
   '& .MuiListItemIcon-root': { color: 'white' },
 }
 
-export default function Sidebar() {
+const drawerPaperSx = {
+  width: DRAWER_WIDTH,
+  bgcolor: '#0f172a',
+  borderRight: 'none',
+  display: 'flex',
+  flexDirection: 'column',
+}
+
+export default function Sidebar({ isMobileOpen, onClose }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { data: navFolders = [] } = useNavigationQuery()
+  const isMobile = useMediaQuery('(max-width:768px)')
 
   const [openFolders, setOpenFolders] = useState({})
 
@@ -38,24 +48,19 @@ export default function Sidebar() {
     setOpenFolders((prev) => ({ ...prev, [code]: !prev[code] }))
   }
 
-  return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: DRAWER_WIDTH,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width: DRAWER_WIDTH,
-          bgcolor: '#0f172a',
-          borderRight: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-        },
-      }}
-    >
+  function handleNavItemClick() {
+    // 手機模式下點擊功能項目後自動收合 Sidebar
+    if (isMobile && onClose) onClose()
+  }
+
+  const drawerContent = (
+    <>
       {/* Brand */}
       <Box
-        onClick={() => navigate('/')}
+        onClick={() => {
+          navigate('/')
+          handleNavItemClick()
+        }}
         sx={{
           px: 3,
           height: 40,
@@ -97,6 +102,7 @@ export default function Sidebar() {
                       key={item.function_code}
                       to={`/${item.function_code.replace(/^fn_/, '')}`}
                       style={{ textDecoration: 'none' }}
+                      onClick={handleNavItemClick}
                     >
                       {({ isActive }) => (
                         <ListItemButton
@@ -133,6 +139,45 @@ export default function Sidebar() {
       <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid #1e293b' }}>
         <Typography sx={{ fontSize: 11, color: '#475569' }}>v73</Typography>
       </Box>
-    </Drawer>
+    </>
+  )
+
+  return (
+    <>
+      {/* 桌機模式（>768px）：permanent Drawer，固定佔用左側欄位 */}
+      {!isMobile && (
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: DRAWER_WIDTH,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': drawerPaperSx,
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
+
+      {/* 手機模式（≤768px）：temporary Drawer（抽屜式，z-index 置頂） */}
+      {isMobile && (
+        <Drawer
+          variant="temporary"
+          open={isMobileOpen}
+          onClose={onClose}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            '& .MuiDrawer-paper': {
+              ...drawerPaperSx,
+              transition: 'transform 0.25s ease',
+            },
+            '& .MuiBackdrop-root': {
+              backgroundColor: 'rgba(0,0,0,0.4)',
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
+    </>
   )
 }

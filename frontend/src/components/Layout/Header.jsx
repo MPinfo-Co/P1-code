@@ -6,11 +6,15 @@ import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
+import MenuIcon from '@mui/icons-material/Menu'
+import useMediaQuery from '@mui/material/useMediaQuery'
 
-export default function Header() {
+export default function Header({ onOpenSidebar }) {
   const { logout } = useAuth()
   const { pathname } = useLocation()
   const { data: navFolders = [] } = useNavigationQuery()
+  const isMobile = useMediaQuery('(max-width:768px)')
 
   const navItems = navFolders.flatMap((f) => f.items)
   const title =
@@ -29,9 +33,26 @@ export default function Header() {
       sx={{ bgcolor: 'white', borderBottom: '1px solid #e2e8f0' }}
     >
       <Toolbar sx={{ justifyContent: 'space-between', minHeight: '40px !important', px: '20px' }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
-          {title}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* 手機模式（≤768px）顯示漢堡按鈕，桌機模式隱藏 */}
+          {isMobile && (
+            <IconButton
+              aria-label="開啟選單"
+              onClick={onOpenSidebar}
+              size="small"
+              sx={{
+                color: '#334155',
+                p: '6px',
+                '&:hover': { bgcolor: '#f1f5f9' },
+              }}
+            >
+              <MenuIcon fontSize="small" />
+            </IconButton>
+          )}
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e293b' }}>
+            {title}
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Button
             component={Link}
