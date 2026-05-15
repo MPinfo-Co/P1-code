@@ -14,6 +14,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Popover from '@mui/material/Popover'
 import Tooltip from '@mui/material/Tooltip'
+import useMediaQuery from '@mui/material/useMediaQuery'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SendIcon from '@mui/icons-material/Send'
 import ImageIcon from '@mui/icons-material/Image'
@@ -236,9 +237,10 @@ function renderMarkdown(text: string): string {
 // ===== AI 訊息泡泡（支援 Markdown + 複製按鈕）=====
 interface AiBubbleProps {
   content: string
+  isMobile?: boolean
 }
 
-function AiBubble({ content }: AiBubbleProps) {
+function AiBubble({ content, isMobile = false }: AiBubbleProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   const [hoverY, setHoverY] = useState(0)
@@ -255,6 +257,46 @@ function AiBubble({ content }: AiBubbleProps) {
       setIsCopied(true)
       setTimeout(() => setIsCopied(false), 1500)
     })
+  }
+
+  if (isMobile) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+        <Box
+          sx={{
+            maxWidth: '90%',
+            bgcolor: '#f1f5f9',
+            color: '#1e293b',
+            px: 2,
+            py: 1.25,
+            borderRadius: '16px 16px 16px 4px',
+            fontSize: 14,
+            lineHeight: 1.6,
+            '& strong': { fontWeight: 700 },
+            '& pre': { overflowX: 'auto' },
+          }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        />
+        <IconButton
+          size="small"
+          onClick={handleCopy}
+          sx={{
+            flexShrink: 0,
+            color: isCopied ? '#22c55e' : '#cbd5e1',
+            width: 24,
+            height: 24,
+            mt: 0.5,
+            '&:active': { color: '#4f46e5' },
+          }}
+        >
+          {isCopied ? (
+            <CheckIcon sx={{ fontSize: 13 }} />
+          ) : (
+            <ContentCopyIcon sx={{ fontSize: 13 }} />
+          )}
+        </IconButton>
+      </Box>
+    )
   }
 
   return (
@@ -296,7 +338,7 @@ function AiBubble({ content }: AiBubbleProps) {
       </Box>
       <Box
         sx={{
-          maxWidth: '72%',
+          maxWidth: '90%',
           bgcolor: '#f1f5f9',
           color: '#1e293b',
           px: 2,
@@ -407,6 +449,7 @@ function ErrorRow({ hasImage, onRetry }: ErrorRowProps) {
 
 // ===== 主元件 =====
 export default function FnAiPartnerChat({ partner, onBack }: Props) {
+  const isMobileInput = useMediaQuery('(max-width:600px)')
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -747,12 +790,12 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             >
               {msg.role === 'assistant' ? (
                 // 1. AI 回覆：Markdown 渲染 + 4. 複製按鈕
-                <AiBubble content={msg.content} />
+                <AiBubble content={msg.content} isMobile={isMobileInput} />
               ) : (
                 // 使用者訊息：純文字
                 <Box
                   sx={{
-                    maxWidth: '72%',
+                    maxWidth: '85%',
                     bgcolor: '#6366f1',
                     color: 'white',
                     px: 2,
@@ -864,15 +907,18 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
         </Box>
       )}
 
-      {/* Input area */}
-      <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'flex-end', gap: 1, pt: 0.5 }}>
-        <IconButton
-          size="small"
-          onClick={() => fileInputRef.current?.click()}
-          sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
-        >
-          <ImageIcon fontSize="small" />
-        </IconButton>
+      {/* Input area — 桌機：橫向一列；手機（≤600px）：垂直分層 */}
+      <Box
+        sx={{
+          flexShrink: 0,
+          pt: 0.5,
+          display: 'flex',
+          flexDirection: isMobileInput ? 'column' : 'row',
+          alignItems: isMobileInput ? 'stretch' : 'flex-end',
+          gap: isMobileInput ? '6px' : 1,
+        }}
+      >
+        {/* 隱藏 file input（在任何模式下都保留） */}
         <input
           ref={fileInputRef}
           type="file"
@@ -880,14 +926,8 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           style={{ display: 'none' }}
           onChange={handleImageSelect}
         />
-        <IconButton
-          ref={helpButtonRef}
-          size="small"
-          onClick={(e) => setHelpAnchor(e.currentTarget)}
-          sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
-        >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
+
+        {/* Popover（操作技巧說明，在任何模式下都保留） */}
         <Popover
           open={Boolean(helpAnchor)}
           anchorEl={helpAnchor}
@@ -929,89 +969,145 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           ))}
         </Popover>
 
+        {/* 第一列：桌機含圖片按鈕；手機圖片按鈕移到第二列 */}
         <Box
           sx={{
-            flex: 1,
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            bgcolor: 'white',
-            overflow: 'hidden',
-            '&:focus-within': { borderColor: '#6366f1' },
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: 1,
+            flex: isMobileInput ? undefined : 1,
           }}
         >
-          {imagePreviewUrl && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, pt: 1 }}>
-              <Box
-                component="img"
-                src={imagePreviewUrl}
-                sx={{
-                  width: 56,
-                  height: 56,
-                  objectFit: 'cover',
-                  borderRadius: 1,
-                  border: '1px solid #e2e8f0',
-                }}
-              />
-              <IconButton
-                size="small"
-                onClick={handleRemoveImage}
-                sx={{
-                  bgcolor: '#94a3b8',
-                  color: 'white',
-                  width: 18,
-                  height: 18,
-                  '&:hover': { bgcolor: '#64748b' },
-                }}
-              >
-                <CloseIcon sx={{ fontSize: 12 }} />
-              </IconButton>
-            </Box>
+          {!isMobileInput && (
+            <IconButton
+              size="small"
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+            >
+              <ImageIcon fontSize="small" />
+            </IconButton>
           )}
-          <TextField
-            multiline
-            maxRows={4}
-            fullWidth
-            placeholder="輸入訊息…"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isSending || !isInitialized}
-            variant="standard"
-            inputRef={textInputRef}
-            slotProps={{ input: { disableUnderline: true } }}
+
+          <Box
             sx={{
-              '& .MuiInputBase-root': { px: 1.5, py: 1, fontSize: 14 },
+              flex: 1,
+              border: '1px solid #cbd5e1',
+              borderRadius: '20px',
+              bgcolor: 'white',
+              overflow: 'hidden',
+              '&:focus-within': { borderColor: '#6366f1' },
             }}
-          />
+          >
+            {imagePreviewUrl && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, pt: 1 }}>
+                <Box
+                  component="img"
+                  src={imagePreviewUrl}
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    objectFit: 'cover',
+                    borderRadius: 1,
+                    border: '1px solid #e2e8f0',
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  onClick={handleRemoveImage}
+                  sx={{
+                    bgcolor: '#94a3b8',
+                    color: 'white',
+                    width: 18,
+                    height: 18,
+                    '&:hover': { bgcolor: '#64748b' },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 12 }} />
+                </IconButton>
+              </Box>
+            )}
+            <TextField
+              multiline
+              maxRows={4}
+              fullWidth
+              placeholder="輸入訊息…"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isSending || !isInitialized}
+              variant="standard"
+              inputRef={textInputRef}
+              slotProps={{ input: { disableUnderline: true } }}
+              sx={{
+                '& .MuiInputBase-root': { px: 1.5, py: 1, fontSize: 14 },
+              }}
+            />
+          </Box>
         </Box>
 
-        {suggestions.length > 0 && !isSending && (
+        {/* 第二列（手機）／同列（桌機）：圖片（手機）＋ help（桌機）＋ 燈泡 ＋ 送出 */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            justifyContent: isMobileInput ? 'flex-end' : 'flex-start',
+          }}
+        >
+          {/* 圖片按鈕：手機模式顯示在此列 */}
+          {isMobileInput && (
+            <IconButton
+              size="small"
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+            >
+              <ImageIcon fontSize="small" />
+            </IconButton>
+          )}
+
+          {/* help 按鈕：手機模式隱藏，桌機模式顯示 */}
           <IconButton
+            ref={helpButtonRef}
             size="small"
-            onClick={() => setIsShowSuggestions((v) => !v)}
+            onClick={(e) => setHelpAnchor(e.currentTarget)}
             sx={{
-              color: isShowSuggestions ? '#6366f1' : '#94a3b8',
-              bgcolor: isShowSuggestions ? '#f0f0ff' : 'transparent',
+              color: '#94a3b8',
+              display: isMobileInput ? 'none' : 'inline-flex',
               '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' },
             }}
           >
-            <TipsAndUpdatesOutlinedIcon fontSize="small" />
+            <HelpOutlineIcon fontSize="small" />
           </IconButton>
-        )}
-        <IconButton
-          onClick={handleSend}
-          disabled={(!inputText.trim() && !selectedImage) || isSending || !isInitialized}
-          sx={{
-            bgcolor: '#6366f1',
-            color: 'white',
-            width: 36,
-            height: 36,
-            '&:hover': { bgcolor: '#4f46e5' },
-            '&.Mui-disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
-          }}
-        >
-          <SendIcon fontSize="small" />
-        </IconButton>
+
+          {suggestions.length > 0 && !isSending && (
+            <IconButton
+              size="small"
+              onClick={() => setIsShowSuggestions((v) => !v)}
+              sx={{
+                color: isShowSuggestions ? '#6366f1' : '#94a3b8',
+                bgcolor: isShowSuggestions ? '#f0f0ff' : 'transparent',
+                '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' },
+              }}
+            >
+              <TipsAndUpdatesOutlinedIcon fontSize="small" />
+            </IconButton>
+          )}
+
+          <IconButton
+            onClick={handleSend}
+            disabled={(!inputText.trim() && !selectedImage) || isSending || !isInitialized}
+            sx={{
+              bgcolor: '#6366f1',
+              color: 'white',
+              width: 36,
+              height: 36,
+              '&:hover': { bgcolor: '#4f46e5' },
+              '&.Mui-disabled': { bgcolor: '#e2e8f0', color: '#94a3b8' },
+            }}
+          >
+            <SendIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Confirm new chat dialog */}
