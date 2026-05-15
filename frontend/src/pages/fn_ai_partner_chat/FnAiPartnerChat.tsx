@@ -237,9 +237,10 @@ function renderMarkdown(text: string): string {
 // ===== AI 訊息泡泡（支援 Markdown + 複製按鈕）=====
 interface AiBubbleProps {
   content: string
+  isMobile?: boolean
 }
 
-function AiBubble({ content }: AiBubbleProps) {
+function AiBubble({ content, isMobile = false }: AiBubbleProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   const [hoverY, setHoverY] = useState(0)
@@ -256,6 +257,46 @@ function AiBubble({ content }: AiBubbleProps) {
       setIsCopied(true)
       setTimeout(() => setIsCopied(false), 1500)
     })
+  }
+
+  if (isMobile) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+        <Box
+          sx={{
+            maxWidth: '90%',
+            bgcolor: '#f1f5f9',
+            color: '#1e293b',
+            px: 2,
+            py: 1.25,
+            borderRadius: '16px 16px 16px 4px',
+            fontSize: 14,
+            lineHeight: 1.6,
+            '& strong': { fontWeight: 700 },
+            '& pre': { overflowX: 'auto' },
+          }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        />
+        <IconButton
+          size="small"
+          onClick={handleCopy}
+          sx={{
+            flexShrink: 0,
+            color: isCopied ? '#22c55e' : '#cbd5e1',
+            width: 24,
+            height: 24,
+            mt: 0.5,
+            '&:active': { color: '#4f46e5' },
+          }}
+        >
+          {isCopied ? (
+            <CheckIcon sx={{ fontSize: 13 }} />
+          ) : (
+            <ContentCopyIcon sx={{ fontSize: 13 }} />
+          )}
+        </IconButton>
+      </Box>
+    )
   }
 
   return (
@@ -297,7 +338,7 @@ function AiBubble({ content }: AiBubbleProps) {
       </Box>
       <Box
         sx={{
-          maxWidth: '72%',
+          maxWidth: '90%',
           bgcolor: '#f1f5f9',
           color: '#1e293b',
           px: 2,
@@ -749,12 +790,12 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             >
               {msg.role === 'assistant' ? (
                 // 1. AI 回覆：Markdown 渲染 + 4. 複製按鈕
-                <AiBubble content={msg.content} />
+                <AiBubble content={msg.content} isMobile={isMobileInput} />
               ) : (
                 // 使用者訊息：純文字
                 <Box
                   sx={{
-                    maxWidth: '72%',
+                    maxWidth: '85%',
                     bgcolor: '#6366f1',
                     color: 'white',
                     px: 2,
@@ -928,7 +969,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           ))}
         </Popover>
 
-        {/* 第一列：圖片上傳按鈕 ＋ 輸入框 */}
+        {/* 第一列：桌機含圖片按鈕；手機圖片按鈕移到第二列 */}
         <Box
           sx={{
             display: 'flex',
@@ -937,13 +978,15 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             flex: isMobileInput ? undefined : 1,
           }}
         >
-          <IconButton
-            size="small"
-            onClick={() => fileInputRef.current?.click()}
-            sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
-          >
-            <ImageIcon fontSize="small" />
-          </IconButton>
+          {!isMobileInput && (
+            <IconButton
+              size="small"
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+            >
+              <ImageIcon fontSize="small" />
+            </IconButton>
+          )}
 
           <Box
             sx={{
@@ -1002,7 +1045,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           </Box>
         </Box>
 
-        {/* 第二列（手機）／同列（桌機）：help 按鈕（桌機）＋ 燈泡按鈕 ＋ 送出按鈕 */}
+        {/* 第二列（手機）／同列（桌機）：圖片（手機）＋ help（桌機）＋ 燈泡 ＋ 送出 */}
         <Box
           sx={{
             display: 'flex',
@@ -1011,6 +1054,17 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             justifyContent: isMobileInput ? 'flex-end' : 'flex-start',
           }}
         >
+          {/* 圖片按鈕：手機模式顯示在此列 */}
+          {isMobileInput && (
+            <IconButton
+              size="small"
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+            >
+              <ImageIcon fontSize="small" />
+            </IconButton>
+          )}
+
           {/* help 按鈕：手機模式隱藏，桌機模式顯示 */}
           <IconButton
             ref={helpButtonRef}
