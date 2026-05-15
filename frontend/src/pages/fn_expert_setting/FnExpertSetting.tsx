@@ -8,6 +8,11 @@ import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogActions from '@mui/material/DialogActions'
 import InputAdornment from '@mui/material/InputAdornment'
 import IconButton from '@mui/material/IconButton'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -21,6 +26,7 @@ import {
   useAnalysisStatusQuery,
   useTriggerLogFetch,
   type AnalysisStatusResponse,
+  type OverlappingBatch,
 } from '@/queries/useExpertAnalysisQuery'
 import useAuthStore from '@/stores/authStore'
 
@@ -121,6 +127,9 @@ export default function FnExpertSetting() {
   const [recordsFetched, setRecordsFetched] = useState<number | null>(null)
   const [haikuError, setHaikuError] = useState<string | null>(null)
   const [haikuConflict, setHaikuConflict] = useState<string | null>(null)
+  const [partialOverlapBatches, setPartialOverlapBatches] = useState<OverlappingBatch[] | null>(
+    null
+  )
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isPollingRef = useRef(false)
 
@@ -186,19 +195,27 @@ export default function FnExpertSetting() {
     return () => stopPolling()
   }, [stopPolling])
 
-  async function handleTriggerLogFetch() {
+  async function handleTriggerLogFetch(force = false) {
     setHaikuConflict(null)
+    setPartialOverlapBatches(null)
     try {
       const fromISO = new Date(logFetchFrom).toISOString()
       const toISO = new Date(logFetchTo).toISOString()
-      await triggerLogFetch.mutateAsync({ time_from: fromISO, time_to: toISO })
+      await triggerLogFetch.mutateAsync({ time_from: fromISO, time_to: toISO, force })
       setHaikuStatus('running')
       setRecordsFetched(null)
       setHaikuError(null)
       pollHaiku()
     } catch (err) {
-      const e = err as Error & { status?: number }
-      if (e.status === 409) {
+      const e = err as Error & {
+        status?: number
+        overlap_type?: 'running' | 'partial'
+        overlapping_batches?: OverlappingBatch[]
+      }
+      if (e.status === 409 && e.overlap_type === 'partial' && e.overlapping_batches) {
+        // 部分重疊 → 開 Dialog 讓使用者確認，確認後帶 force=true 重送
+        setPartialOverlapBatches(e.overlapping_batches)
+      } else if (e.status === 409) {
         setHaikuConflict(e.message || '抓 log 進行中，請稍後再試')
       } else {
         setHaikuConflict(e.message || '抓取失敗')
@@ -352,13 +369,46 @@ export default function FnExpertSetting() {
             variant="contained"
             size="small"
             disabled={haikuStatus === 'running'}
-            onClick={handleTriggerLogFetch}
+            onClick={() => handleTriggerLogFetch()}
             startIcon={
               haikuStatus === 'running' ? <CircularProgress size={14} color="inherit" /> : undefined
             }
           >
             {haikuStatus === 'running' ? '抓取中…' : '立即抓取'}
           </Button>
+
+          <Dialog
+            open={partialOverlapBatches !== null}
+            onClose={() => setPartialOverlapBatches(null)}
+          >
+            <DialogTitle>確認刪除舊抓取紀錄</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                此時段與下列既有抓取紀錄部分重疊，繼續會刪除舊紀錄並重新抓取（舊抓的 chunks
+                會一併刪除）：
+              </DialogContentText>
+              <Box sx={{ mt: 1, fontSize: 13, color: '#475569' }}>
+                {partialOverlapBatches?.map((b) => (
+                  <Box key={b.id}>
+                    • batch #{b.id}：{b.time_from} ~ {b.time_to}
+                  </Box>
+                ))}
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setPartialOverlapBatches(null)}>取消</Button>
+              <Button
+                variant="contained"
+                color="warning"
+                onClick={() => {
+                  setPartialOverlapBatches(null)
+                  handleTriggerLogFetch(true)
+                }}
+              >
+                確認刪除並重新抓取
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           {haikuConflict && (
             <Typography sx={{ fontSize: 12, color: '#ef4444', mt: 0.5 }}>

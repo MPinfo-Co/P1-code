@@ -31,6 +31,19 @@ export interface AnalysisStatusResponse {
 export interface TriggerPayload {
   time_from: string // ISO 8601
   time_to: string // ISO 8601
+  force?: boolean // log/trigger 專用：partial overlap 時帶 true 表示確認刪舊抓新
+}
+
+export interface OverlappingBatch {
+  id: number
+  time_from: string
+  time_to: string
+}
+
+export interface TriggerLogError extends Error {
+  status?: number
+  overlap_type?: 'running' | 'partial'
+  overlapping_batches?: OverlappingBatch[]
 }
 
 export function useAnalysisStatusQuery(enabled = true) {
@@ -71,7 +84,7 @@ export function useTriggerAnalysis() {
 }
 
 export function useTriggerLogFetch() {
-  return useMutation<{ message: string }, Error, TriggerPayload>({
+  return useMutation<{ message: string }, TriggerLogError, TriggerPayload>({
     mutationFn: async (payload) => {
       const res = await fetch(`${BASE_URL}/expert/log/trigger`, {
         method: 'POST',
@@ -80,7 +93,16 @@ export function useTriggerLogFetch() {
       })
       if (res.status === 409) {
         const json = await res.json().catch(() => ({}))
-        throw Object.assign(new Error(json.detail ?? '抓 log 進行中，請稍後再試'), { status: 409 })
+        const detail = json.detail
+        // 後端在重疊處理改成 dict detail（含 overlap_type / overlapping_batches）；
+        // 沿用舊 string detail 也要相容
+        const isObj = detail && typeof detail === 'object'
+        const message = isObj ? (detail.message ?? '') : (detail ?? '抓 log 進行中，請稍後再試')
+        throw Object.assign(new Error(message), {
+          status: 409,
+          overlap_type: isObj ? detail.overlap_type : undefined,
+          overlapping_batches: isObj ? detail.overlapping_batches : undefined,
+        }) as TriggerLogError
       }
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
