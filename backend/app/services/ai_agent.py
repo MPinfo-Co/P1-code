@@ -423,7 +423,7 @@ def _build_filter_condition(
 
     try:
         return op_map[op]()
-    except TypeError, ValueError:
+    except (TypeError, ValueError):  # fmt: skip
         return None
 
 
@@ -551,7 +551,7 @@ def _execute_read_custom_table(
             agg_value = row[0]
             try:
                 agg_value = float(agg_value) if agg_value is not None else None
-            except TypeError, ValueError:
+            except (TypeError, ValueError):  # fmt: skip
                 pass
             if func_name == "count" and agg_value is not None:
                 agg_value = int(agg_value)
