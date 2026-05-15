@@ -362,68 +362,62 @@ export default function IssueList() {
           重設
         </Button>
 
-        {/* One-click analysis button */}
-        <Box
-          sx={{
-            ml: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: 0.5,
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography sx={{ fontSize: 11, color: '#64748b' }}>彙整範圍</Typography>
-            <TextField
-              size="small"
-              type="datetime-local"
-              value={analysisFrom}
-              onChange={(e) => setAnalysisFrom(e.target.value)}
-              sx={{
-                '& .MuiInputBase-root': { height: 28 },
-                '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
-              }}
-            />
-            <Typography sx={{ fontSize: 11 }}>~</Typography>
-            <TextField
-              size="small"
-              type="datetime-local"
-              value={analysisTo}
-              onChange={(e) => setAnalysisTo(e.target.value)}
-              sx={{
-                '& .MuiInputBase-root': { height: 28 },
-                '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
-              }}
-            />
-            <Button
-              variant="contained"
-              size="small"
-              disabled={analysisStatus === 'running'}
-              onClick={handleTriggerAnalysis}
-              className="issue-list-analysis-btn"
-              startIcon={
-                analysisStatus === 'running' ? (
-                  <CircularProgress size={14} color="inherit" />
-                ) : undefined
-              }
-            >
-              {analysisStatus === 'running' ? '分析中…' : '一鍵分析'}
-            </Button>
-          </Box>
-          {conflictMsg && (
-            <Typography sx={{ fontSize: 12, color: '#ef4444' }}>{conflictMsg}</Typography>
-          )}
-          {analysisStatus === 'success' && eventsCreated !== null && (
-            <Typography sx={{ fontSize: 12, color: '#10b981' }}>
-              {eventsCreated > 0 ? `新增 ${eventsCreated} 筆事件` : '本次無新增事件'}
-            </Typography>
-          )}
-          {analysisStatus === 'failed' && analysisError && (
-            <Typography sx={{ fontSize: 12, color: '#ef4444' }}>{analysisError}</Typography>
-          )}
+        {/* One-click analysis: 維持 toolbar 單行高度，訊息列改放在 toolbar 下方 */}
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography sx={{ fontSize: 11, color: '#64748b' }}>分析時段</Typography>
+          <TextField
+            size="small"
+            type="datetime-local"
+            value={analysisFrom}
+            onChange={(e) => setAnalysisFrom(e.target.value)}
+            sx={{
+              '& .MuiInputBase-root': { height: 28 },
+              '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
+            }}
+          />
+          <Typography sx={{ fontSize: 11 }}>~</Typography>
+          <TextField
+            size="small"
+            type="datetime-local"
+            value={analysisTo}
+            onChange={(e) => setAnalysisTo(e.target.value)}
+            sx={{
+              '& .MuiInputBase-root': { height: 28 },
+              '& .MuiInputBase-input': { py: '4px', fontSize: 11, width: 130 },
+            }}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            disabled={analysisStatus === 'running'}
+            onClick={handleTriggerAnalysis}
+            className="issue-list-analysis-btn"
+            startIcon={
+              analysisStatus === 'running' ? (
+                <CircularProgress size={14} color="inherit" />
+              ) : undefined
+            }
+          >
+            {analysisStatus === 'running' ? '分析中…' : '一鍵分析'}
+          </Button>
         </Box>
       </Box>
 
+      {conflictMsg && (
+        <Alert severity="warning" className="issue-list-error">
+          {conflictMsg}
+        </Alert>
+      )}
+      {analysisStatus === 'success' && eventsCreated !== null && (
+        <Alert severity="success" className="issue-list-error">
+          {eventsCreated > 0 ? `新增 ${eventsCreated} 筆事件` : '本次無新增事件'}
+        </Alert>
+      )}
+      {analysisStatus === 'failed' && analysisError && (
+        <Alert severity="error" className="issue-list-error">
+          {analysisError}
+        </Alert>
+      )}
       {error && (
         <Alert severity="error" className="issue-list-error">
           載入失敗：{(error as Error).message}
