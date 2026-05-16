@@ -12,6 +12,8 @@ from app.api.schema.fn_custom_table import (
     CustomTableOptionItem,
     CustomTableRecordItem,
     CustomTableRecordsOut,
+    CustomTableRelationItem,
+    CustomTableRelationsSaveRequest,
     CustomTableUpdate,
 )
 from app.db.connector import get_db
@@ -19,6 +21,7 @@ from app.db.models.fn_custom_table import (
     CustomTable,
     CustomTableField,
     CustomTableRecord,
+    CustomTableRelation,
 )
 from app.db.models.fn_ai_partner_tool import (
     ToolReadCustomTableConfig,
@@ -206,6 +209,104 @@ def list_custom_tables(
         data.append(item.model_dump())
 
     return {"message": "查詢成功", "data": data}
+
+
+# ── GET /custom_table/relations ───────────────────────────────────────────────
+
+
+@router.get("/relations", status_code=status.HTTP_200_OK)
+def list_relations(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """取得全部跨表關聯清單，依 id 升冪排序。需具備 fn_custom_table 功能權限。"""
+    if not _has_fn_custom_table_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+    relations = (
+        db.query(CustomTableRelation).order_by(CustomTableRelation.id.asc()).all()
+    )
+    data = [CustomTableRelationItem.model_validate(r).model_dump() for r in relations]
+    return {"message": "查詢成功", "data": {"relations": data}}
+
+
+# ── PUT /custom_table/relations ───────────────────────────────────────────────
+
+
+@router.put("/relations", status_code=status.HTTP_200_OK)
+def save_relations(
+    payload: CustomTableRelationsSaveRequest,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> dict:
+    """整批儲存關聯（PUT 覆寫全部）。需具備 fn_custom_table 功能權限。"""
+    if not _has_fn_custom_table_permission(auth.user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您沒有執行此操作的權限",
+        )
+
+    relations = payload.relations
+
+    # 自我關聯檢核
+    for rel in relations:
+        if rel.src_table_id == rel.dst_table_id and rel.src_field == rel.dst_field:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不允許自我關聯（來源與目標為同一表格的同一欄位）",
+            )
+
+    # 重複關聯檢核
+    seen: set[tuple] = set()
+    for rel in relations:
+        key = (rel.src_table_id, rel.src_field, rel.dst_table_id, rel.dst_field)
+        if key in seen:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不允許重複的關聯組合",
+            )
+        seen.add(key)
+
+    # 來源資料表存在檢核
+    for rel in relations:
+        if (
+            db.query(CustomTable).filter(CustomTable.id == rel.src_table_id).first()
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="來源資料表不存在",
+            )
+
+    # 目標資料表存在檢核
+    for rel in relations:
+        if (
+            db.query(CustomTable).filter(CustomTable.id == rel.dst_table_id).first()
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="目標資料表不存在",
+            )
+
+    # 單一交易：清除舊資料，寫入新資料
+    db.query(CustomTableRelation).delete()
+    for rel in relations:
+        db.add(
+            CustomTableRelation(
+                src_table_id=rel.src_table_id,
+                src_field=rel.src_field,
+                dst_table_id=rel.dst_table_id,
+                dst_field=rel.dst_field,
+            )
+        )
+    db.commit()
+    system_logger.info(
+        f"User {auth.user_id} saved {len(relations)} custom table relations"
+    )
+    return {"message": "儲存成功"}
 
 
 # ---------------------------------------------------------------------------

@@ -102,3 +102,35 @@ class CustomTableRecordsOut(BaseModel):
     table_name: str
     fields: list[CustomTableFieldItem]
     records: list[CustomTableRecordItem]
+
+
+# ── Relations schemas ──────────────────────────────────────────────────────────
+
+
+class CustomTableRelationItem(BaseModel):
+    """單筆關聯資料輸出。"""
+
+    model_config = {"from_attributes": True}
+
+    id: int
+    src_table_id: int
+    src_field: str
+    dst_table_id: int
+    dst_field: str
+
+
+class CustomTableRelationInput(BaseModel):
+    """儲存關聯輸入的單筆關聯物件。"""
+
+    src_table_id: int = Field(..., description="來源資料表 id")
+    src_field: str = Field(..., description="來源欄位名稱")
+    dst_table_id: int = Field(..., description="目標資料表 id")
+    dst_field: str = Field(..., description="目標欄位名稱")
+
+
+class CustomTableRelationsSaveRequest(BaseModel):
+    """PUT /custom_table/relations 請求 body。"""
+
+    relations: list[CustomTableRelationInput] = Field(
+        ..., description="關聯清單（空陣列表示清除全部）"
+    )

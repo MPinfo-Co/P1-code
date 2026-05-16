@@ -1,11 +1,20 @@
 """ORM models for fn_custom_table: tb_custom_tables, tb_custom_table_fields, tb_custom_table_records.
 
-Also includes tb_role_custom_tables (fn_custom_table_data_input).
+Also includes tb_role_custom_tables (fn_custom_table_data_input)
+and tb_custom_table_relations (fn_custom_table cross-table relations).
 """
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text, TIMESTAMP
+from sqlalchemy import (
+    BigInteger,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    TIMESTAMP,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -81,4 +90,42 @@ class RoleCustomTable(Base):
     )
     table_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tb_custom_tables.id"), primary_key=True, index=True
+    )
+
+
+class CustomTableRelation(Base):
+    """欄位層級跨表關聯表，對應 tb_custom_table_relations。
+
+    儲存來源欄位 → 目標欄位的對應關係，供 AI 夥伴進行跨表分析。
+    全系統共用（不綁定特定 AI 夥伴）。
+    """
+
+    __tablename__ = "tb_custom_table_relations"
+    __table_args__ = (
+        UniqueConstraint(
+            "src_table_id",
+            "src_field",
+            "dst_table_id",
+            "dst_field",
+            name="uidx_tb_custom_table_relations",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    src_table_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("tb_custom_tables.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    src_field: Mapped[str] = mapped_column(String(200), nullable=False)
+    dst_table_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("tb_custom_tables.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    dst_field: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP, nullable=False, server_default=func.now()
     )

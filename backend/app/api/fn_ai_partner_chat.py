@@ -43,7 +43,11 @@ from app.db.models.fn_ai_partner_tool import (
     ToolWebScraperConfig,
     ToolWriteCustomTableConfig,
 )
-from app.db.models.fn_custom_table import CustomTableField
+from app.db.models.fn_custom_table import (
+    CustomTable,
+    CustomTableField,
+    CustomTableRelation,
+)
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -127,6 +131,59 @@ def _build_system_prompt(partner: AiPartnerConfig) -> str:
         else:
             parts.append("限制事項：\n" + partner.behavior_limit)
     return "".join(parts)
+
+
+# ── Cross-table relations injection ──────────────────────────────────────────
+
+
+def _inject_relations_into_system_prompt(
+    system_prompt: str,
+    tool_defs: list[dict],
+    tool_configs: list[dict],
+    db: Session,
+) -> str:
+    """若工具清單含 read_custom_table 工具，查詢並注入跨表關聯說明至 system prompt 末尾。"""
+    # 收集 read_custom_table 工具對應的 accessible_table_ids
+    accessible_table_ids: set[int] = set()
+    for cfg in tool_configs:
+        if cfg.get("tool_type") == "read_custom_table":
+            tid = cfg.get("target_table_id")
+            if tid is not None:
+                accessible_table_ids.add(tid)
+
+    if not accessible_table_ids:
+        return system_prompt
+
+    # 篩選兩端皆在 accessible_table_ids 的關聯
+    relations = (
+        db.query(CustomTableRelation)
+        .filter(
+            CustomTableRelation.src_table_id.in_(accessible_table_ids),
+            CustomTableRelation.dst_table_id.in_(accessible_table_ids),
+        )
+        .all()
+    )
+
+    if not relations:
+        return system_prompt
+
+    # 收集需要的資料表名稱
+    all_table_ids = {r.src_table_id for r in relations} | {
+        r.dst_table_id for r in relations
+    }
+    tables = db.query(CustomTable).filter(CustomTable.id.in_(all_table_ids)).all()
+    table_name_map: dict[int, str] = {t.id: t.name for t in tables}
+
+    lines = ["以下是資料表之間已定義的欄位關聯，你可依此進行跨表查詢："]
+    for rel in relations:
+        src_name = table_name_map.get(rel.src_table_id, str(rel.src_table_id))
+        dst_name = table_name_map.get(rel.dst_table_id, str(rel.dst_table_id))
+        lines.append(f"- {src_name}.{rel.src_field} → {dst_name}.{rel.dst_field}")
+
+    relation_block = "\n".join(lines)
+    if system_prompt:
+        return system_prompt + "\n\n" + relation_block
+    return relation_block
 
 
 # ── Tool definition assembly ──────────────────────────────────────────────────
@@ -737,6 +794,12 @@ def send_message(
     tool_defs, tool_configs = _build_tool_definitions(
         partner_id, db, user_id=auth.user_id
     )
+
+    # 若工具清單含 read_custom_table，注入跨表關聯說明至 system prompt
+    system_prompt = _inject_relations_into_system_prompt(
+        system_prompt, tool_defs, tool_configs, db
+    )
+
     model = settings.anthropic_model
 
     try:

@@ -27,6 +27,7 @@ from app.db.models.fn_custom_table import (
     CustomTable,
     CustomTableField,
     CustomTableRecord,
+    CustomTableRelation,
     RoleCustomTable,
 )
 from app.db.models.fn_company_data import CompanyData
@@ -74,6 +75,7 @@ _SEED_TABLES = [
     CustomTable.__table__,
     CustomTableField.__table__,
     CustomTableRecord.__table__,
+    CustomTableRelation.__table__,
     RoleCustomTable.__table__,
     Tool.__table__,
     ToolBodyParam.__table__,

@@ -26,11 +26,17 @@
   border-radius: 3px;
 }
 
-.fn-custom-table-add-btn {
+.fn-custom-table-rel-btn {
   height: 24px;
   font-size: 12px !important;
   border-radius: 3px;
   margin-left: auto !important;
+}
+
+.fn-custom-table-add-btn {
+  height: 24px;
+  font-size: 12px !important;
+  border-radius: 3px;
 }
 
 .fn-custom-table-grid-wrap {

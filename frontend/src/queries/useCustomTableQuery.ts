@@ -236,3 +236,81 @@ export function useDeleteAllCustomTableRecords() {
     },
   })
 }
+
+// ── Relations ─────────────────────────────────────────────────────────────────
+
+export interface CustomTableOptionWithFields {
+  id: number
+  name: string
+  fields: { field_name: string; field_type: string }[]
+}
+
+export interface CustomTableRelation {
+  id: number
+  src_table_id: number
+  src_field: string
+  dst_table_id: number
+  dst_field: string
+}
+
+export interface RelationPayloadItem {
+  src_table_id: number
+  src_field: string
+  dst_table_id: number
+  dst_field: string
+}
+
+export function useCustomTableOptionsWithFieldsQuery() {
+  return useQuery<CustomTableOptionWithFields[]>({
+    queryKey: ['custom_table_options'],
+    queryFn: async () => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/options`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('查詢失敗')
+      const json = await res.json()
+      return json.data ?? json
+    },
+  })
+}
+
+export function useCustomTableRelationsQuery(enabled: boolean) {
+  return useQuery<CustomTableRelation[]>({
+    queryKey: ['custom_table_relations'],
+    queryFn: async () => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/relations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('查詢失敗')
+      const json = await res.json()
+      return json.data?.relations ?? json.relations ?? json.data ?? json
+    },
+    enabled,
+  })
+}
+
+export function useSaveCustomTableRelations() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (relations: RelationPayloadItem[]) => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/custom_table/relations`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ relations }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail ?? err.message ?? '儲存失敗')
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_table_relations'] })
+    },
+  })
+}
