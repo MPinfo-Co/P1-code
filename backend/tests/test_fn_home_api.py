@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models.fn_ai_partner_chat import RoleAiPartner
 from app.db.models.fn_ai_partner_config import AiPartnerConfig
-from app.db.models.fn_home import UserFavoritePartner
+from app.db.models.fn_home import UserFavorite
 from app.db.models.function_access import FunctionFolder
 from app.db.models.user_role import Role, User, UserRole
 from app.utils.util_store import create_access_token, hash_password
@@ -66,7 +66,7 @@ def _bind_partner_to_role(db: Session, role_id: int, partner_id: int) -> None:
 
 
 def _add_favorite(db: Session, user_id: int, partner_id: int) -> None:
-    db.add(UserFavoritePartner(user_id=user_id, partner_id=partner_id))
+    db.add(UserFavorite(user_id=user_id, item_type="partner", item_id=partner_id))
     db.flush()
 
 
@@ -158,22 +158,24 @@ def test_toggle_favorite_add_returns_201(client, engine):
 
     resp = client.post(
         "/home/favorite/toggle",
-        json={"partner_id": p1},
+        json={"item_type": "partner", "item_id": p1},
         headers=_auth(user_id),
     )
     assert resp.status_code == 201
     body = resp.json()
-    assert body["data"]["partner_id"] == p1
+    assert body["data"]["item_id"] == p1
+    assert body["data"]["item_type"] == "partner"
     assert body["data"]["is_favorite"] is True
 
     # 確認 DB 有新增一筆
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     row = (
-        db.query(UserFavoritePartner)
+        db.query(UserFavorite)
         .filter(
-            UserFavoritePartner.user_id == user_id,
-            UserFavoritePartner.partner_id == p1,
+            UserFavorite.user_id == user_id,
+            UserFavorite.item_type == "partner",
+            UserFavorite.item_id == p1,
         )
         .first()
     )
@@ -194,22 +196,24 @@ def test_toggle_favorite_remove_returns_200(client, engine):
 
     resp = client.post(
         "/home/favorite/toggle",
-        json={"partner_id": p1},
+        json={"item_type": "partner", "item_id": p1},
         headers=_auth(user_id),
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["data"]["partner_id"] == p1
+    assert body["data"]["item_id"] == p1
+    assert body["data"]["item_type"] == "partner"
     assert body["data"]["is_favorite"] is False
 
     # 確認 DB 已刪除
     Session_ = sessionmaker(bind=engine)
     db = Session_()
     row = (
-        db.query(UserFavoritePartner)
+        db.query(UserFavorite)
         .filter(
-            UserFavoritePartner.user_id == user_id,
-            UserFavoritePartner.partner_id == p1,
+            UserFavorite.user_id == user_id,
+            UserFavorite.item_type == "partner",
+            UserFavorite.item_id == p1,
         )
         .first()
     )
@@ -218,33 +222,33 @@ def test_toggle_favorite_remove_returns_200(client, engine):
 
 
 def test_toggle_favorite_unavailable_partner_returns_403(client, engine):
-    """對應 T6：partner_id 不在使用者可用清單 → 403"""
+    """對應 T6：item_id 不在使用者可用清單 → 403"""
     user_id, _ = _setup_user_with_role(engine, "t6@test.com")
     resp = client.post(
         "/home/favorite/toggle",
-        json={"partner_id": 99},
+        json={"item_type": "partner", "item_id": 99},
         headers=_auth(user_id),
     )
     assert resp.status_code == 403
     assert resp.json()["detail"] == "您沒有執行此操作的權限"
 
 
-def test_toggle_favorite_missing_partner_id_returns_400(client, engine):
-    """對應 T7：partner_id 未填 → 400 缺少必要參數 partner_id"""
+def test_toggle_favorite_invalid_item_type_returns_400(client, engine):
+    """對應 T7：item_type 不合法 → 400"""
     user_id, _ = _setup_user_with_role(engine, "t7@test.com")
     resp = client.post(
         "/home/favorite/toggle",
-        json={},
+        json={"item_type": "invalid", "item_id": 1},
         headers=_auth(user_id),
     )
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "缺少必要參數 partner_id"
+    assert resp.json()["detail"] == "item_type 必須為 'partner' 或 'table'"
 
 
 def test_toggle_favorite_unauthenticated_returns_401(client, engine):
     """對應 T8：未登入 → 401"""
     resp = client.post(
         "/home/favorite/toggle",
-        json={"partner_id": 1},
+        json={"item_type": "partner", "item_id": 1},
     )
     assert resp.status_code == 401

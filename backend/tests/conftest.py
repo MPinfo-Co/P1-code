@@ -32,7 +32,7 @@ from app.db.models.fn_custom_table import (
 from app.db.models.fn_company_data import CompanyData
 from app.db.models.fn_expert_setting import ExpertSetting
 from app.db.models.fn_feedback import Feedback
-from app.db.models.fn_home import UserFavoritePartner
+from app.db.models.fn_home import UserFavorite
 from app.db.models.function_access import (
     FunctionItems as Function,
     FunctionFolder,
@@ -91,7 +91,7 @@ _SEED_TABLES = [
     EventHistory.__table__,
     CompanyData.__table__,
     # PG #233 新增
-    UserFavoritePartner.__table__,
+    UserFavorite.__table__,
 ]
 
 _TASK_TABLES = [
