@@ -142,6 +142,43 @@ def _normalize_tool_names(
     return normalized_tools, name_mapping
 
 
+# ── render_chart 內建工具定義 ────────────────────────────────────────────────
+
+_RENDER_CHART_TOOL: dict = {
+    "name": "render_chart",
+    "description": (
+        "產生圖表資料，供前端渲染長條圖、折線圖或圓餅圖。"
+        "當使用者要求以圖表呈現資料時呼叫此工具。"
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "chart_type": {
+                "type": "string",
+                "description": "圖表類型：bar（長條圖）/ line（折線圖）/ pie（圓餅圖）",
+            },
+            "title": {
+                "type": "string",
+                "description": "圖表標題（由 AI 依情境命名）",
+            },
+            "data": {
+                "type": "array",
+                "description": "資料點陣列，每筆含 label（string）與 value（number）",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "value": {"type": "number"},
+                    },
+                    "required": ["label", "value"],
+                },
+            },
+        },
+        "required": ["chart_type", "title", "data"],
+    },
+}
+
+
 def run(
     model: str,
     system: str,
@@ -163,8 +200,9 @@ def run(
 
     Returns:
         dict: {
-            "content": str,           # AI 最終回覆文字
-            "tool_calls": list[dict]  # 最後一輪的 tool_use 結果；無時為空陣列
+            "content": str,            # AI 最終回覆文字
+            "tool_calls": list[dict],  # 最後一輪的 tool_use 結果；無時為空陣列
+            "chart_data": dict | None  # render_chart 工具的 tool_input；未呼叫時為 None
         }
 
     Raises:
@@ -174,15 +212,16 @@ def run(
     MAX_ITERATIONS = 8
     iteration = 0
     current_messages = list(messages)
+    chart_data: dict | None = None
+
+    # 固定注入 render_chart 內建工具（不來自 tb_tools）
+    all_tools: list[dict] = list(tools) if tools else []
+    all_tools.append(_RENDER_CHART_TOOL)
 
     # 工具名稱正規化：建立 normalized_tools 及 正規化後名稱 → 原始名稱 對映表
     prop_key_mapping: dict[str, dict[str, str]] = {}
-    if tools:
-        normalized_tools, name_mapping = _normalize_tool_names(tools)
-        normalized_tools, prop_key_mapping = _normalize_property_keys(normalized_tools)
-    else:
-        normalized_tools = tools
-        name_mapping: dict[str, str] = {}
+    normalized_tools, name_mapping = _normalize_tool_names(all_tools)
+    normalized_tools, prop_key_mapping = _normalize_property_keys(normalized_tools)
 
     while True:
         result = chat(
@@ -194,8 +233,9 @@ def run(
 
         tool_calls = result.get("tool_calls", [])
 
-        # 無 tool_call → 對話結束，回傳最終結果
+        # 無 tool_call → 對話結束，回傳最終結果（含 chart_data）
         if not tool_calls:
+            result["chart_data"] = chart_data
             return result
 
         # 有 tool_call → 還原正規化名稱為原始名稱，再執行外部工具
@@ -239,12 +279,23 @@ def run(
             _logger.info(
                 f"[agent] calling {tc['name']} input={json.dumps(tc.get('input', {}), ensure_ascii=False)[:200]}"
             )
-            tool_result_content = _execute_tool(
-                tc, tool_configs or [], prop_key_mapping, db=db
-            )
-            _logger.info(
-                f"[agent] result {tc['name']} -> {str(tool_result_content)[:200]}"
-            )
+
+            # 判斷是否為 render_chart 內建工具
+            if tc["name"] == "render_chart":
+                tool_input = tc.get("input", {})
+                chart_data = tool_input  # 以最後一次為準
+                tool_result_content = json.dumps(tool_input, ensure_ascii=False)
+                _logger.info(
+                    f"[agent] render_chart result -> {tool_result_content[:200]}"
+                )
+            else:
+                tool_result_content = _execute_tool(
+                    tc, tool_configs or [], prop_key_mapping, db=db
+                )
+                _logger.info(
+                    f"[agent] result {tc['name']} -> {str(tool_result_content)[:200]}"
+                )
+
             tool_results.append(
                 {
                     "type": "tool_result",

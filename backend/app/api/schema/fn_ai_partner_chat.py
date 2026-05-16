@@ -1,6 +1,7 @@
 """Pydantic schemas for /api/ai-partner-chat endpoints."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -34,6 +35,7 @@ class MessageItem(BaseModel):
     role: str
     content: str
     image_url: str | None = None
+    chart_data: Any | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -61,6 +63,7 @@ class SendData(BaseModel):
     """send API 的 data 欄位。"""
 
     content: str
+    chart_data: Any | None = None
     suggestions: list[str]
 
 

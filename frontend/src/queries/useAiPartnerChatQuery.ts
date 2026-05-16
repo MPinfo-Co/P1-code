@@ -10,11 +10,23 @@ export interface AiPartner {
   description: string
 }
 
+export interface ChartDataItem {
+  label: string
+  value: number
+}
+
+export interface ChartData {
+  chart_type: 'bar' | 'line' | 'pie'
+  title: string
+  data: ChartDataItem[]
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   image_url: string | null
   created_at: string
+  chart_data?: ChartData | null
 }
 
 export interface ChatHistory {
@@ -39,6 +51,7 @@ export interface SendMessagePayload {
 export interface SendMessageResponse {
   content: string
   suggestions: string[]
+  chart_data?: ChartData | null
 }
 
 export interface AiPartnerOption {
