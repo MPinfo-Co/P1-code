@@ -4,7 +4,7 @@
 - 呼叫 llm_client.chat()
 - 判斷 tool_call，執行外部工具 API（external_api / image_extract / web_scraper / write_custom_table / read_custom_table）
 - 帶回 tool_result 繼續對話
-- 迴圈上限 5 次，超過則 raise AgentMaxIterationError
+- 迴圈上限 8 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
 - 工具名稱正規化（中文及非法字元 → Anthropic 合法格式）
 """
@@ -18,11 +18,14 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
+from app.logger_utils import get_system_logger
 from app.services.llm_client import LLMClientError, chat  # noqa: F401 (re-export for convenience)
+
+_logger = get_system_logger()
 
 
 class AgentMaxIterationError(Exception):
-    """agentic loop 達到迴圈上限（5 次），上層捕捉後回傳 503。"""
+    """agentic loop 達到迴圈上限（8 次），上層捕捉後回傳 503。"""
 
 
 def _normalize_property_keys(
@@ -165,10 +168,10 @@ def run(
         }
 
     Raises:
-        AgentMaxIterationError: tool_call 迴圈達到上限（5 次）。
+        AgentMaxIterationError: tool_call 迴圈達到上限（8 次）。
         LLMClientError: LLM 呼叫失敗，直接向上傳遞。
     """
-    MAX_ITERATIONS = 5
+    MAX_ITERATIONS = 8
     iteration = 0
     current_messages = list(messages)
 
@@ -197,6 +200,8 @@ def run(
 
         # 有 tool_call → 還原正規化名稱為原始名稱，再執行外部工具
         iteration += 1
+        tool_names = [tc["name"] for tc in tool_calls]
+        _logger.info(f"[agent] iter={iteration} tools={tool_names}")
         if iteration >= MAX_ITERATIONS:
             raise AgentMaxIterationError(
                 f"agentic loop 達到迴圈上限（{MAX_ITERATIONS} 次）"
@@ -231,8 +236,14 @@ def run(
         # 執行每個 tool_call（使用還原後的原始名稱查找 tool_configs）
         tool_results = []
         for tc in restored_tool_calls:
+            _logger.info(
+                f"[agent] calling {tc['name']} input={json.dumps(tc.get('input', {}), ensure_ascii=False)[:200]}"
+            )
             tool_result_content = _execute_tool(
                 tc, tool_configs or [], prop_key_mapping, db=db
+            )
+            _logger.info(
+                f"[agent] result {tc['name']} -> {str(tool_result_content)[:200]}"
             )
             tool_results.append(
                 {

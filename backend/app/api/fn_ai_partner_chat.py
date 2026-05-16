@@ -43,6 +43,7 @@ from app.db.models.fn_ai_partner_tool import (
     ToolWebScraperConfig,
     ToolWriteCustomTableConfig,
 )
+from app.db.models.fn_custom_table import CustomTableField
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import UserRole
 from app.logger_utils import get_system_logger
@@ -201,8 +202,6 @@ def _build_tool_definitions(
             )
             # write_custom_table：LLM 填入欄位值（依 tb_custom_table_fields 組裝 properties）
             if write_config:
-                from app.db.models.fn_custom_table import CustomTableField
-
                 fields = (
                     db.query(CustomTableField)
                     .filter(CustomTableField.table_id == write_config.target_table_id)
@@ -237,11 +236,27 @@ def _build_tool_definitions(
                 .first()
             )
             # read_custom_table：支援結構化查詢參數（filters / sort / aggregate）
+            # 從 tb_custom_table_fields 取欄位名稱，注入 tool schema 讓 AI 知道可用欄位
+            available_fields: list[str] = []
+            if read_config and read_config.target_table_id:
+                field_rows = (
+                    db.query(CustomTableField)
+                    .filter(CustomTableField.table_id == read_config.target_table_id)
+                    .order_by(CustomTableField.sort_order.asc())
+                    .all()
+                )
+                available_fields = [f.field_name for f in field_rows]
+            field_hint = (
+                f"可用欄位名稱：{', '.join(available_fields)}。"
+                if available_fields
+                else ""
+            )
             properties["filters"] = {
                 "type": "array",
                 "description": (
-                    "過濾條件陣列。支援簡單條件（{field, op, value}）"
-                    "或邏輯群組（{logic: AND|OR, conditions: [...]}）。"
+                    f"過濾條件陣列。{field_hint}"
+                    "支援簡單條件（{{field, op, value}}）"
+                    "或邏輯群組（{{logic: AND|OR, conditions: [...]}}）。"
                     "op 可為：eq / neq / gt / gte / lt / lte / contains。"
                     "未傳入時不套用過濾。"
                 ),
@@ -250,15 +265,15 @@ def _build_tool_definitions(
             properties["sort"] = {
                 "type": "object",
                 "description": (
-                    "排序設定。{field: 欄位名稱, direction: asc|desc}。"
+                    f"排序設定。{{field: 欄位名稱, direction: asc|desc}}。{field_hint}"
                     "未傳入時預設 updated_at DESC。"
                 ),
             }
             properties["aggregate"] = {
                 "type": "object",
                 "description": (
-                    "聚合設定。{func: count|sum|avg|min|max, field: 欄位名稱（count 外必填）, "
-                    "group_by: 分組欄位（選填）}。"
+                    f"聚合設定。{{func: count|sum|avg|min|max, field: 欄位名稱（count 外必填）, "
+                    f"group_by: 分組欄位（選填）}}。{field_hint}"
                     "傳入時回傳聚合結果，不回傳原始記錄陣列。"
                 ),
             }
