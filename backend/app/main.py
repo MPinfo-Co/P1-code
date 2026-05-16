@@ -17,6 +17,9 @@ from app.api.fn_ai_partner_chat import router as fn_ai_partner_chat_router
 from app.api.fn_ai_partner_config import router as fn_ai_partner_config_router
 from app.api.fn_ai_partner_tool import router as fn_ai_partner_tool_router
 from app.api.fn_custom_table import router as fn_custom_table_router
+from app.api.fn_custom_table_data_input import (
+    router as fn_custom_table_data_input_router,
+)
 from app.api.fn_expert import router as fn_expert_router
 from app.api.fn_expert_setting import router as fn_expert_setting_router
 from app.api.fn_feedback import router as fn_feedback_router
@@ -89,6 +92,7 @@ def create_app():
     server.include_router(fn_expert_setting_router)
     server.include_router(fn_ai_partner_tool_router)
     server.include_router(fn_custom_table_router)
+    server.include_router(fn_custom_table_data_input_router)
     server.include_router(fn_feedback_router)
     server.include_router(health_router)
     server.include_router(ingest_router)

@@ -1,4 +1,7 @@
-"""ORM models for fn_custom_table: tb_custom_tables, tb_custom_table_fields, tb_custom_table_records."""
+"""ORM models for fn_custom_table: tb_custom_tables, tb_custom_table_fields, tb_custom_table_records.
+
+Also includes tb_role_custom_tables (fn_custom_table_data_input).
+"""
 
 from datetime import datetime
 
@@ -62,4 +65,20 @@ class CustomTableRecord(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, nullable=False, server_default=func.now()
+    )
+
+
+class RoleCustomTable(Base):
+    """角色與自訂資料表的授權關聯，對應 tb_role_custom_tables。
+
+    決定哪些角色的使用者可在資料輸入頁面操作哪些自訂資料表。
+    """
+
+    __tablename__ = "tb_role_custom_tables"
+
+    role_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_roles.id"), primary_key=True, index=True
+    )
+    table_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tb_custom_tables.id"), primary_key=True, index=True
     )

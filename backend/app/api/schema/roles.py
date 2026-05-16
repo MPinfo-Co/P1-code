@@ -25,6 +25,7 @@ class RoleItem(BaseModel):
     users: list[RoleUserItem] = Field(default_factory=list)
     functions: list[RoleFunctionItem] = Field(default_factory=list)
     partner_ids: list[int] = Field(default_factory=list)
+    custom_table_ids: list[int] = Field(default_factory=list)
 
 
 class RoleListOut(BaseModel):
@@ -47,6 +48,9 @@ class RoleAddRequest(BaseModel):
     partner_ids: list[int] = Field(
         default_factory=list, description="AI partner ids to bind to the role."
     )
+    custom_table_ids: list[int] = Field(
+        default_factory=list, description="Custom table ids to authorize for the role."
+    )
 
 
 class RoleAddOut(BaseModel):
@@ -62,6 +66,7 @@ class RoleUpdateRequest(BaseModel):
     user_ids: list[int] | None = None
     function_ids: list[int] | None = None
     partner_ids: list[int] | None = None
+    custom_table_ids: list[int] | None = None
 
 
 class RoleUpdateOut(BaseModel):
