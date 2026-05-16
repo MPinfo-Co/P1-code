@@ -622,6 +622,7 @@ def get_history(
             role=m.role,
             content=m.content,
             image_url=m.image_url,
+            chart_data=m.chart_data,
             created_at=m.created_at,
         )
         for m in messages
@@ -759,13 +760,15 @@ def send_message(
         )
 
     ai_content = result.get("content", "")
+    chart_data = result.get("chart_data", None)
 
-    # 寫入 AI 回覆
+    # 寫入 AI 回覆（含 chart_data）
     ai_msg = Message(
         conversation_id=conversation_id,
         role="assistant",
         content=ai_content,
         image_url=None,
+        chart_data=chart_data,
     )
     db.add(ai_msg)
     db.commit()
@@ -786,7 +789,11 @@ def send_message(
         system_prompt=system_prompt,
     )
 
-    return SendOut(data=SendData(content=ai_content, suggestions=previous_suggestions))
+    return SendOut(
+        data=SendData(
+            content=ai_content, chart_data=chart_data, suggestions=previous_suggestions
+        )
+    )
 
 
 # ── POST /api/ai-partner-chat/new ────────────────────────────────────────────
@@ -907,6 +914,7 @@ def new_conversation(
             role=ai_msg.role,
             content=ai_msg.content,
             image_url=ai_msg.image_url,
+            chart_data=ai_msg.chart_data,
             created_at=ai_msg.created_at,
         )
     ]

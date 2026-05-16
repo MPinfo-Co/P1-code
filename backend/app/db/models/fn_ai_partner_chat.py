@@ -37,6 +37,9 @@ class Message(Base):
 
     id 型別：ORM 使用 Integer 以相容 SQLite（測試環境）；
     migration 使用 BIGSERIAL（PostgreSQL），因此 DB 層實際為 BIGINT。
+
+    chart_data 在 PostgreSQL 中以 JSONB 型別儲存；此 ORM 使用 JSON 型別
+    以保持跨資料庫相容性（包含 SQLite 測試環境）。
     """
 
     __tablename__ = "tb_messages"
@@ -48,6 +51,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    chart_data: Mapped[Any | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, nullable=False, server_default=func.now()
     )

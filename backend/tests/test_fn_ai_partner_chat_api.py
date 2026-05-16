@@ -922,3 +922,197 @@ def test_send_message_unrecognizable_image_with_image_extract_returns_200(
     assert (
         "無法辨識" in body["data"]["content"] or "重新上傳" in body["data"]["content"]
     )
+
+
+# ---------------------------------------------------------------------------
+# Issue-365: render_chart 工具呼叫（T22, T23, T24, T25, T8, T9）
+# ---------------------------------------------------------------------------
+
+
+def test_send_message_with_render_chart_returns_chart_data(client, engine):
+    """T22: AI 呼叫 render_chart → 200，data.chart_data 非 null，tb_messages 寫入 chart_data"""
+    user_id, role_id, _ = _setup_with_fn_ai_partner_chat(engine)
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    partner_id = _make_partner(db, "夥伴圖表1")
+    _bind_partner_to_role(db, role_id, partner_id)
+    conv_id = _make_conversation(db, user_id, partner_id)
+    db.commit()
+    db.close()
+
+    chart_payload = {
+        "chart_type": "bar",
+        "title": "各月份銷售",
+        "data": [
+            {"label": "1月", "value": 100},
+            {"label": "2月", "value": 200},
+            {"label": "3月", "value": 150},
+        ],
+    }
+    mock_result = {
+        "content": "以下是各月份銷售長條圖",
+        "tool_calls": [],
+        "chart_data": chart_payload,
+    }
+    with patch("app.api.fn_ai_partner_chat.ai_agent.run", return_value=mock_result):
+        resp = client.post(
+            "/ai-partner-chat/send",
+            data={
+                "partner_id": partner_id,
+                "conversation_id": conv_id,
+                "message": "請畫出各月份銷售長條圖",
+            },
+            headers=_auth(user_id),
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "傳送成功"
+    data = body["data"]
+    assert data["chart_data"] is not None
+    assert data["chart_data"]["chart_type"] == "bar"
+    assert data["chart_data"]["title"] == "各月份銷售"
+    assert isinstance(data["chart_data"]["data"], list)
+    assert len(data["chart_data"]["data"]) == 3
+
+    # 確認 tb_messages 寫入了 chart_data
+    Session2_ = sessionmaker(bind=engine)
+    db2 = Session2_()
+    msgs = (
+        db2.query(Message)
+        .filter(Message.conversation_id == conv_id, Message.role == "assistant")
+        .all()
+    )
+    db2.close()
+    assert len(msgs) == 1
+    assert msgs[0].chart_data is not None
+    assert msgs[0].chart_data["chart_type"] == "bar"
+
+
+def test_send_message_without_render_chart_returns_null_chart_data(client, engine):
+    """T23: 一般問答不觸發 render_chart → 200，data.chart_data 為 null"""
+    user_id, role_id, _ = _setup_with_fn_ai_partner_chat(engine)
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    partner_id = _make_partner(db, "夥伴圖表2")
+    _bind_partner_to_role(db, role_id, partner_id)
+    conv_id = _make_conversation(db, user_id, partner_id)
+    db.commit()
+    db.close()
+
+    mock_result = {
+        "content": "一般回答",
+        "tool_calls": [],
+        "chart_data": None,
+    }
+    with patch("app.api.fn_ai_partner_chat.ai_agent.run", return_value=mock_result):
+        resp = client.post(
+            "/ai-partner-chat/send",
+            data={
+                "partner_id": partner_id,
+                "conversation_id": conv_id,
+                "message": "今天幾號？",
+            },
+            headers=_auth(user_id),
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "傳送成功"
+    assert body["data"]["chart_data"] is None
+    assert body["data"]["content"] == "一般回答"
+
+
+def test_get_history_returns_chart_data_when_present(client, engine):
+    """T24: 歷史訊息含 chart_data → 200，messages 中對應訊息含 chart_data 非 null"""
+    user_id, role_id, _ = _setup_with_fn_ai_partner_chat(engine)
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    partner_id = _make_partner(db, "夥伴圖表歷史1")
+    _bind_partner_to_role(db, role_id, partner_id)
+    conv_id = _make_conversation(db, user_id, partner_id)
+    chart_payload = {
+        "chart_type": "pie",
+        "title": "分類佔比",
+        "data": [{"label": "A", "value": 60}, {"label": "B", "value": 40}],
+    }
+    # 一筆含 chart_data 的 assistant 訊息
+    db.add(
+        Message(
+            conversation_id=conv_id,
+            role="assistant",
+            content="這是圓餅圖",
+            chart_data=chart_payload,
+        )
+    )
+    # 一筆不含 chart_data 的 user 訊息
+    db.add(
+        Message(
+            conversation_id=conv_id,
+            role="user",
+            content="請畫圖",
+        )
+    )
+    db.commit()
+    db.close()
+
+    resp = client.get(
+        f"/ai-partner-chat/history?partner_id={partner_id}",
+        headers=_auth(user_id),
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["conversation_id"] == conv_id
+    assert len(data["messages"]) == 2
+
+    # 含 chart_data 的訊息
+    assistant_msg = next(m for m in data["messages"] if m["role"] == "assistant")
+    assert assistant_msg["chart_data"] is not None
+    assert assistant_msg["chart_data"]["chart_type"] == "pie"
+    assert assistant_msg["chart_data"]["title"] == "分類佔比"
+
+    # 不含 chart_data 的訊息
+    user_msg = next(m for m in data["messages"] if m["role"] == "user")
+    assert user_msg["chart_data"] is None
+
+
+def test_get_history_chart_data_null_when_no_chart(client, engine):
+    """T25: 歷史訊息無 chart_data → 200，所有訊息 chart_data 為 null"""
+    user_id, role_id, _ = _setup_with_fn_ai_partner_chat(engine)
+    Session_ = sessionmaker(bind=engine)
+    db = Session_()
+    partner_id = _make_partner(db, "夥伴圖表歷史2")
+    _bind_partner_to_role(db, role_id, partner_id)
+    conv_id = _make_conversation(db, user_id, partner_id)
+    db.add(Message(conversation_id=conv_id, role="user", content="你好"))
+    db.add(Message(conversation_id=conv_id, role="assistant", content="您好！"))
+    db.commit()
+    db.close()
+
+    resp = client.get(
+        f"/ai-partner-chat/history?partner_id={partner_id}",
+        headers=_auth(user_id),
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    for msg in data["messages"]:
+        assert msg["chart_data"] is None
+
+
+def test_send_message_unauthenticated_returns_401(client, engine):
+    """T8 (401): 未登入 → POST /ai-partner-chat/send 回傳 401"""
+    resp = client.post(
+        "/ai-partner-chat/send",
+        data={
+            "partner_id": "1",
+            "conversation_id": "some-conv-id",
+            "message": "你好",
+        },
+    )
+    assert resp.status_code == 401
+
+
+def test_get_history_unauthenticated_returns_401(client, engine):
+    """T9 (401): 未登入 → GET /ai-partner-chat/history 回傳 401"""
+    resp = client.get("/ai-partner-chat/history?partner_id=1")
+    assert resp.status_code == 401

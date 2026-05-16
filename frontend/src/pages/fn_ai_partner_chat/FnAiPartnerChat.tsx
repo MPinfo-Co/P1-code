@@ -29,7 +29,7 @@ import {
   useNewAiPartnerChat,
   useSendAiPartnerMessage,
 } from '@/queries/useAiPartnerChatQuery'
-import type { AiPartner, ChatMessage } from '@/queries/useAiPartnerChatQuery'
+import type { AiPartner, ChatMessage, ChartData } from '@/queries/useAiPartnerChatQuery'
 
 interface Props {
   partner: AiPartner
@@ -234,13 +234,183 @@ function renderMarkdown(text: string): string {
   return html
 }
 
+// ===== 圖表區塊（長條圖 / 折線圖 / 圓餅圖）=====
+const CHART_COLORS = [
+  '#6366f1',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#14b8a6',
+]
+
+interface ChartBlockProps {
+  chartData: ChartData
+}
+
+function ChartBlock({ chartData }: ChartBlockProps) {
+  const { chart_type, title, data } = chartData
+  const labels = data.map((d) => d.label)
+  const values = data.map((d) => d.value)
+  const max = Math.max(...values, 1)
+  const W = 340
+  const H = 160
+
+  let svgContent: React.ReactNode = null
+  let legendContent: React.ReactNode = null
+
+  if (chart_type === 'bar') {
+    const barW = Math.floor((W - 40) / Math.max(labels.length, 1)) - 6
+    const barArea = H - 30
+    svgContent = (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', overflow: 'visible' }}>
+        <line x1="38" y1="10" x2="38" y2={H - 20} stroke="#e2e8f0" strokeWidth="1" />
+        <text x="36" y={H - 20} textAnchor="end" fontSize="9" fill="#94a3b8">
+          0
+        </text>
+        <text x="36" y="14" textAnchor="end" fontSize="9" fill="#94a3b8">
+          {max}
+        </text>
+        {labels.map((lbl, i) => {
+          const bh = Math.round((values[i] / max) * barArea)
+          const x = 40 + i * (barW + 6)
+          const y = H - 20 - bh
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={bh}
+                fill={CHART_COLORS[i % CHART_COLORS.length]}
+                rx="2"
+              />
+              <text x={x + barW / 2} y={H - 4} textAnchor="middle" fontSize="10" fill="#475569">
+                {String(lbl).slice(0, 6)}
+              </text>
+              <text x={x + barW / 2} y={y - 3} textAnchor="middle" fontSize="10" fill="#1e293b">
+                {values[i]}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+    )
+  } else if (chart_type === 'line') {
+    const pts = labels.map((_, i) => ({
+      px: 40 + i * ((W - 50) / Math.max(labels.length - 1, 1)),
+      py: 10 + ((max - values[i]) / max) * (H - 40),
+      lbl: labels[i],
+      val: values[i],
+    }))
+    const polylinePoints = pts.map((p) => `${p.px},${p.py}`).join(' ')
+    svgContent = (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', overflow: 'visible' }}>
+        <line x1="38" y1="10" x2="38" y2={H - 20} stroke="#e2e8f0" strokeWidth="1" />
+        <text x="36" y={H - 20} textAnchor="end" fontSize="9" fill="#94a3b8">
+          0
+        </text>
+        <text x="36" y="14" textAnchor="end" fontSize="9" fill="#94a3b8">
+          {max}
+        </text>
+        <polyline points={polylinePoints} fill="none" stroke={CHART_COLORS[0]} strokeWidth="2" />
+        {pts.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.px} cy={p.py} r="3" fill={CHART_COLORS[0]} />
+            <text x={p.px} textAnchor="middle" y={H - 4} fontSize="10" fill="#475569">
+              {String(p.lbl).slice(0, 6)}
+            </text>
+            <text x={p.px} y={p.py - 6} textAnchor="middle" fontSize="10" fill="#1e293b">
+              {p.val}
+            </text>
+          </g>
+        ))}
+      </svg>
+    )
+  } else if (chart_type === 'pie') {
+    const total = values.reduce((a, b) => a + b, 0) || 1
+    const cx = 80
+    const cy = 75
+    const r = 60
+    // Pre-compute start angles to avoid mutating variable inside map
+    const startAngles = values.reduce<number[]>((acc, v, i) => {
+      if (i === 0) return [-Math.PI / 2]
+      return [...acc, acc[i - 1] + (values[i - 1] / total) * 2 * Math.PI]
+    }, [])
+    const slices: React.ReactNode[] = values.map((v, i) => {
+      const sliceAngle = (v / total) * 2 * Math.PI
+      const startAngle = startAngles[i]
+      const x1 = cx + r * Math.cos(startAngle)
+      const y1 = cy + r * Math.sin(startAngle)
+      const x2 = cx + r * Math.cos(startAngle + sliceAngle)
+      const y2 = cy + r * Math.sin(startAngle + sliceAngle)
+      const large = sliceAngle > Math.PI ? 1 : 0
+      const path = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z`
+      return <path key={i} d={path} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+    })
+    svgContent = (
+      <svg viewBox="0 0 160 150" style={{ width: '100%', overflow: 'visible' }}>
+        {slices}
+      </svg>
+    )
+    legendContent = (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', mt: '6px' }}>
+        {labels.map((lbl, i) => (
+          <Box
+            key={i}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: 11,
+              color: '#475569',
+            }}
+          >
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                bgcolor: CHART_COLORS[i % CHART_COLORS.length],
+                flexShrink: 0,
+              }}
+            />
+            {String(lbl)}（{values[i]}）
+          </Box>
+        ))}
+      </Box>
+    )
+  }
+
+  return (
+    <Box
+      sx={{
+        mt: '8px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '8px',
+        p: '10px 12px 8px',
+        bgcolor: '#fafbff',
+      }}
+    >
+      <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#1e293b', mb: '8px' }}>
+        {title}
+      </Typography>
+      {svgContent}
+      {legendContent}
+    </Box>
+  )
+}
+
 // ===== AI 訊息泡泡（支援 Markdown + 複製按鈕）=====
 interface AiBubbleProps {
   content: string
   isMobile?: boolean
+  chartData?: ChartData | null
 }
 
-function AiBubble({ content, isMobile = false }: AiBubbleProps) {
+function AiBubble({ content, isMobile = false, chartData }: AiBubbleProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   const [hoverY, setHoverY] = useState(0)
@@ -261,22 +431,24 @@ function AiBubble({ content, isMobile = false }: AiBubbleProps) {
 
   if (isMobile) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-        <Box
-          sx={{
-            maxWidth: '90%',
-            bgcolor: '#f1f5f9',
-            color: '#1e293b',
-            px: 2,
-            py: 1.25,
-            borderRadius: '16px 16px 16px 4px',
-            fontSize: 14,
-            lineHeight: 1.6,
-            '& strong': { fontWeight: 700 },
-            '& pre': { overflowX: 'auto' },
-          }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-        />
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, maxWidth: '90%' }}>
+        <Box sx={{ flex: 1 }}>
+          <Box
+            sx={{
+              bgcolor: '#f1f5f9',
+              color: '#1e293b',
+              px: 2,
+              py: 1.25,
+              borderRadius: '16px 16px 16px 4px',
+              fontSize: 14,
+              lineHeight: 1.6,
+              '& strong': { fontWeight: 700 },
+              '& pre': { overflowX: 'auto' },
+            }}
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+          />
+          {chartData && <ChartBlock chartData={chartData} />}
+        </Box>
         <IconButton
           size="small"
           onClick={handleCopy}
@@ -336,21 +508,61 @@ function AiBubble({ content, isMobile = false }: AiBubbleProps) {
           </Tooltip>
         )}
       </Box>
+      <Box sx={{ maxWidth: '90%' }}>
+        <Box
+          sx={{
+            bgcolor: '#f1f5f9',
+            color: '#1e293b',
+            px: 2,
+            py: 1.25,
+            borderRadius: '16px 16px 16px 4px',
+            fontSize: 14,
+            lineHeight: 1.6,
+            '& strong': { fontWeight: 700 },
+            '& pre': { overflowX: 'auto' },
+          }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        />
+        {chartData && <ChartBlock chartData={chartData} />}
+      </Box>
+    </Box>
+  )
+}
+
+// ===== 工具呼叫提示列 =====
+interface ToolCallingRowProps {
+  toolName: string
+}
+
+function ToolCallingRow({ toolName }: ToolCallingRowProps) {
+  const label = toolName === 'render_chart' ? '正在產生圖表…' : `正在使用：${toolName}`
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        fontSize: 12,
+        color: '#64748b',
+        py: '4px',
+        alignSelf: 'flex-start',
+      }}
+    >
       <Box
         sx={{
-          maxWidth: '90%',
-          bgcolor: '#f1f5f9',
-          color: '#1e293b',
-          px: 2,
-          py: 1.25,
-          borderRadius: '16px 16px 16px 4px',
-          fontSize: 14,
-          lineHeight: 1.6,
-          '& strong': { fontWeight: 700 },
-          '& pre': { overflowX: 'auto' },
+          width: 8,
+          height: 8,
+          bgcolor: '#6366f1',
+          borderRadius: '50%',
+          flexShrink: 0,
+          animation: 'toolPulse 1s infinite',
+          '@keyframes toolPulse': {
+            '0%, 100%': { opacity: 1 },
+            '50%': { opacity: 0.3 },
+          },
         }}
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
       />
+      <Typography sx={{ fontSize: 12, color: '#64748b' }}>{label}</Typography>
     </Box>
   )
 }
@@ -471,6 +683,8 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   )
   // 捲到最新浮動按鈕
   const [isShowScrollBtn, setIsShowScrollBtn] = useState(false)
+  // 工具呼叫提示（streaming 期間顯示）
+  const [toolCallingName, setToolCallingName] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -621,6 +835,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
     setIsSending(true)
     setSendError(null)
 
+    // 若後端回傳含 chart_data，先顯示工具呼叫提示列
     sendMessage.mutate(
       {
         partner_id: partner.id,
@@ -630,24 +845,46 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
       },
       {
         onSuccess: (data) => {
-          const aiMessage: ChatMessage = {
-            role: 'assistant',
-            content: data.content,
-            image_url: null,
-            created_at: new Date().toISOString(),
+          // 若有 chart_data，先短暫顯示 render_chart 工具提示列
+          if (data.chart_data) {
+            setToolCallingName('render_chart')
+            setTimeout(() => {
+              setToolCallingName(null)
+              const aiMessage: ChatMessage = {
+                role: 'assistant',
+                content: data.content,
+                image_url: null,
+                created_at: new Date().toISOString(),
+                chart_data: data.chart_data,
+              }
+              setMessages((prev) => [...prev, aiMessage])
+              setSuggestions(data.suggestions)
+              setIsSending(false)
+              if (!isFirstAiReplyDone) {
+                setIsFirstAiReplyDone(true)
+              }
+              focusInput()
+            }, 600)
+          } else {
+            const aiMessage: ChatMessage = {
+              role: 'assistant',
+              content: data.content,
+              image_url: null,
+              created_at: new Date().toISOString(),
+              chart_data: null,
+            }
+            setMessages((prev) => [...prev, aiMessage])
+            setSuggestions(data.suggestions)
+            setIsSending(false)
+            if (!isFirstAiReplyDone) {
+              setIsFirstAiReplyDone(true)
+            }
+            // 2. AI 回覆完成後 focus 輸入框
+            focusInput()
           }
-          setMessages((prev) => [...prev, aiMessage])
-          setSuggestions(data.suggestions)
-          setIsSending(false)
-
-          if (!isFirstAiReplyDone) {
-            setIsFirstAiReplyDone(true)
-          }
-
-          // 2. AI 回覆完成後 focus 輸入框
-          focusInput()
         },
         onError: (err: Error & { status?: number }) => {
+          setToolCallingName(null)
           if (err.status === 503) {
             setSendError({
               message: err.message || 'AI 服務暫時無法使用，請稍後再試',
@@ -789,8 +1026,12 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
               }}
             >
               {msg.role === 'assistant' ? (
-                // 1. AI 回覆：Markdown 渲染 + 4. 複製按鈕
-                <AiBubble content={msg.content} isMobile={isMobileInput} />
+                // 1. AI 回覆：Markdown 渲染 + 4. 複製按鈕 + 圖表區塊
+                <AiBubble
+                  content={msg.content}
+                  isMobile={isMobileInput}
+                  chartData={msg.chart_data}
+                />
               ) : (
                 // 使用者訊息：純文字
                 <Box
@@ -828,9 +1069,16 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           ))}
 
           {/* AI loading indicator */}
-          {isSending && (
+          {isSending && !toolCallingName && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
               <ThinkingIndicator />
+            </Box>
+          )}
+
+          {/* 工具呼叫提示列（render_chart 顯示「正在產生圖表…」）*/}
+          {toolCallingName && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <ToolCallingRow toolName={toolCallingName} />
             </Box>
           )}
 
