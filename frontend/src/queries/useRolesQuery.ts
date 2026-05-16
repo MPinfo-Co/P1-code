@@ -20,6 +20,7 @@ export interface RoleRow {
   users: RoleUser[]
   functions: FunctionOption[]
   partner_ids?: number[]
+  custom_table_ids?: number[]
 }
 
 export interface PaginatedRolesResponse {
@@ -41,6 +42,7 @@ export interface CreateRolePayload {
   member_ids?: number[]
   function_ids?: number[]
   partner_ids?: number[]
+  custom_table_ids?: number[]
 }
 
 export interface UpdateRolePayload {
@@ -48,6 +50,7 @@ export interface UpdateRolePayload {
   member_ids?: number[]
   function_ids?: number[]
   partner_ids?: number[]
+  custom_table_ids?: number[]
 }
 
 function getToken() {
@@ -102,6 +105,7 @@ export function useCreateRole() {
           user_ids: payload.member_ids ?? [],
           function_ids: payload.function_ids ?? [],
           partner_ids: payload.partner_ids ?? [],
+          custom_table_ids: payload.custom_table_ids ?? [],
         }),
       })
       if (!res.ok) {
@@ -125,6 +129,7 @@ export function useUpdateRole() {
       if (payload.member_ids !== undefined) body.user_ids = payload.member_ids
       if (payload.function_ids !== undefined) body.function_ids = payload.function_ids
       if (payload.partner_ids !== undefined) body.partner_ids = payload.partner_ids
+      if (payload.custom_table_ids !== undefined) body.custom_table_ids = payload.custom_table_ids
       const res = await fetch(`${BASE_URL}/roles/${encodeURIComponent(roleName)}`, {
         method: 'PATCH',
         headers: {

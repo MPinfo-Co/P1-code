@@ -10,17 +10,77 @@ import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import Collapse from '@mui/material/Collapse'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { useCreateRole, useUpdateRole } from '@/queries/useRolesQuery'
 import type { RoleRow } from '@/queries/useRolesQuery'
 import { useFunctionOptionsQuery } from '@/queries/useRoleOptionsQuery'
 import { useUserOptionsQuery } from '@/queries/useUserOptionsQuery'
 import { useAiPartnerOptionsQuery } from '@/queries/useAiPartnerChatQuery'
+import { useCustomTableOptionsQuery } from '@/queries/useCustomTableDataInputQuery'
 
 interface Props {
   open: boolean
   row: RoleRow | null
   onClose: () => void
   onSuccess: () => void
+}
+
+// 可折疊區塊元件
+interface CollapsibleSectionProps {
+  label: string
+  children: React.ReactNode
+}
+
+function CollapsibleSection({ label, children }: CollapsibleSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(true)
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: isExpanded ? 1 : 0,
+        }}
+      >
+        <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>{label}</Typography>
+        <Button
+          size="small"
+          variant="text"
+          onClick={() => setIsExpanded((v) => !v)}
+          sx={{
+            minWidth: 0,
+            p: '2px',
+            color: '#64748b',
+            '&:hover': { bgcolor: '#f1f5f9' },
+          }}
+        >
+          {isExpanded ? (
+            <ExpandLessIcon sx={{ fontSize: 18 }} />
+          ) : (
+            <ExpandMoreIcon sx={{ fontSize: 18 }} />
+          )}
+        </Button>
+      </Box>
+      <Collapse in={isExpanded}>
+        <Box
+          sx={{
+            border: '1px solid #e2e8f0',
+            borderRadius: 2,
+            p: 0.5,
+            bgcolor: '#f8fafc',
+            height: 120,
+            overflowY: 'auto',
+          }}
+        >
+          {children}
+        </Box>
+      </Collapse>
+    </Box>
+  )
 }
 
 export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
@@ -36,11 +96,15 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<number[]>(
     () => row?.partner_ids ?? []
   )
+  const [selectedCustomTableIds, setSelectedCustomTableIds] = useState<number[]>(
+    () => row?.custom_table_ids ?? []
+  )
   const [formError, setFormError] = useState<string | null>(null)
 
   const { data: userOptions = [] } = useUserOptionsQuery()
   const { data: allFunctions = [] } = useFunctionOptionsQuery()
   const { data: allPartners = [] } = useAiPartnerOptionsQuery()
+  const { data: allCustomTables = [] } = useCustomTableOptionsQuery()
 
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
@@ -71,6 +135,12 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
     )
   }
 
+  function toggleCustomTable(tableId: number) {
+    setSelectedCustomTableIds((prev) =>
+      prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]
+    )
+  }
+
   async function handleSave() {
     setFormError(null)
     if (!roleName.trim()) {
@@ -87,6 +157,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
             member_ids: selectedMemberIds,
             function_ids: selectedFunctionIds,
             partner_ids: selectedPartnerIds,
+            custom_table_ids: selectedCustomTableIds,
           },
         })
       } else {
@@ -95,6 +166,7 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
           member_ids: selectedMemberIds,
           function_ids: selectedFunctionIds,
           partner_ids: selectedPartnerIds,
+          custom_table_ids: selectedCustomTableIds,
         })
       }
       onSuccess()
@@ -195,22 +267,54 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
             </Box>
           </Box>
 
-          {/* 功能權限 */}
-          <Box>
-            <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 1 }}>
-              功能權限
-            </Typography>
-            <Box
-              sx={{
-                border: '1px solid #e2e8f0',
-                borderRadius: 2,
-                p: 0.5,
-                bgcolor: '#f8fafc',
-              }}
-            >
-              {allFunctions.map((fn, i) => (
+          {/* 功能權限 — 固定高度 120px + 捲軸 + 展開縮合 */}
+          <CollapsibleSection label="功能權限">
+            {allFunctions.map((fn, i) => (
+              <Box
+                key={fn.function_id}
+                component="label"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  p: 1,
+                  borderRadius: 1.5,
+                  bgcolor: 'white',
+                  border: '1px solid #e2e8f0',
+                  mb: i < allFunctions.length - 1 ? 0.5 : 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedFunctionIds.includes(fn.function_id)}
+                  onChange={() => toggleFunction(fn.function_id)}
+                  style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
+                />
+                <Box>
+                  <Typography
+                    component="strong"
+                    sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
+                  >
+                    {fn.function_label}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </CollapsibleSection>
+
+          {/* 可使用的 AI 夥伴 — 固定高度 120px + 捲軸 + 展開縮合 */}
+          <CollapsibleSection label="可使用的 AI 夥伴">
+            {allPartners.length === 0 ? (
+              <Box sx={{ p: 1 }}>
+                <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>
+                  目前無可配置的 AI 夥伴
+                </Typography>
+              </Box>
+            ) : (
+              allPartners.map((partner, i) => (
                 <Box
-                  key={fn.function_id}
+                  key={partner.id}
                   component="label"
                   sx={{
                     display: 'flex',
@@ -220,14 +324,14 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                     borderRadius: 1.5,
                     bgcolor: 'white',
                     border: '1px solid #e2e8f0',
-                    mb: i < allFunctions.length - 1 ? 0.5 : 0,
+                    mb: i < allPartners.length - 1 ? 0.5 : 0,
                     cursor: 'pointer',
                   }}
                 >
                   <input
                     type="checkbox"
-                    checked={selectedFunctionIds.includes(fn.function_id)}
-                    onChange={() => toggleFunction(fn.function_id)}
+                    checked={selectedPartnerIds.includes(partner.id)}
+                    onChange={() => togglePartner(partner.id)}
                     style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
                   />
                   <Box>
@@ -235,69 +339,57 @@ export default function FnRoleForm({ open, row, onClose, onSuccess }: Props) {
                       component="strong"
                       sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
                     >
-                      {fn.function_label}
+                      {partner.name}
                     </Typography>
                   </Box>
                 </Box>
-              ))}
-            </Box>
-          </Box>
+              ))
+            )}
+          </CollapsibleSection>
 
-          {/* 可使用的 AI 夥伴 */}
-          <Box>
-            <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#1e293b', mb: 1 }}>
-              可使用的 AI 夥伴
-            </Typography>
-            <Box
-              sx={{
-                border: '1px solid #e2e8f0',
-                borderRadius: 2,
-                p: 0.5,
-                bgcolor: '#f8fafc',
-              }}
-            >
-              {allPartners.length === 0 ? (
-                <Box sx={{ p: 1 }}>
-                  <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>
-                    目前無啟用中的 AI 夥伴
-                  </Typography>
-                </Box>
-              ) : (
-                allPartners.map((partner, i) => (
-                  <Box
-                    key={partner.id}
-                    component="label"
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.25,
-                      p: 1,
-                      borderRadius: 1.5,
-                      bgcolor: 'white',
-                      border: '1px solid #e2e8f0',
-                      mb: i < allPartners.length - 1 ? 0.5 : 0,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedPartnerIds.includes(partner.id)}
-                      onChange={() => togglePartner(partner.id)}
-                      style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
-                    />
-                    <Box>
-                      <Typography
-                        component="strong"
-                        sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
-                      >
-                        {partner.name}
-                      </Typography>
-                    </Box>
+          {/* 可維護資料表 — 固定高度 120px + 捲軸 + 展開縮合 */}
+          <CollapsibleSection label="可維護資料表">
+            {allCustomTables.length === 0 ? (
+              <Box sx={{ p: 1 }}>
+                <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>
+                  目前無可配置的自訂資料表
+                </Typography>
+              </Box>
+            ) : (
+              allCustomTables.map((table, i) => (
+                <Box
+                  key={table.id}
+                  component="label"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.25,
+                    p: 1,
+                    borderRadius: 1.5,
+                    bgcolor: 'white',
+                    border: '1px solid #e2e8f0',
+                    mb: i < allCustomTables.length - 1 ? 0.5 : 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCustomTableIds.includes(table.id)}
+                    onChange={() => toggleCustomTable(table.id)}
+                    style={{ width: 16, height: 16, accentColor: '#2e3f6e', cursor: 'pointer' }}
+                  />
+                  <Box>
+                    <Typography
+                      component="strong"
+                      sx={{ display: 'block', fontSize: 13, fontWeight: 700 }}
+                    >
+                      {table.name}
+                    </Typography>
                   </Box>
-                ))
-              )}
-            </Box>
-          </Box>
+                </Box>
+              ))
+            )}
+          </CollapsibleSection>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
