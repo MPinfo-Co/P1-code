@@ -21,11 +21,14 @@ export interface CustomTableRecord {
   id: number
   data: Record<string, unknown>
   updated_at: string
+  updated_by_name: string | null
 }
 
 export interface CustomTableRecordsResponse {
   fields: CustomTableField[]
   records: CustomTableRecord[]
+  total: number
+  exceeded: boolean
 }
 
 function getToken() {
@@ -47,14 +50,16 @@ export function useCustomTableDataInputListQuery() {
   })
 }
 
-export function useCustomTableDataInputRecordsQuery(tableId: number | null) {
+export function useCustomTableDataInputRecordsQuery(tableId: number | null, keyword: string) {
   return useQuery<CustomTableRecordsResponse>({
-    queryKey: ['custom_table_data_input', 'records', tableId],
+    queryKey: ['custom_table_data_input', 'records', tableId, keyword],
     queryFn: async () => {
       const token = getToken()
-      const res = await fetch(`${BASE_URL}/custom_table_data_input/tables/${tableId}/records`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const params = keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''
+      const res = await fetch(
+        `${BASE_URL}/custom_table_data_input/tables/${tableId}/records${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
       if (!res.ok) throw new Error('查詢失敗')
       const json = await res.json()
       return (json.data ?? json) as CustomTableRecordsResponse
@@ -114,6 +119,40 @@ export function useDeleteCustomTableRecord() {
   })
 }
 
+export function useUpdateCustomTableRecord() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      tableId,
+      recordId,
+      data,
+    }: {
+      tableId: number
+      recordId: number
+      data: Record<string, unknown>
+    }) => {
+      const token = getToken()
+      const res = await fetch(
+        `${BASE_URL}/custom_table_data_input/tables/${tableId}/records/${recordId}`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data }),
+        }
+      )
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message ?? '更新失敗')
+      }
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['custom_table_data_input', 'records', variables.tableId],
+      })
+    },
+  })
+}
+
 export function useImportCustomTableRecords() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -154,20 +193,36 @@ export function useCustomTableOptionsQuery() {
   })
 }
 
-export async function downloadCustomTableFormat(tableId: number) {
+export async function downloadCustomTableFormat(
+  tableId: number,
+  tableName: string,
+  includeData = false
+) {
   const token = useAuthStore.getState().token
-  const res = await fetch(`${BASE_URL}/custom_table_data_input/tables/${tableId}/format`, {
+  const endpoint = includeData
+    ? `${BASE_URL}/custom_table_data_input/tables/${tableId}/format?include_data=true`
+    : `${BASE_URL}/custom_table_data_input/tables/${tableId}/format`
+  const res = await fetch(endpoint, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message ?? '下載失敗')
   }
+  const now = new Date()
+  const ts = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('')
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'format.xlsx'
+  a.download = `${tableName}_${ts}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }

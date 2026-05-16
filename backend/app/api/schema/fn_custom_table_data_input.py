@@ -35,6 +35,7 @@ class TableRecordItem(BaseModel):
     id: int
     data: dict
     updated_at: datetime
+    updated_by_name: str | None = None
 
 
 class TableRecordsData(BaseModel):
@@ -42,6 +43,8 @@ class TableRecordsData(BaseModel):
 
     fields: list[TableFieldItem]
     records: list[TableRecordItem]
+    total: int = 0
+    exceeded: bool = False
 
 
 class TableRecordsOut(BaseModel):
@@ -61,6 +64,18 @@ class RecordAddOut(BaseModel):
     """Response for POST /custom_table_data_input/tables/{id}/records (201)."""
 
     message: str = "新增成功"
+
+
+class RecordUpdateRequest(BaseModel):
+    """Body for PATCH /custom_table_data_input/tables/{id}/records/{record_id}."""
+
+    data: dict
+
+
+class RecordUpdateOut(BaseModel):
+    """Response for PATCH /custom_table_data_input/tables/{id}/records/{record_id} (200)."""
+
+    message: str = "更新成功"
 
 
 class RecordDelOut(BaseModel):

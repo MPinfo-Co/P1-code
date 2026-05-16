@@ -2,7 +2,8 @@
 
 import io
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import String as SAString, cast, or_
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from sqlalchemy.orm import Session
@@ -14,6 +15,8 @@ from app.api.schema.fn_custom_table_data_input import (
     RecordAddOut,
     RecordAddRequest,
     RecordDelOut,
+    RecordUpdateOut,
+    RecordUpdateRequest,
     TableFieldItem,
     TableOptionItem,
     TableOptionsOut,
@@ -29,7 +32,7 @@ from app.db.models.fn_custom_table import (
     RoleCustomTable,
 )
 from app.db.models.function_access import FunctionItems, RoleFunction
-from app.db.models.user_role import UserRole
+from app.db.models.user_role import User, UserRole
 from app.logger_utils import get_system_logger
 from app.utils.util_store import AuthContext, authenticate
 
@@ -147,13 +150,17 @@ def get_table_options(
     return TableOptionsOut(data=data)
 
 
+RECORDS_DISPLAY_LIMIT = 500
+
+
 @router.get("/tables/{id}/records", response_model=TableRecordsOut)
 def list_table_records(
     id: int,
+    keyword: str | None = Query(None),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ) -> TableRecordsOut:
-    """Return all records for a custom table along with field definitions."""
+    """Return records for a custom table. If total > 500 and no keyword, returns empty with exceeded=True."""
     _check_fn_permission(auth.user_id, db)
     _check_table_exists(id, db)
     _check_table_authorized(auth.user_id, id, db)
@@ -164,13 +171,6 @@ def list_table_records(
         .order_by(CustomTableField.sort_order.asc())
         .all()
     )
-    records = (
-        db.query(CustomTableRecord)
-        .filter(CustomTableRecord.table_id == id)
-        .order_by(CustomTableRecord.updated_at.desc())
-        .all()
-    )
-
     field_items = [
         TableFieldItem(
             id=f.id,
@@ -180,11 +180,43 @@ def list_table_records(
         )
         for f in fields
     ]
+
+    total = db.query(CustomTableRecord).filter(CustomTableRecord.table_id == id).count()
+
+    if not keyword and total > RECORDS_DISPLAY_LIMIT:
+        return TableRecordsOut(
+            data=TableRecordsData(
+                fields=field_items, records=[], total=total, exceeded=True
+            )
+        )
+
+    base_q = (
+        db.query(CustomTableRecord, User)
+        .outerjoin(User, CustomTableRecord.updated_by == User.id)
+        .filter(CustomTableRecord.table_id == id)
+    )
+    if keyword:
+        base_q = base_q.filter(
+            or_(
+                cast(CustomTableRecord.data, SAString).ilike(f"%{keyword}%"),
+                User.name.ilike(f"%{keyword}%"),
+            )
+        )
+    rows = base_q.order_by(CustomTableRecord.updated_at.desc()).all()
+
     record_items = [
-        TableRecordItem(id=r.id, data=r.data, updated_at=r.updated_at) for r in records
+        TableRecordItem(
+            id=r.id,
+            data=r.data,
+            updated_at=r.updated_at,
+            updated_by_name=u.name if u else None,
+        )
+        for r, u in rows
     ]
     return TableRecordsOut(
-        data=TableRecordsData(fields=field_items, records=record_items)
+        data=TableRecordsData(
+            fields=field_items, records=record_items, total=total, exceeded=False
+        )
     )
 
 
@@ -224,6 +256,46 @@ def add_table_record(
     db.commit()
     system_logger.info(f"User {auth.user_id} added record to custom table {id}")
     return RecordAddOut()
+
+
+@router.patch("/tables/{id}/records/{record_id}", response_model=RecordUpdateOut)
+def update_table_record(
+    id: int,
+    record_id: int,
+    payload: RecordUpdateRequest,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(authenticate),
+) -> RecordUpdateOut:
+    """Update an existing record in a custom table."""
+    _check_fn_permission(auth.user_id, db)
+    _check_table_exists(id, db)
+    _check_table_authorized(auth.user_id, id, db)
+
+    record = (
+        db.query(CustomTableRecord)
+        .filter(CustomTableRecord.id == record_id, CustomTableRecord.table_id == id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="記錄不存在")
+
+    fields = db.query(CustomTableField).filter(CustomTableField.table_id == id).all()
+    field_type_map = {f.field_name: f.field_type for f in fields}
+    for field_name, value in payload.data.items():
+        if field_type_map.get(field_name) == "number":
+            if not _is_numeric(value):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"欄位「{field_name}」須為數值",
+                )
+
+    record.data = payload.data
+    record.updated_by = auth.user_id
+    db.commit()
+    system_logger.info(
+        f"User {auth.user_id} updated record {record_id} in custom table {id}"
+    )
+    return RecordUpdateOut()
 
 
 @router.delete("/tables/{id}/records/{record_id}", response_model=RecordDelOut)
@@ -346,10 +418,11 @@ def import_table_records(
 @router.get("/tables/{id}/format")
 def download_table_format(
     id: int,
+    include_data: bool = Query(False),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(authenticate),
 ):
-    """Download a blank .xlsx template with header row based on field definitions."""
+    """Download a blank .xlsx template (or with existing data, up to 1000 rows)."""
     _check_fn_permission(auth.user_id, db)
     _check_table_exists(id, db)
     _check_table_authorized(auth.user_id, id, db)
@@ -360,10 +433,22 @@ def download_table_format(
         .order_by(CustomTableField.sort_order.asc())
         .all()
     )
+    field_names = [f.field_name for f in fields]
 
     wb = Workbook()
     ws = wb.active
-    ws.append([f.field_name for f in fields])
+    ws.append(field_names)
+
+    if include_data:
+        records = (
+            db.query(CustomTableRecord)
+            .filter(CustomTableRecord.table_id == id)
+            .order_by(CustomTableRecord.updated_at.desc())
+            .limit(1000)
+            .all()
+        )
+        for r in records:
+            ws.append([r.data.get(name) for name in field_names])
 
     output = io.BytesIO()
     wb.save(output)

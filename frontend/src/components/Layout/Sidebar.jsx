@@ -74,7 +74,7 @@ export default function Sidebar({ isMobileOpen, onClose }) {
       </Box>
 
       {/* Nav */}
-      <List sx={{ flex: 1, py: 1.5 }} disablePadding>
+      <List className="sidebar-nav" sx={{ flex: 1, py: 1.5 }} disablePadding>
         {navFolders.map((folder) => {
           const visibleItems = allowedFunctions
             ? folder.items.filter((item) => allowedFunctions.has(item.function_code))
@@ -85,7 +85,7 @@ export default function Sidebar({ isMobileOpen, onClose }) {
             <Box key={folder.folder_code}>
               <ListItemButton
                 onClick={() => handleToggleFolder(folder.folder_code)}
-                sx={{ px: 3, py: '2px', minHeight: 0, '&:hover': { bgcolor: '#1e293b' } }}
+                sx={{ px: 3, py: '12px', '&:hover': { bgcolor: '#1e293b' } }}
               >
                 <ListItemIcon sx={iconSx}>{ICON_MAP[folder.folder_code]}</ListItemIcon>
                 <ListItemText primary={folder.folder_label} sx={textSx} />
@@ -108,8 +108,7 @@ export default function Sidebar({ isMobileOpen, onClose }) {
                         <ListItemButton
                           sx={{
                             pl: 7,
-                            py: '2px',
-                            minHeight: 0,
+                            py: '12px',
                             ...(isActive ? activeSx : { '&:hover': { bgcolor: '#1e293b' } }),
                           }}
                         >
