@@ -24,12 +24,40 @@ import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlin
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import MicNoneIcon from '@mui/icons-material/MicNone'
 import {
   useAiPartnerHistoryQuery,
   useNewAiPartnerChat,
   useSendAiPartnerMessage,
 } from '@/queries/useAiPartnerChatQuery'
 import type { AiPartner, ChatMessage, ChartData } from '@/queries/useAiPartnerChatQuery'
+
+// ===== Web Speech API 型別宣告（瀏覽器原生，TypeScript 未內建）=====
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  lang: string
+  interimResults: boolean
+  continuous: boolean
+  start(): void
+  stop(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognitionInstance
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+  }
+}
 
 interface Props {
   partner: AiPartner
@@ -686,6 +714,11 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   // 工具呼叫提示（streaming 期間顯示）
   const [toolCallingName, setToolCallingName] = useState<string | null>(null)
 
+  // 語音輸入狀態
+  const [isVoiceSupported, setIsVoiceSupported] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -704,6 +737,35 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
     setTimeout(() => {
       textInputRef.current?.focus()
     }, 50)
+  }, [])
+
+  // 語音輸入初始化（僅瀏覽器支援時顯示麥克風按鈕）
+  useEffect(() => {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognitionCtor) return
+    setIsVoiceSupported(true)
+    const rec = new SpeechRecognitionCtor()
+    rec.lang = 'zh-TW'
+    rec.interimResults = false
+    rec.continuous = false
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0][0].transcript
+      setInputText((prev) => (prev ? prev + ' ' + transcript : transcript))
+    }
+    rec.onend = () => {
+      setIsRecording(false)
+    }
+    rec.onerror = () => {
+      setIsRecording(false)
+    }
+    recognitionRef.current = rec
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null
+        recognitionRef.current.onend = null
+        recognitionRef.current.onerror = null
+      }
+    }
   }, [])
 
   // 1. 進入對話畫面時 focus 輸入框
@@ -914,6 +976,16 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
   function handleBack() {
     handleRemoveImage()
     onBack()
+  }
+
+  function handleToggleVoice() {
+    if (!recognitionRef.current) return
+    if (isRecording) {
+      recognitionRef.current.stop()
+    } else {
+      setIsRecording(true)
+      recognitionRef.current.start()
+    }
   }
 
   function handleConfirmNewChat() {
@@ -1217,7 +1289,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           ))}
         </Popover>
 
-        {/* 第一列：桌機含圖片按鈕；手機圖片按鈕移到第二列 */}
+        {/* 第一列：桌機含圖片按鈕；手機含圖片按鈕 + 麥克風按鈕 + 輸入框 */}
         <Box
           sx={{
             display: 'flex',
@@ -1226,14 +1298,38 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             flex: isMobileInput ? undefined : 1,
           }}
         >
-          {!isMobileInput && (
-            <IconButton
-              size="small"
-              onClick={() => fileInputRef.current?.click()}
-              sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
-            >
-              <ImageIcon fontSize="small" />
-            </IconButton>
+          {/* 圖片按鈕：桌機與手機第一列均顯示 */}
+          <IconButton
+            size="small"
+            onClick={() => fileInputRef.current?.click()}
+            sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+          >
+            <ImageIcon fontSize="small" />
+          </IconButton>
+
+          {/* 麥克風按鈕：僅手機模式 + 瀏覽器支援時顯示 */}
+          {isMobileInput && isVoiceSupported && (
+            <Tooltip title={isRecording ? '停止錄音' : '語音輸入'} placement="top">
+              <IconButton
+                size="small"
+                onClick={handleToggleVoice}
+                sx={{
+                  color: isRecording ? '#ef4444' : '#94a3b8',
+                  bgcolor: isRecording ? '#fef2f2' : 'transparent',
+                  animation: isRecording ? 'micPulse 1s infinite' : 'none',
+                  '@keyframes micPulse': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.5 },
+                  },
+                  '&:hover': {
+                    color: isRecording ? '#dc2626' : '#6366f1',
+                    bgcolor: isRecording ? '#fef2f2' : '#f0f0ff',
+                  },
+                }}
+              >
+                <MicNoneIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
 
           <Box
@@ -1293,7 +1389,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           </Box>
         </Box>
 
-        {/* 第二列（手機）／同列（桌機）：圖片（手機）＋ help（桌機）＋ 燈泡 ＋ 送出 */}
+        {/* 第二列（手機：燈泡 + 送出靠右）／同列（桌機：help + 燈泡 + 送出） */}
         <Box
           sx={{
             display: 'flex',
@@ -1302,17 +1398,6 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             justifyContent: isMobileInput ? 'flex-end' : 'flex-start',
           }}
         >
-          {/* 圖片按鈕：手機模式顯示在此列 */}
-          {isMobileInput && (
-            <IconButton
-              size="small"
-              onClick={() => fileInputRef.current?.click()}
-              sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
-            >
-              <ImageIcon fontSize="small" />
-            </IconButton>
-          )}
-
           {/* help 按鈕：手機模式隱藏，桌機模式顯示 */}
           <IconButton
             ref={helpButtonRef}
