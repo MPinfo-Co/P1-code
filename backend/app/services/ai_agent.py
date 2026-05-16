@@ -4,7 +4,7 @@
 - 呼叫 llm_client.chat()
 - 判斷 tool_call，執行外部工具 API（external_api / image_extract / web_scraper / write_custom_table / read_custom_table）
 - 帶回 tool_result 繼續對話
-- 迴圈上限 5 次，超過則 raise AgentMaxIterationError
+- 迴圈上限 8 次，超過則 raise AgentMaxIterationError
 - URL 樣板替換（{xxx} → tool input 參數值）
 - 工具名稱正規化（中文及非法字元 → Anthropic 合法格式）
 """
@@ -18,11 +18,14 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
+from app.logger_utils import get_system_logger
 from app.services.llm_client import LLMClientError, chat  # noqa: F401 (re-export for convenience)
+
+_logger = get_system_logger()
 
 
 class AgentMaxIterationError(Exception):
-    """agentic loop 達到迴圈上限（5 次），上層捕捉後回傳 503。"""
+    """agentic loop 達到迴圈上限（8 次），上層捕捉後回傳 503。"""
 
 
 def _normalize_property_keys(
@@ -165,10 +168,10 @@ def run(
         }
 
     Raises:
-        AgentMaxIterationError: tool_call 迴圈達到上限（5 次）。
+        AgentMaxIterationError: tool_call 迴圈達到上限（8 次）。
         LLMClientError: LLM 呼叫失敗，直接向上傳遞。
     """
-    MAX_ITERATIONS = 5
+    MAX_ITERATIONS = 8
     iteration = 0
     current_messages = list(messages)
 
@@ -197,6 +200,8 @@ def run(
 
         # 有 tool_call → 還原正規化名稱為原始名稱，再執行外部工具
         iteration += 1
+        tool_names = [tc["name"] for tc in tool_calls]
+        _logger.info(f"[agent] iter={iteration} tools={tool_names}")
         if iteration >= MAX_ITERATIONS:
             raise AgentMaxIterationError(
                 f"agentic loop 達到迴圈上限（{MAX_ITERATIONS} 次）"
@@ -231,8 +236,14 @@ def run(
         # 執行每個 tool_call（使用還原後的原始名稱查找 tool_configs）
         tool_results = []
         for tc in restored_tool_calls:
+            _logger.info(
+                f"[agent] calling {tc['name']} input={json.dumps(tc.get('input', {}), ensure_ascii=False)[:200]}"
+            )
             tool_result_content = _execute_tool(
                 tc, tool_configs or [], prop_key_mapping, db=db
+            )
+            _logger.info(
+                f"[agent] result {tc['name']} -> {str(tool_result_content)[:200]}"
             )
             tool_results.append(
                 {
@@ -292,7 +303,7 @@ def _execute_tool(
         return _execute_write_custom_table(config, remapped_input, db)
 
     if tool_type == "read_custom_table":
-        return _execute_read_custom_table(config, db)
+        return _execute_read_custom_table(config, tool_input, db)
 
     # external_api：執行外部 HTTP 呼叫
     # URL 樣板替換
@@ -375,19 +386,103 @@ def _execute_write_custom_table(
         return f"[工具執行失敗] 寫入資料時發生錯誤：{exc}"
 
 
+def _safe_field_name(field: str) -> bool:
+    """驗證欄位名稱是否合法（防止 SQL injection）。"""
+    return bool(re.match(r"^[a-zA-Z0-9_一-鿿]+$", field))
+
+
+def _build_filter_condition(
+    cond: dict,
+    record_cls,
+    param_store: list,
+):
+    """將單一過濾條件轉換為 SQLAlchemy filter 運算式。
+
+    Args:
+        cond: 簡單條件 dict（含 field, op, value）
+        record_cls: CustomTableRecord ORM 類別
+        param_store: 用於收集 bindparam 的清單（未使用，保留介面一致性）
+
+    Returns:
+        SQLAlchemy column expression，或 None（不合法時）
+    """
+    from sqlalchemy import cast, Float, func
+
+    field = cond.get("field", "")
+    op = cond.get("op", "")
+    value = cond.get("value")
+
+    if not field or not op or not _safe_field_name(field):
+        return None
+
+    # SQLAlchemy JSON/JSONB 存取：data[field].as_string()
+    json_col = record_cls.data[field].as_string()
+    numeric_col = cast(record_cls.data[field].as_string(), Float)
+
+    op_map = {
+        "eq": lambda: json_col == str(value),
+        "neq": lambda: json_col != str(value),
+        "gt": lambda: numeric_col > float(value),
+        "gte": lambda: numeric_col >= float(value),
+        "lt": lambda: numeric_col < float(value),
+        "lte": lambda: numeric_col <= float(value),
+        "contains": lambda: func.lower(json_col).contains(str(value).lower()),
+    }
+
+    if op not in op_map:
+        return None
+
+    try:
+        return op_map[op]()
+    except (TypeError, ValueError):  # fmt: skip
+        return None
+
+
+def _build_filter_expression(item: dict, record_cls):
+    """遞迴處理過濾條件（簡單條件或 AND/OR 邏輯群組）。
+
+    Args:
+        item: 過濾條件項目
+        record_cls: CustomTableRecord ORM 類別
+
+    Returns:
+        SQLAlchemy 條件運算式，或 None
+    """
+    from sqlalchemy import and_, or_
+
+    if "logic" in item:
+        logic = (item.get("logic") or "AND").upper()
+        sub_conditions = item.get("conditions") or []
+        sub_exprs = [_build_filter_expression(c, record_cls) for c in sub_conditions]
+        sub_exprs = [e for e in sub_exprs if e is not None]
+        if not sub_exprs:
+            return None
+        if logic == "OR":
+            return or_(*sub_exprs)
+        else:
+            return and_(*sub_exprs)
+    else:
+        return _build_filter_condition(item, record_cls, [])
+
+
 def _execute_read_custom_table(
     config: dict,
+    tool_input: dict,
     db: Session | None,
 ) -> str:
-    """執行 read_custom_table 類型工具呼叫。
+    """執行 read_custom_table 類型工具呼叫（支援結構化查詢）。
 
     流程：
-    1. 從 config 取 target_table_id、limit、scope、user_id
-    2. 依 scope 過濾 tb_custom_table_records（self=只取當前使用者，all=全部）
-    3. 排序 updated_at DESC，取前 limit 筆，回傳 JSON 陣列
+    1. 從 config 取 target_table_id、limit、scope、user_id（不接受 AI 傳入）
+    2. 依 scope 過濾（優先，不可繞過）
+    3. 依 tool_input 中的 filters 組裝 WHERE 條件
+    4. 依 tool_input 中的 aggregate 執行聚合查詢（回傳聚合結果，不回傳原始記錄陣列）
+    5. 依 tool_input 中的 sort 組裝 ORDER BY，取前 limit 筆
     """
     if db is None:
         return "[工具錯誤] read_custom_table 需要資料庫連線"
+
+    from sqlalchemy import cast, Float, func
 
     from app.db.models.fn_custom_table import CustomTableRecord
 
@@ -399,6 +494,7 @@ def _execute_read_custom_table(
     if not target_table_id:
         return "[工具錯誤] read_custom_table 設定不完整（缺少 target_table_id）"
 
+    # ── 1. 基礎查詢（scope 過濾，優先且不可繞過）────────────────────────────
     query = db.query(CustomTableRecord).filter(
         CustomTableRecord.table_id == target_table_id
     )
@@ -408,8 +504,90 @@ def _execute_read_custom_table(
             return "[工具錯誤] read_custom_table scope=self 需要 user_id"
         query = query.filter(CustomTableRecord.updated_by == user_id)
 
-    records = query.order_by(CustomTableRecord.updated_at.desc()).limit(limit).all()
+    # ── 2. 套用 filters 過濾條件 ─────────────────────────────────────────────
+    filters = tool_input.get("filters") or []
+    if filters and isinstance(filters, list):
+        for item in filters:
+            expr = _build_filter_expression(item, CustomTableRecord)
+            if expr is not None:
+                query = query.filter(expr)
 
+    # ── 3. 聚合查詢 ──────────────────────────────────────────────────────────
+    aggregate = tool_input.get("aggregate")
+    if aggregate and isinstance(aggregate, dict):
+        func_name = (aggregate.get("func") or "").lower()
+        agg_field = aggregate.get("field") or ""
+        group_by_field = aggregate.get("group_by") or ""
+
+        valid_funcs = {"count", "sum", "avg", "min", "max"}
+        if func_name not in valid_funcs:
+            return json.dumps(
+                {
+                    "error": f"aggregate func 不合法，支援：{', '.join(sorted(valid_funcs))}"
+                },
+                ensure_ascii=False,
+            )
+
+        # count 以外，field 必填
+        if func_name != "count" and not agg_field:
+            return f"aggregate {func_name} 需指定 field 欄位"
+
+        # 安全性驗證
+        if agg_field and not _safe_field_name(agg_field):
+            return "[工具錯誤] aggregate field 欄位名稱包含不合法字元"
+        if group_by_field and not _safe_field_name(group_by_field):
+            return "[工具錯誤] group_by 欄位名稱包含不合法字元"
+
+        # 組裝聚合函式
+        if func_name == "count":
+            agg_expr = func.count()
+        else:
+            numeric_col = cast(CustomTableRecord.data[agg_field].as_string(), Float)
+            agg_func_map = {
+                "sum": func.sum,
+                "avg": func.avg,
+                "min": func.min,
+                "max": func.max,
+            }
+            agg_expr = agg_func_map[func_name](numeric_col)
+
+        if group_by_field:
+            group_col = CustomTableRecord.data[group_by_field].as_string()
+            rows = query.with_entities(group_col, agg_expr).group_by(group_col).all()
+            result = [{group_by_field: row[0], func_name: row[1]} for row in rows]
+            return json.dumps(result, ensure_ascii=False, default=str)
+
+        else:
+            row = query.with_entities(agg_expr).one()
+            agg_value = row[0]
+            try:
+                agg_value = float(agg_value) if agg_value is not None else None
+            except (TypeError, ValueError):  # fmt: skip
+                pass
+            if func_name == "count" and agg_value is not None:
+                agg_value = int(agg_value)
+            return json.dumps({func_name: agg_value}, ensure_ascii=False, default=str)
+
+    # ── 4. 一般查詢（ORDER BY + LIMIT）──────────────────────────────────────
+    sort = tool_input.get("sort")
+    if sort and isinstance(sort, dict):
+        sort_field = sort.get("field") or ""
+        sort_direction = (sort.get("direction") or "asc").lower()
+        if sort_direction not in ("asc", "desc"):
+            sort_direction = "asc"
+
+        if sort_field and _safe_field_name(sort_field):
+            sort_col = CustomTableRecord.data[sort_field].as_string()
+            if sort_direction == "desc":
+                query = query.order_by(sort_col.desc())
+            else:
+                query = query.order_by(sort_col.asc())
+        else:
+            query = query.order_by(CustomTableRecord.updated_at.desc())
+    else:
+        query = query.order_by(CustomTableRecord.updated_at.desc())
+
+    records = query.limit(limit).all()
     result = [r.data for r in records]
     return json.dumps(result, ensure_ascii=False, default=str)
 
