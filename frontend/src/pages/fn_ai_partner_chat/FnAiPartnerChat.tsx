@@ -1289,7 +1289,7 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
           ))}
         </Popover>
 
-        {/* 第一列：桌機含圖片按鈕；手機含圖片按鈕 + 麥克風按鈕 + 輸入框 */}
+        {/* 第一列：麥克風按鈕（手機）+ 輸入框 */}
         <Box
           sx={{
             display: 'flex',
@@ -1298,40 +1298,6 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             flex: isMobileInput ? undefined : 1,
           }}
         >
-          {/* 圖片按鈕：桌機與手機第一列均顯示 */}
-          <IconButton
-            size="small"
-            onClick={() => fileInputRef.current?.click()}
-            sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
-          >
-            <ImageIcon fontSize="small" />
-          </IconButton>
-
-          {/* 麥克風按鈕：僅手機模式 + 瀏覽器支援時顯示 */}
-          {isMobileInput && isVoiceSupported && (
-            <Tooltip title={isRecording ? '停止錄音' : '語音輸入'} placement="top">
-              <IconButton
-                size="small"
-                onClick={handleToggleVoice}
-                sx={{
-                  color: isRecording ? '#ef4444' : '#94a3b8',
-                  bgcolor: isRecording ? '#fef2f2' : 'transparent',
-                  animation: isRecording ? 'micPulse 1s infinite' : 'none',
-                  '@keyframes micPulse': {
-                    '0%, 100%': { opacity: 1 },
-                    '50%': { opacity: 0.5 },
-                  },
-                  '&:hover': {
-                    color: isRecording ? '#dc2626' : '#6366f1',
-                    bgcolor: isRecording ? '#fef2f2' : '#f0f0ff',
-                  },
-                }}
-              >
-                <MicNoneIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-
           <Box
             sx={{
               flex: 1,
@@ -1398,6 +1364,31 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             justifyContent: isMobileInput ? 'flex-end' : 'flex-start',
           }}
         >
+          {/* 麥克風按鈕：僅手機模式 + 瀏覽器支援時顯示，第二列最左方 */}
+          {isMobileInput && isVoiceSupported && (
+            <Tooltip title={isRecording ? '停止錄音' : '語音輸入'} placement="top">
+              <IconButton
+                size="small"
+                onClick={handleToggleVoice}
+                sx={{
+                  color: isRecording ? '#ef4444' : '#94a3b8',
+                  bgcolor: isRecording ? '#fef2f2' : 'transparent',
+                  animation: isRecording ? 'micPulse 1s infinite' : 'none',
+                  '@keyframes micPulse': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.5 },
+                  },
+                  '&:hover': {
+                    color: isRecording ? '#dc2626' : '#6366f1',
+                    bgcolor: isRecording ? '#fef2f2' : '#f0f0ff',
+                  },
+                }}
+              >
+                <MicNoneIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           {/* help 按鈕：手機模式隱藏，桌機模式顯示 */}
           <IconButton
             ref={helpButtonRef}
@@ -1410,6 +1401,15 @@ export default function FnAiPartnerChat({ partner, onBack }: Props) {
             }}
           >
             <HelpOutlineIcon fontSize="small" />
+          </IconButton>
+
+          {/* 圖片按鈕：燈泡左方 */}
+          <IconButton
+            size="small"
+            onClick={() => fileInputRef.current?.click()}
+            sx={{ color: '#94a3b8', '&:hover': { color: '#6366f1', bgcolor: '#f0f0ff' } }}
+          >
+            <ImageIcon fontSize="small" />
           </IconButton>
 
           {suggestions.length > 0 && !isSending && (
