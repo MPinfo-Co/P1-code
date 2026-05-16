@@ -20,6 +20,7 @@ import FnFeedbackSubmit from './pages/fn_feedback/FnFeedbackSubmit'
 import FnFeedbackList from './pages/fn_feedback/FnFeedbackList'
 import FnCustomTableList from './pages/fn_custom_table/FnCustomTableList'
 import FnCustomTableRecords from './pages/fn_custom_table/FnCustomTableRecords'
+import FnCustomTableDataInputPage from './pages/fn_custom_table_data_input/FnCustomTableDataInputPage'
 import NotFound from './pages/NotFound'
 import PermissionGuard from './components/Layout/PermissionGuard'
 
@@ -152,6 +153,14 @@ function AppRoutes() {
           element={
             <PermissionGuard fnKey="fn_custom_table">
               <FnCustomTableRecords />
+            </PermissionGuard>
+          }
+        />
+        <Route
+          path="custom_table_data_input"
+          element={
+            <PermissionGuard fnKey="fn_custom_table_data_input">
+              <FnCustomTableDataInputPage />
             </PermissionGuard>
           }
         />

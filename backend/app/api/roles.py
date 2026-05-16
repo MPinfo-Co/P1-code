@@ -19,6 +19,7 @@ from app.api.schema.roles import (
 from app.api.schema.pagination import PaginatedRoleResponse
 from app.db.connector import get_db
 from app.db.models.fn_ai_partner_chat import RoleAiPartner
+from app.db.models.fn_custom_table import CustomTable, RoleCustomTable
 from app.db.models.function_access import FunctionItems, RoleFunction
 from app.db.models.user_role import Role, User, UserRole
 from app.logger_utils import get_system_logger
@@ -105,6 +106,12 @@ def list_roles(
         )
         partner_ids = [r.partner_id for r in partner_rows]
 
+        # Get custom table ids
+        ct_rows = (
+            db.query(RoleCustomTable).filter(RoleCustomTable.role_id == role.id).all()
+        )
+        custom_table_ids = [r.table_id for r in ct_rows]
+
         items.append(
             RoleItem(
                 id=role.id,
@@ -112,6 +119,7 @@ def list_roles(
                 users=users,
                 functions=functions,
                 partner_ids=partner_ids,
+                custom_table_ids=custom_table_ids,
             )
         )
     return PaginatedRoleResponse(
@@ -148,6 +156,14 @@ def add_role(
             detail="此角色名稱已存在",
         )
 
+    # Validate custom_table_ids existence
+    for tid in payload.custom_table_ids or []:
+        if db.query(CustomTable).filter(CustomTable.id == tid).first() is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="指定的資料表不存在",
+            )
+
     role = Role(name=payload.name)
     db.add(role)
     db.flush()
@@ -160,6 +176,9 @@ def add_role(
 
     for pid in payload.partner_ids or []:
         db.add(RoleAiPartner(role_id=role.id, partner_id=pid))
+
+    for tid in payload.custom_table_ids or []:
+        db.add(RoleCustomTable(role_id=role.id, table_id=tid))
 
     db.commit()
     system_logger.info(f"User {auth.user_id} created role {role.id} ({role.name})")
@@ -214,6 +233,18 @@ def update_role(
         db.query(RoleAiPartner).filter(RoleAiPartner.role_id == role.id).delete()
         for pid in changes["partner_ids"]:
             db.add(RoleAiPartner(role_id=role.id, partner_id=pid))
+
+    if "custom_table_ids" in changes and changes["custom_table_ids"] is not None:
+        # Validate existence
+        for tid in changes["custom_table_ids"]:
+            if db.query(CustomTable).filter(CustomTable.id == tid).first() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="指定的資料表不存在",
+                )
+        db.query(RoleCustomTable).filter(RoleCustomTable.role_id == role.id).delete()
+        for tid in changes["custom_table_ids"]:
+            db.add(RoleCustomTable(role_id=role.id, table_id=tid))
 
     db.commit()
     system_logger.info(f"User {auth.user_id} updated role {role.id} ({role.name})")

@@ -9,6 +9,15 @@ export interface PartnerItem {
   name: string
   description: string | null
   is_favorite: boolean
+  sort_order: number
+}
+
+export interface TableItem {
+  id: number
+  name: string
+  description: string | null
+  is_favorite: boolean
+  sort_order: number
 }
 
 function getToken() {
@@ -30,10 +39,31 @@ export function useHomePartnersQuery() {
   })
 }
 
+export function useHomeTablesQuery() {
+  return useQuery<TableItem[]>({
+    queryKey: ['home-tables'],
+    queryFn: async () => {
+      const token = getToken()
+      const res = await fetch(`${BASE_URL}/home/tables`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('查詢資料表清單失敗')
+      const json = await res.json()
+      return json.data ?? json
+    },
+  })
+}
+
 export function useFavoriteToggle() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (partnerId: number) => {
+    mutationFn: async ({
+      item_type,
+      item_id,
+    }: {
+      item_type: 'partner' | 'table'
+      item_id: number
+    }) => {
       const token = getToken()
       const res = await fetch(`${BASE_URL}/home/favorite/toggle`, {
         method: 'POST',
@@ -41,7 +71,7 @@ export function useFavoriteToggle() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ partner_id: partnerId }),
+        body: JSON.stringify({ item_type, item_id }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -52,6 +82,7 @@ export function useFavoriteToggle() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['home-partners'] })
+      queryClient.invalidateQueries({ queryKey: ['home-tables'] })
     },
   })
 }
