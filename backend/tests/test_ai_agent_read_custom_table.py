@@ -18,7 +18,11 @@ from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 from sqlalchemy import BigInteger, Integer, JSON
 from sqlalchemy.dialects.postgresql import JSONB as _JSONB
 
-from app.db.models.fn_custom_table import CustomTable, CustomTableField, CustomTableRecord
+from app.db.models.fn_custom_table import (
+    CustomTable,
+    CustomTableField,
+    CustomTableRecord,
+)
 from app.db.models.user_role import User
 from app.utils.util_store import hash_password
 from app.services.ai_agent import _execute_read_custom_table
@@ -27,6 +31,7 @@ from app.services.ai_agent import _execute_read_custom_table
 # ---------------------------------------------------------------------------
 # SQLite 相容性 patch（JSONB → JSON, BigInteger → Integer）
 # ---------------------------------------------------------------------------
+
 
 def _visit_JSONB(self, type_, **kw):  # noqa: N802
     return self.visit_JSON(type_, **kw)
@@ -95,6 +100,7 @@ def db_session():
 # Seed helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_user(db, email: str = "user@test.com") -> int:
     u = User(name="Test User", email=email, password_hash=hash_password("pw"))
     db.add(u)
@@ -131,6 +137,7 @@ def _config(table_id: int, user_id: int, scope: str = "all", limit: int = 20) ->
 # T1：無參數退化為原行為
 # ---------------------------------------------------------------------------
 
+
 def test_no_params_returns_default_behavior(db_session):
     """對應 T1"""
     user_id = _make_user(db_session, "t1@test.com")
@@ -150,6 +157,7 @@ def test_no_params_returns_default_behavior(db_session):
 # ---------------------------------------------------------------------------
 # T2：eq 過濾
 # ---------------------------------------------------------------------------
+
 
 def test_eq_filter_returns_matching_records(db_session):
     """對應 T2"""
@@ -174,6 +182,7 @@ def test_eq_filter_returns_matching_records(db_session):
 # ---------------------------------------------------------------------------
 # T3：gt 過濾
 # ---------------------------------------------------------------------------
+
 
 def test_gt_filter_returns_matching_records(db_session):
     """對應 T3"""
@@ -201,6 +210,7 @@ def test_gt_filter_returns_matching_records(db_session):
 # T4：contains 過濾
 # ---------------------------------------------------------------------------
 
+
 def test_contains_filter_returns_matching_records(db_session):
     """對應 T4"""
     user_id = _make_user(db_session, "t4@test.com")
@@ -224,6 +234,7 @@ def test_contains_filter_returns_matching_records(db_session):
 # ---------------------------------------------------------------------------
 # T5：AND 條件組合
 # ---------------------------------------------------------------------------
+
 
 def test_and_condition_returns_matching_records(db_session):
     """對應 T5"""
@@ -261,6 +272,7 @@ def test_and_condition_returns_matching_records(db_session):
 # T6：OR 條件組合
 # ---------------------------------------------------------------------------
 
+
 def test_or_condition_returns_matching_records(db_session):
     """對應 T6"""
     user_id = _make_user(db_session, "t6@test.com")
@@ -296,6 +308,7 @@ def test_or_condition_returns_matching_records(db_session):
 # T7：自訂排序
 # ---------------------------------------------------------------------------
 
+
 def test_custom_sort_returns_ordered_records(db_session):
     """對應 T7"""
     user_id = _make_user(db_session, "t7@test.com")
@@ -321,6 +334,7 @@ def test_custom_sort_returns_ordered_records(db_session):
 # T8：count 聚合
 # ---------------------------------------------------------------------------
 
+
 def test_count_aggregate_returns_count(db_session):
     """對應 T8"""
     user_id = _make_user(db_session, "t8@test.com")
@@ -342,6 +356,7 @@ def test_count_aggregate_returns_count(db_session):
 # ---------------------------------------------------------------------------
 # T9：sum 聚合
 # ---------------------------------------------------------------------------
+
 
 def test_sum_aggregate_returns_total(db_session):
     """對應 T9"""
@@ -366,6 +381,7 @@ def test_sum_aggregate_returns_total(db_session):
 # T10：avg 聚合
 # ---------------------------------------------------------------------------
 
+
 def test_avg_aggregate_returns_average(db_session):
     """對應 T10"""
     user_id = _make_user(db_session, "t10@test.com")
@@ -388,6 +404,7 @@ def test_avg_aggregate_returns_average(db_session):
 # ---------------------------------------------------------------------------
 # T11：group_by + sum 聚合
 # ---------------------------------------------------------------------------
+
 
 def test_group_by_sum_aggregate_returns_grouped_results(db_session):
     """對應 T11"""
@@ -417,6 +434,7 @@ def test_group_by_sum_aggregate_returns_grouped_results(db_session):
 # T12：scope='self' 過濾
 # ---------------------------------------------------------------------------
 
+
 def test_scope_self_filters_by_user(db_session):
     """對應 T12"""
     user1_id = _make_user(db_session, "t12user1@test.com")
@@ -441,6 +459,7 @@ def test_scope_self_filters_by_user(db_session):
 # T13：scope='all' 不過濾使用者
 # ---------------------------------------------------------------------------
 
+
 def test_scope_all_returns_all_users_records(db_session):
     """對應 T13"""
     user1_id = _make_user(db_session, "t13user1@test.com")
@@ -462,6 +481,7 @@ def test_scope_all_returns_all_users_records(db_session):
 # T14：不存在欄位 → 空陣列，不 raise exception
 # ---------------------------------------------------------------------------
 
+
 def test_nonexistent_field_filter_returns_empty_list(db_session):
     """對應 T14"""
     user_id = _make_user(db_session, "t14@test.com")
@@ -471,9 +491,7 @@ def test_nonexistent_field_filter_returns_empty_list(db_session):
     db_session.commit()
 
     config = _config(table_id, user_id, scope="all")
-    tool_input = {
-        "filters": [{"field": "nonexistent_field", "op": "eq", "value": "x"}]
-    }
+    tool_input = {"filters": [{"field": "nonexistent_field", "op": "eq", "value": "x"}]}
     result_str = _execute_read_custom_table(config, tool_input, db_session)
     result = json.loads(result_str)
 
@@ -485,6 +503,7 @@ def test_nonexistent_field_filter_returns_empty_list(db_session):
 # ---------------------------------------------------------------------------
 # T15：aggregate sum 未傳 field → 回傳錯誤訊息，agentic loop 繼續
 # ---------------------------------------------------------------------------
+
 
 def test_aggregate_sum_missing_field_returns_error_message(db_session):
     """對應 T15"""
@@ -515,6 +534,7 @@ def test_aggregate_sum_missing_field_returns_error_message(db_session):
 # T16：min 聚合
 # ---------------------------------------------------------------------------
 
+
 def test_min_aggregate_returns_minimum(db_session):
     """對應 T16"""
     user_id = _make_user(db_session, "t16@test.com")
@@ -537,6 +557,7 @@ def test_min_aggregate_returns_minimum(db_session):
 # ---------------------------------------------------------------------------
 # T17：max 聚合
 # ---------------------------------------------------------------------------
+
 
 def test_max_aggregate_returns_maximum(db_session):
     """對應 T17"""
