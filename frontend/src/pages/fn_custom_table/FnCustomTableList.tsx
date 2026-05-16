@@ -17,6 +17,7 @@ import Tooltip from '@mui/material/Tooltip'
 import { useCustomTableQuery, useDeleteCustomTable } from '@/queries/useCustomTableQuery'
 import type { CustomTableRow } from '@/queries/useCustomTableQuery'
 import FnCustomTableForm from './FnCustomTableForm'
+import FnCustomTableRelationsDialog from './FnCustomTableRelationsDialog'
 import './FnCustomTableList.css'
 
 interface AppliedFilter {
@@ -32,6 +33,8 @@ export default function FnCustomTableList() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<CustomTableRow | null>(null)
   const [formKey, setFormKey] = useState(0)
+
+  const [isRelationsDialogOpen, setIsRelationsDialogOpen] = useState(false)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingRow, setDeletingRow] = useState<CustomTableRow | null>(null)
@@ -183,6 +186,14 @@ export default function FnCustomTableList() {
         <Button
           variant="outlined"
           size="small"
+          onClick={() => setIsRelationsDialogOpen(true)}
+          className="fn-custom-table-rel-btn"
+        >
+          資料表關係維護
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
           onClick={handleAddClick}
           className="fn-custom-table-add-btn"
         >
@@ -219,6 +230,11 @@ export default function FnCustomTableList() {
           )}
         </Box>
       )}
+
+      <FnCustomTableRelationsDialog
+        open={isRelationsDialogOpen}
+        onClose={() => setIsRelationsDialogOpen(false)}
+      />
 
       <FnCustomTableForm
         key={formKey}
